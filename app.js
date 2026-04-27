@@ -76,9 +76,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   startRealtimeSync();
   bindEvents();
 
-  resetForm();   // keeps form clean
+  // 🔥 IMPORTANT FIX
+  draftBenefits = [createBlankBenefit()];
+  renderBenefitsEditor();
 
-  render();      // already handles benefits rendering correctly
+  resetForm();
+  render();
 });
 
 function cacheElements() {
