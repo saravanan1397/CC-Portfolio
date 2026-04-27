@@ -70,18 +70,12 @@ let toastTimer = null;
 const els = {};
 
 document.addEventListener("DOMContentLoaded", async () => {
-  cacheElements();
-
-  await loadState();
-  startRealtimeSync();
-  bindEvents();
-
-  // 🔥 IMPORTANT FIX
-  draftBenefits = [createBlankBenefit()];
-  renderBenefitsEditor();
-
-  resetForm();
-  render();
+  
+cacheElements();
+await loadState();
+bindEvents();
+resetForm();
+render();
 });
 
 function cacheElements() {
