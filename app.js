@@ -70,14 +70,15 @@ let toastTimer = null;
 const els = {};
 
 document.addEventListener("DOMContentLoaded", async () => {
-  
-cacheElements();
-await loadState();
-startRealtimeSync();
-bindEvents();
-resetForm();
-renderBenefitsEditor();
-render();
+  cacheElements();
+
+  await loadState();
+  startRealtimeSync();
+  bindEvents();
+
+  resetForm();   // keeps form clean
+
+  render();      // already handles benefits rendering correctly
 });
 
 function cacheElements() {
