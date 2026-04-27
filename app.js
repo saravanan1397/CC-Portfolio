@@ -69,12 +69,13 @@ let toastTimer = null;
 
 const els = {};
 
-document.addEventListener("DOMContentLoaded", () => {
-  cacheElements();
-  loadState();
-  bindEvents();
-  resetForm();
-  render();
+document.addEventListener("DOMContentLoaded", async () => {
+  
+cacheElements();
+await loadState();
+bindEvents();
+resetForm();
+render();
 });
 
 function cacheElements() {
@@ -160,19 +161,25 @@ function bindEvents() {
   els.cardsTable.addEventListener("click", handleCardAction);
 }
 
-function loadState() {
+async function loadState() {
   try {
-    const saved = JSON.parse(localStorage.getItem(storageKey));
-    if (saved && Array.isArray(saved.cards)) {
-      state.currency = saved.currency || "INR";
-      state.cards = saved.cards.map(normalizeCard);
+    const { doc, getDoc } = window.firebaseFns;
+
+    const snap = await getDoc(doc(window.db, "portfolio", "userData"));
+
+    if (snap.exists()) {
+      const data = snap.data();
+
+      state.currency = data.currency || "INR";
+      state.cards = (data.cards || []).map(normalizeCard);
+
+      console.log("✅ Data loaded from Firebase", state.cards);
+    } else {
+      console.log("⚠️ No data found in Firebase");
     }
-  } catch (error) {
-    console.warn("Could not load portfolio", error);
+  } catch (e) {
+    console.error("❌ Load failed", e);
   }
-  els.searchInput.value = state.search;
-  els.statusFilter.value = state.statusFilter;
-  els.sortSelect.value = state.sort;
 }
 
 async function saveState() {
