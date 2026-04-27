@@ -175,14 +175,17 @@ function loadState() {
   els.sortSelect.value = state.sort;
 }
 
-function saveState() {
-  localStorage.setItem(
-    storageKey,
-    JSON.stringify({
-      currency: state.currency,
-      cards: state.cards,
-    })
-  );
+async function saveState() {
+  console.log("🔥 saveState triggered");
+
+  const { doc, setDoc } = window.firebaseFns;
+
+  await setDoc(doc(window.db, "portfolio", "userData"), {
+    currency: state.currency,
+    cards: state.cards,
+  });
+
+  console.log("✅ Saved to Firebase");
 }
 
 function normalizeCard(card) {
