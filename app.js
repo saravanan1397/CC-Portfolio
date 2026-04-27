@@ -73,6 +73,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   
 cacheElements();
 await loadState();
+startRealtimeSync();
 bindEvents();
 resetForm();
 render();
@@ -676,6 +677,23 @@ function importPortfolio(event) {
     }
   };
   reader.readAsText(file);
+}
+
+function startRealtimeSync() {
+  const { doc } = window.firebaseFns;
+
+  onSnapshot(doc(window.db, "portfolio", "userData"), (snap) => {
+    if (snap.exists()) {
+      const data = snap.data();
+
+      state.currency = data.currency || "INR";
+      state.cards = (data.cards || []).map(normalizeCard);
+
+      console.log("🔄 Real-time update", state.cards);
+
+      render();
+    }
+  });
 }
 
 function getTotals(cards) {
