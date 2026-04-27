@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#080d14" />
+    <title>Credit Card Portfolio P/L</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="app.js"></script>
+  </head>
+
+
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <span></span>
+          </div>
+          <div>
+            <p class="eyebrow">Portfolio</p>
+            <h1>Credit Card P/L Portfolio</h1>
+            <br />
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="icon-button" id="exportBtn" title="Export portfolio" aria-label="Export portfolio">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" />
+            </svg>
+          </button>
+          <button class="icon-button" id="importBtn" title="Import portfolio" aria-label="Import portfolio">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 21V9m0 0 4 4m-4-4-4 4M5 3h14" />
+            </svg>
+          </button>
+          <input id="importFile" type="file" accept="application/json" hidden />
+        </div>
+      </header>
+
+      <main>
+        <section class="summary-grid" aria-label="Portfolio totals">
+          <article class="metric-card">
+            <div class="metric-label">Annual Fees</div>
+            <div class="metric-value" id="feeValue">0</div>
+            <div class="metric-hint" id="feeHint">Including taxes and add-ons</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label">Reward Points</div>
+            <div class="metric-value" id="pointsValue">0 pts</div>
+            <div class="metric-hint" id="pointsHint">Miles and travel points</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label">Cash Benefits</div>
+            <div class="metric-value" id="benefitValue">0</div>
+            <div class="metric-hint" id="benefitHint">Cashback, CP, vouchers</div>
+          </article>
+          <article class="metric-card net-card" id="netMetric">
+            <div class="metric-label">Net P/L</div>
+            <div class="metric-value" id="netValue">0</div>
+            <div class="metric-hint" id="netHint">No cards added</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label">Recovery</div>
+            <div class="metric-value" id="coverageValue">0%</div>
+            <div class="metric-hint" id="coverageHint">No deficits yet</div>
+          </article>
+        </section>
+
+        <section class="control-band">
+          <div class="control-group">
+            <button class="primary-button" id="newCardBtn">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              New card
+            </button>
+            <button class="ghost-button" id="sampleBtn">Load example</button>
+            <button class="ghost-button danger-ghost" id="resetBtn">Reset</button>
+          </div>
+
+          <div class="filter-group">
+            <label class="field search-field">
+              <span>Search</span>
+              <input id="searchInput" type="search" placeholder="Card or issuer" autocomplete="off" />
+            </label>
+            <label class="field compact-field">
+              <span>Status</span>
+              <select id="statusFilter">
+                <option value="all">All</option>
+                <option value="profit">Profit</option>
+                <option value="loss">Loss</option>
+                <option value="breakeven">Break-even</option>
+              </select>
+            </label>
+            <label class="field compact-field">
+              <span>Sort</span>
+              <select id="sortSelect">
+                <option value="netAsc">Biggest loss</option>
+                <option value="netDesc">Biggest profit</option>
+                <option value="feeDesc">Highest fee</option>
+                <option value="benefitDesc">Highest benefits</option>
+                <option value="nameAsc">Name</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="workspace-grid">
+          <aside class="editor-panel" aria-label="Card editor">
+            <form id="cardForm">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Card Entry</p>
+                  <h2 id="formTitle">Add card</h2>
+                </div>
+                <button class="icon-button subtle" type="button" id="clearFormBtn" title="Clear form" aria-label="Clear form">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <input id="editingId" type="hidden" />
+
+              <div class="form-grid">
+                <div class="field-row">
+                  <label class="field">
+                    <span>Card name</span>
+                    <input id="cardName" type="text" placeholder="HDFC Infinia" autocomplete="off" required />
+                  </label>
+                </div>
+                <div class="field-row">
+                  <label class="field">
+                    <span>Issuer</span>
+                    <input id="issuerName" type="text" placeholder="HDFC Bank" autocomplete="off" />
+                  </label>
+                </div>
+                <div class="field-row">
+                  <label class="field">
+                    <span>Annual fee</span>
+                    <input id="annualFee" type="number" min="0" step="1" inputmode="decimal" placeholder="12500" />
+                  </label>
+                  <label class="field" style="margin-top: 8px;">
+                    <span>Taxes / add-ons</span>
+                    <input id="taxFee" type="number" min="0" step="1" inputmode="decimal" placeholder="2250" />
+                  </label>
+                </div>
+                <div class="field-row">
+                  <label class="field">
+                    <span>Member since</span>
+                    <input id="memberSince" type="month" />
+                  </label>
+                  <label class="field" style="margin-top: 8px;">
+                    <span>Annual target</span>
+                    <input id="targetValue" type="number" min="0" step="1" inputmode="decimal" placeholder="Optional" />
+                  </label>
+                </div>
+              </div>
+
+              <div class="benefit-editor">
+                <div class="section-title-row">
+                  <h3>Benefits used</h3>
+                  <button class="icon-button subtle" type="button" id="addBenefitBtn" title="Add benefit" aria-label="Add benefit">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                  </button>
+                </div>
+                <div class="benefit-list" id="benefitRows"></div>
+              </div>
+
+              <label class="field">
+                <span>Notes</span>
+                <textarea id="notes" rows="3" placeholder="Fee waiver rule, renewal decision, unused perks"></textarea>
+              </label>
+
+              <button class="primary-button full-width" type="submit">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+                Save card
+              </button>
+            </form>
+          </aside>
+
+          <section class="portfolio-panel" aria-label="Portfolio cards">
+            <div class="panel-heading portfolio-heading">
+              <div>
+                <p class="eyebrow">Cards</p>
+                <h2 id="portfolioCount">0 cards</h2>
+              </div>
+              <div class="mini-stat">
+                <span>Loss gap</span>
+                <strong id="lossGap">0</strong>
+              </div>
+            </div>
+
+            <div class="recovery-panel">
+              <div class="recovery-copy">
+                <h3 id="recoveryTitle">Portfolio recovery</h3>
+                <p id="recoveryText">Add cards to see whether profitable cards cover high-fee cards.</p>
+              </div>
+              <div class="recovery-bar" aria-hidden="true">
+                <span id="recoveryBar"></span>
+              </div>
+            </div>
+
+            <div class="cards-table" id="cardsTable"></div>
+
+            <div class="category-panel">
+              <div class="section-title-row">
+                <h3>Benefit mix</h3>
+                <span id="categoryTotal">0</span>
+              </div>
+              <div id="categoryBars" class="category-bars"></div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+import { initializeApp } from "firebase/app";
+const firebaseConfig = {
+  apiKey: "AIzaSyAeWDg6WyZQshKc1Hks_AWOVJ7I4_gWe_U",
+  authDomain: "credit-card-portfolio-d04db.firebaseapp.com",
+  projectId: "credit-card-portfolio-d04db",
+  storageBucket: "credit-card-portfolio-d04db.firebasestorage.app",
+  messagingSenderId: "459587513450",
+  appId: "1:459587513450:web:b93829e8cb1d57f4516e13"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+  </body>
+</html>
