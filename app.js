@@ -76,6 +76,7 @@ await loadState();
 startRealtimeSync();
 bindEvents();
 resetForm();
+renderBenefitsEditor();
 render();
 });
 
