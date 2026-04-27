@@ -448,9 +448,11 @@ function getFilteredCards() {
     });
 }
 
-function saveCardFromForm(event) {
+async function saveCardFromForm(event) 
+{
   event.preventDefault();
   syncDraftBenefitsFromDom();
+
   const card = normalizeCard({
     id: els.editingId.value || createId(),
     name: els.cardName.value.trim(),
@@ -460,7 +462,9 @@ function saveCardFromForm(event) {
     memberSince: els.memberSince.value.trim(),
     targetValue: els.targetValue.value,
     notes: els.notes.value.trim(),
-    benefits: draftBenefits.filter((benefit) => benefit.label.trim() || toNumber(benefit.amount) > 0),
+    benefits: draftBenefits.filter(
+      (benefit) => benefit.label.trim() || toNumber(benefit.amount) > 0
+    ),
   });
 
   if (!card.name) {
@@ -470,6 +474,7 @@ function saveCardFromForm(event) {
   }
 
   const existingIndex = state.cards.findIndex((item) => item.id === card.id);
+
   if (existingIndex >= 0) {
     state.cards[existingIndex] = card;
     showToast("Card updated.");
@@ -478,11 +483,13 @@ function saveCardFromForm(event) {
     showToast("Card added.");
   }
 
-  saveState();
+  console.log("🔥 Saving to Firebase...", state.cards);
+
+  await saveState();   
+
   resetForm();
   render();
 }
-
 function handleCardAction(event) {
   const button = event.target.closest("[data-action]");
   if (!button) return;
