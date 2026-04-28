@@ -114,7 +114,6 @@ function cacheElements() {
     addBenefitBtn: document.getElementById("addBenefitBtn"),
     clearFormBtn: document.getElementById("clearFormBtn"),
     portfolioCount: document.getElementById("portfolioCount"),
-    lossGap: document.getElementById("lossGap"),
     recoveryTitle: document.getElementById("recoveryTitle"),
     recoveryText: document.getElementById("recoveryText"),
     recoveryBar: document.getElementById("recoveryBar"),
@@ -122,6 +121,10 @@ function cacheElements() {
     categoryTotal: document.getElementById("categoryTotal"),
     categoryBars: document.getElementById("categoryBars"),
     toast: document.getElementById("toast"),
+
+    // 🔥 ADD THESE TWO LINES
+    prevYearFee: document.getElementById("prevYearFee"),
+    prevFeeContainer: document.getElementById("prevFeeContainer"),
   });
 }
 
@@ -154,11 +157,11 @@ function bindEvents() {
   els.exportBtn.addEventListener("click", exportPortfolio);
   els.importBtn.addEventListener("click", () => els.importFile.click());
   els.importFile.addEventListener("change", importPortfolio);
-
   els.benefitRows.addEventListener("input", updateDraftBenefit);
   els.benefitRows.addEventListener("change", updateDraftBenefit);
   els.benefitRows.addEventListener("click", removeBenefitDraft);
   els.cardsTable.addEventListener("click", handleCardAction);
+  els.memberSince.addEventListener("change", togglePreviousFeeField);
 }
 
 async function loadState() {
@@ -203,6 +206,7 @@ function normalizeCard(card) {
     annualFee: toNumber(card.annualFee),
     taxFee: toNumber(card.taxFee),
     memberSince: card.memberSince || "",
+    prevYearFee: toNumber(card.prevYearFee || card.prevFee),
     targetValue: toNumber(card.targetValue),
     notes: card.notes || "",
     benefits: Array.isArray(card.benefits)
@@ -215,6 +219,29 @@ function normalizeCard(card) {
         }))
       : [],
   };
+}
+
+function togglePreviousFeeField() {
+  const value = els.memberSince.value;
+
+  console.log("Member since value:", value); // 🔍 debug
+
+  if (!value) {
+    els.prevFeeContainer.style.display = "none";
+    return;
+  }
+
+  const selectedYear = parseInt(value.split("-")[0], 10);
+  const currentYear = new Date().getFullYear();
+
+  console.log("Selected:", selectedYear, "Current:", currentYear); // 🔍 debug
+
+  if (selectedYear < currentYear) {
+    els.prevFeeContainer.style.display = "block";
+  } else {
+    els.prevFeeContainer.style.display = "none";
+    els.prevYearFee.value = "";
+  }
 }
 
 function render() {
@@ -253,7 +280,6 @@ function renderSummary() {
     : "No deficits yet";
 
   els.portfolioCount.textContent = `${cardCount} ${cardCount === 1 ? "card" : "cards"}`;
-  els.lossGap.textContent = formatMoney(totals.fees);
   els.recoveryBar.style.width = `${coverage}%`;
 
   if (!cardCount) {
@@ -274,16 +300,13 @@ function renderSummary() {
 function renderBenefitsEditor() {
   els.benefitRows.innerHTML = "";
 
-  if (!draftBenefits.length) {
-    draftBenefits.push(createBlankBenefit());
-  }
-
   draftBenefits.forEach((benefit, index) => {
     const row = document.createElement("div");
     row.className = "benefit-row";
     row.dataset.index = String(index);
+    row.setAttribute("data-index", index);
     row.innerHTML = `
-      <label class="field">
+      <label class="field benefit-type-field">
         <span>Type</span>
         <select data-benefit-field="type">
           ${benefitTypes.map((type) => `<option value="${escapeHtml(type)}"${benefit.type === type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("")}
@@ -343,10 +366,15 @@ function renderCards() {
   cards.forEach((card) => {
     const totals = getCardTotals(card);
     const status = getStatus(totals.net);
+    
+    const currentYearFee = toNumber(card.annualFee) + toNumber(card.taxFee);
+    const feeBreakdown = card.prevYearFee > 0 
+      ? `Current: ${formatMoney(currentYearFee)} | Prev: ${formatMoney(card.prevYearFee)}`
+      : `Total: ${formatMoney(currentYearFee)}`;
+
     const meta = [
       card.issuer,
-      card.memberSince && `Member since: ${card.memberSince}`,
-      card.targetValue > 0 && `Goal: ${formatMoney(card.targetValue)}`,
+      card.memberSince && `Member since: ${card.memberSince} (${feeBreakdown})`,
     ]
       .filter(Boolean)
       .join(" | ");
@@ -467,7 +495,8 @@ async function saveCardFromForm(event)
     annualFee: els.annualFee.value,
     taxFee: els.taxFee.value,
     memberSince: els.memberSince.value.trim(),
-    targetValue: els.targetValue.value,
+    prevYearFee: els.prevYearFee.value,
+    targetValue: els.targetValue?.value || "",
     notes: els.notes.value.trim(),
     benefits: draftBenefits.filter(
       (benefit) => benefit.label.trim() || toNumber(benefit.amount) > 0
@@ -543,18 +572,31 @@ function populateForm(card) {
   els.annualFee.value = card.annualFee || "";
   els.taxFee.value = card.taxFee || "";
   els.memberSince.value = card.memberSince || "";
-  els.targetValue.value = card.targetValue || "";
+  els.prevYearFee.value = card.prevYearFee || "";
+  if (els.targetValue) {
+    els.targetValue.value = card.targetValue || "";
+  }
   els.notes.value = card.notes;
-  draftBenefits = card.benefits.length ? card.benefits.map((benefit) => ({ ...benefit })) : [createBlankBenefit()];
+
+  // ✅ set benefits FIRST
+  draftBenefits = Array.isArray(card.benefits) && card.benefits.length > 0
+    ? card.benefits.map((b) => ({ ...b, id: b.id || createId() }))
+    : [];
+
+  // ✅ THEN render
   renderBenefitsEditor();
+
+  // ✅ THEN toggle fee field (no sync inside it)
+  togglePreviousFeeField();
 }
 
 function resetForm() {
   els.formTitle.textContent = "Add card";
   els.editingId.value = "";
   els.cardForm.reset();
-  draftBenefits = [createBlankBenefit()];
+  draftBenefits = [];
   renderBenefitsEditor();
+  togglePreviousFeeField();
 }
 
 function addBenefitDraft() {
@@ -564,15 +606,15 @@ function addBenefitDraft() {
 }
 
 function updateDraftBenefit(event) {
-  const input = event.target.closest("[data-benefit-field]");
-  if (!input) return;
+  const fieldEl = event.target.closest("[data-benefit-field]");
+  if (!fieldEl) return;
 
-  const row = input.closest(".benefit-row");
+  const row = fieldEl.closest(".benefit-row");
   const index = Number(row?.dataset.index);
   if (!Number.isInteger(index) || !draftBenefits[index]) return;
 
-  const field = input.dataset.benefitField;
-  draftBenefits[index][field] = field === "amount" ? toNumber(input.value) : input.value;
+  const fieldName = fieldEl.dataset.benefitField;
+  draftBenefits[index][fieldName] = fieldName === "amount" ? toNumber(fieldEl.value) : fieldEl.value;
 }
 
 function removeBenefitDraft(event) {
@@ -582,7 +624,6 @@ function removeBenefitDraft(event) {
   syncDraftBenefitsFromDom();
   const index = Number(button.dataset.removeBenefit);
   draftBenefits.splice(index, 1);
-  if (!draftBenefits.length) draftBenefits.push(createBlankBenefit());
   renderBenefitsEditor();
 }
 
@@ -725,8 +766,14 @@ function getTotals(cards) {
 }
 
 function getCardTotals(card) {
-  const fees = toNumber(card.annualFee) + toNumber(card.taxFee);
-  const benefits = card.benefits.reduce((sum, benefit) => (isPointBenefit(benefit) ? sum : sum + toNumber(benefit.amount)), 0);
+let fees = toNumber(card.annualFee) + toNumber(card.taxFee);
+
+const memberYear = Number(card.memberSince?.split("-")[0]);
+const currentYear = new Date().getFullYear();
+
+if (memberYear && memberYear < currentYear) {
+  fees += toNumber(card.prevYearFee);
+}  const benefits = card.benefits.reduce((sum, benefit) => (isPointBenefit(benefit) ? sum : sum + toNumber(benefit.amount)), 0);
   const points = card.benefits.reduce((sum, benefit) => (isPointBenefit(benefit) ? sum + toNumber(benefit.amount) : sum), 0);
   const cashBenefitCount = card.benefits.filter((benefit) => !isPointBenefit(benefit)).length;
   const pointBenefitCount = card.benefits.filter(isPointBenefit).length;
