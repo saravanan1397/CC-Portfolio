@@ -171,17 +171,15 @@
                   </label>
                 </div>
                 <div class="field-row">
-                <label class="field">
-     <span>Member since</span>
-    <input id="memberSince" type="month" />
-  </label>
-
-  <!-- 🔥 SAME POSITION, SAME ALIGNMENT -->
-  <label class="field" id="prevFeeContainer" style="margin-top: 8px; display: none;">
-    <span>Previous fee (₹)</span>
-    <input id="prevYearFee" type="number" min="0" step="1" inputmode="decimal" placeholder="Joining / last year fee" />
-  </label>
-</div>
+                  <label class="field">
+                    <span>Member since</span>
+                    <input id="memberSince" type="month" />
+                  </label>
+                  <label class="field" style="margin-top: 8px;">
+                    <span>Annual target</span>
+                    <input id="targetValue" type="number" min="0" step="1" inputmode="decimal" placeholder="Optional" />
+                  </label>
+                </div>
               </div>
 
               <div class="benefit-editor">
@@ -215,6 +213,10 @@
               <div>
                 <p class="eyebrow">Cards</p>
                 <h2 id="portfolioCount">0 cards</h2>
+              </div>
+              <div class="mini-stat">
+                <span>Loss gap</span>
+                <strong id="lossGap">0</strong>
               </div>
             </div>
 
