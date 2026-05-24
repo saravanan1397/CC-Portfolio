@@ -7,8 +7,6 @@ const benefitTypes = [
   "Unredeemed Points",
   "Cashback / Statement Credit",
   "Milestone / Voucher",
-  "Lounge Access",
-  "Golf Lessons",
 ];
 
 const benefitValueTypes = [
@@ -62,15 +60,19 @@ const sampleCards = [
 const state = {
   currency: "INR",
   cards: [],
+  swipes: [],
+  loungeVisits: [],
   search: "",
   statusFilter: "all",
   sort: "netAsc",
+  currentView: "dashboard",
 };
 
 let draftBenefits = [];
 let draftPreviousAnnualFees = [];
 let draftFutureAnnualFees = [];
 let toastTimer = null;
+let loungeChartInstance = null;
 
 const els = {};
 
@@ -126,6 +128,41 @@ function cacheElements() {
     categoryTotal: document.getElementById("categoryTotal"),
     categoryBars: document.getElementById("categoryBars"),
     toast: document.getElementById("toast"),
+    dashboardView: document.getElementById("dashboardView"),
+    portfolioView: document.getElementById("portfolioView"),
+    swipesView: document.getElementById("swipesView"),
+    loungeView: document.getElementById("loungeView"),
+    dashboardNetValue: document.getElementById("dashboardNetValue"),
+    dashboardNetHint: document.getElementById("dashboardNetHint"),
+    dashboardSwipeValue: document.getElementById("dashboardSwipeValue"),
+    dashboardSwipeHint: document.getElementById("dashboardSwipeHint"),
+    dashboardLoungeValue: document.getElementById("dashboardLoungeValue"),
+    dashboardLoungeHint: document.getElementById("dashboardLoungeHint"),
+    openPortfolioBtn: document.getElementById("openPortfolioBtn"),
+    openSwipesBtn: document.getElementById("openSwipesBtn"),
+    openLoungeBtn: document.getElementById("openLoungeBtn"),
+    backFromPortfolioBtn: document.getElementById("backFromPortfolioBtn"),
+    backFromSwipesBtn: document.getElementById("backFromSwipesBtn"),
+    backFromLoungeBtn: document.getElementById("backFromLoungeBtn"),
+    swipeCardSelect: document.getElementById("swipeCardSelect"),
+    swipeAmount: document.getElementById("swipeAmount"),
+    swipeTypeSelect: document.getElementById("swipeTypeSelect"),
+    swipeFySelect: document.getElementById("swipeFySelect"),
+    swipeFyFilter: document.getElementById("swipeFyFilter"),
+    swipeFilteredTotal: document.getElementById("swipeFilteredTotal"),
+    addSwipeBtn: document.getElementById("addSwipeBtn"),
+    swipesTable: document.getElementById("swipesTable"),
+    loungeCardSelect: document.getElementById("loungeCardSelect"),
+    loungeTypeSelect: document.getElementById("loungeTypeSelect"),
+    loungeMembers: document.getElementById("loungeMembers"),
+    loungeAirport: document.getElementById("loungeAirport"),
+    loungeVisitValue: document.getElementById("loungeVisitValue"),
+    loungeVisitDate: document.getElementById("loungeVisitDate"),
+    saveLoungeVisitBtn: document.getElementById("saveLoungeVisitBtn"),
+    clearLoungeVisitBtn: document.getElementById("clearLoungeVisitBtn"),
+    editingLoungeVisitId: document.getElementById("editingLoungeVisitId"),
+    loungeTable: document.getElementById("loungeTable"),
+    loungeCalculatedValue: document.getElementById("loungeCalculatedValue"),
 
     prevYearFee: document.getElementById("prevYearFee"), // This maps to the input for Previous Annual Fee
     prevFeeContainer: document.getElementById("prevFeeContainer"),
@@ -211,6 +248,20 @@ document.addEventListener("click", (e) => {
   els.futureAnnualFee?.addEventListener("input", syncFutureFeeFromForm);
   els.futureAnnualFee?.addEventListener("change", syncFutureFeeFromForm);
   els.futureFeeList?.addEventListener("click", removeFutureFeeDraft);
+  els.openPortfolioBtn?.addEventListener("click", () => showView("portfolio"));
+  els.openSwipesBtn?.addEventListener("click", () => showView("swipes"));
+  els.openLoungeBtn?.addEventListener("click", () => showView("lounge"));
+  els.backFromPortfolioBtn?.addEventListener("click", () => showView("dashboard"));
+  els.backFromSwipesBtn?.addEventListener("click", () => showView("dashboard"));
+  els.backFromLoungeBtn?.addEventListener("click", () => showView("dashboard"));
+  els.swipeFyFilter?.addEventListener("change", renderSwipes);
+  els.addSwipeBtn?.addEventListener("click", addSwipeFromForm);
+  els.swipesTable?.addEventListener("click", handleSwipeAction);
+  els.loungeMembers?.addEventListener("input", updateLoungeCalculatedValue);
+  els.loungeVisitValue?.addEventListener("input", updateLoungeCalculatedValue);
+  els.saveLoungeVisitBtn?.addEventListener("click", saveLoungeVisitFromForm);
+  els.clearLoungeVisitBtn?.addEventListener("click", resetLoungeVisitForm);
+  els.loungeTable?.addEventListener("click", handleLoungeAction);
 }
 
 async function loadState() {
@@ -224,6 +275,9 @@ async function loadState() {
 
       state.currency = data.currency || "INR";
       state.cards = (data.cards || []).map(normalizeCard);
+      state.swipes = (data.swipes || []).map(normalizeSwipe);
+      state.loungeVisits = (data.loungeVisits || []).map(normalizeLoungeVisit);
+      syncLoungeBenefitsFromVisits();
 
       console.log("✅ Data loaded from Firebase", state.cards);
     } else {
@@ -242,6 +296,8 @@ async function saveState() {
   await setDoc(doc(window.db, "portfolio", "userData"), {
     currency: state.currency,
     cards: state.cards,
+    swipes: state.swipes,
+    loungeVisits: state.loungeVisits,
   });
 
   console.log("✅ Saved to Firebase");
@@ -268,6 +324,35 @@ function normalizeCard(card) {
           amount: toNumber(benefit.amount),
         }))
       : [],
+  };
+}
+
+function normalizeSwipe(swipe) {
+  return {
+    id: swipe.id || createId(),
+    cardId: swipe.cardId || "",
+    amount: toNumber(swipe.amount),
+    type: swipe.type === "E" ? "E" : "F",
+    financialYear: normalizeFinancialYear(swipe.financialYear),
+    createdAt: swipe.createdAt || new Date().toISOString(),
+  };
+}
+
+function normalizeLoungeVisit(visit) {
+  const members = toNumber(visit.members);
+  const perPerson = toNumber(visit.perPerson);
+  const total = toNumber(visit.total || visit.valuePerPerson); // Migration fallback
+
+  return {
+    id: visit.id || createId(),
+    cardId: visit.cardId || "",
+    loungeType: visit.loungeType === "International" ? "International" : "Domestic",
+    airport: visit.airport || "",
+    members,
+    perPerson,
+    date: visit.date || visit.createdAt?.split('T')[0] || "",
+    total,
+    createdAt: visit.createdAt || new Date().toISOString(),
   };
 }
 
@@ -514,11 +599,565 @@ function renderFutureFeeList() {
   `;
 }
 
+function showView(view) {
+  state.currentView = view;
+
+  if (els.dashboardView) els.dashboardView.style.display = view === "dashboard" ? "block" : "none";
+  if (els.portfolioView) els.portfolioView.style.display = view === "portfolio" ? "block" : "none";
+  if (els.swipesView) els.swipesView.style.display = view === "swipes" ? "block" : "none";
+  if (els.loungeView) els.loungeView.style.display = view === "lounge" ? "block" : "none";
+  updateAppBackButton();
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function updateAppBackButton() {
+  const button = document.getElementById("lockBtn");
+  if (!button) return;
+
+  const isDashboard = state.currentView === "dashboard";
+  button.textContent = isDashboard ? "Logout" : "Back";
+  button.title = isDashboard ? "Logout" : "Back to widgets";
+  button.setAttribute("aria-label", button.title);
+}
+
+function renderDashboard() {
+  const totals = getTotals(state.cards);
+  const swipeTotal = getSwipeTotal();
+  const loungeTotal = getLoungeVisitTotal();
+
+  if (els.dashboardNetValue) {
+    els.dashboardNetValue.textContent = formatMoney(totals.net);
+    els.dashboardNetValue.style.color = totals.net > 0 ? "#10b981" : totals.net < 0 ? "#ef4444" : "#f8fafc";
+  }
+
+  if (els.dashboardNetHint) {
+    els.dashboardNetHint.textContent = `${state.cards.length} ${state.cards.length === 1 ? "card" : "cards"} in portfolio`;
+  }
+
+  if (els.dashboardSwipeValue) {
+    els.dashboardSwipeValue.textContent = formatMoney(swipeTotal);
+  }
+
+  if (els.dashboardSwipeHint) {
+    els.dashboardSwipeHint.textContent = `${state.swipes.length} ${state.swipes.length === 1 ? "entry" : "entries"} logged`;
+  }
+
+  if (els.dashboardLoungeValue) {
+    els.dashboardLoungeValue.textContent = formatMoney(loungeTotal);
+  }
+
+  if (els.dashboardLoungeHint) {
+    els.dashboardLoungeHint.textContent = `${state.loungeVisits.length} ${state.loungeVisits.length === 1 ? "visit" : "visits"} logged`;
+  }
+}
+
+function renderCardDropdowns() {
+  renderCardSelect(els.swipeCardSelect);
+  renderCardSelect(els.loungeCardSelect);
+}
+
+function renderCardSelect(select) {
+  if (!select) return;
+
+  const currentValue = select.value;
+
+  if (!state.cards.length) {
+    select.innerHTML = `<option value="">Add cards in portfolio first</option>`;
+    select.disabled = true;
+    return;
+  }
+
+  select.disabled = false;
+  select.innerHTML = state.cards
+    .slice().sort((a, b) => formatCardName(a).localeCompare(formatCardName(b)))
+    .map((card) => `<option value="${escapeAttribute(card.id)}">${escapeHtml(formatCardName(card))}</option>`)
+    .join("");
+
+  if (currentValue && state.cards.some((card) => card.id === currentValue)) {
+    select.value = currentValue;
+  }
+}
+
+async function addSwipeFromForm() {
+  const cardId = els.swipeCardSelect?.value || "";
+  const amount = toNumber(els.swipeAmount?.value);
+
+  if (!cardId) {
+    showToast("Add cards in portfolio first.");
+    return;
+  }
+
+  if (amount <= 0) {
+    showToast("Enter swipe amount.");
+    els.swipeAmount?.focus();
+    return;
+  }
+
+  state.swipes.push(normalizeSwipe({
+    cardId,
+    amount,
+    type: els.swipeTypeSelect?.value || "F",
+    financialYear: els.swipeFySelect?.value || "FY 25-26",
+    createdAt: new Date().toISOString(),
+  }));
+
+  if (els.swipeAmount) els.swipeAmount.value = "";
+
+  await saveState();
+  render();
+  showToast("Swipe added.");
+}
+
+function handleSwipeAction(event) {
+  const button = event.target.closest("[data-swipe-action]");
+  if (!button) return;
+
+  if (button.dataset.swipeAction === "delete") {
+    state.swipes = state.swipes.filter((swipe) => swipe.id !== button.dataset.id);
+    saveState();
+    render();
+    showToast("Swipe deleted.");
+  }
+}
+
+function renderSwipes() {
+  if (!els.swipesTable) return;
+
+  els.swipesTable.innerHTML = "";
+
+  if (!state.swipes.length) {
+    if (els.swipeFilteredTotal) els.swipeFilteredTotal.textContent = "Total: " + formatMoney(0);
+    els.swipesTable.appendChild(createEmptyState("No swipes logged", "Add big spends from cards in your portfolio."));
+    return;
+  }
+
+  const selectedFy = els.swipeFyFilter?.value || "all";
+  const visibleSwipes = selectedFy === "all"
+    ? state.swipes
+    : state.swipes.filter((swipe) => swipe.financialYear === selectedFy);
+  const visibleTotal = visibleSwipes.reduce((sum, swipe) => sum + toNumber(swipe.amount), 0);
+
+  if (els.swipeFilteredTotal) {
+    els.swipeFilteredTotal.textContent = `${selectedFy === "all" ? "All FY" : selectedFy} Total: ${formatMoney(visibleTotal)}`;
+  }
+
+  if (!visibleSwipes.length) {
+    els.swipesTable.appendChild(createEmptyState("No swipes for this FY", "Change the FY filter or add a swipe for this year."));
+    return;
+  }
+
+  visibleSwipes
+    .slice()
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+    .forEach((swipe) => {
+      const row = document.createElement("article");
+      row.className = "card-row";
+      row.innerHTML = `
+        <div class="card-name">
+          <strong>${escapeHtml(formatCardName(getCardById(swipe.cardId)))}</strong>
+          <span class="card-meta">${escapeHtml(swipe.type)} | ${escapeHtml(swipe.financialYear)} | ${escapeHtml(formatDateTime(swipe.createdAt))}</span>
+        </div>
+        <div class="money-cell">
+          <span class="cell-label">Amount</span>
+          <strong>${escapeHtml(formatMoney(swipe.amount))}</strong>
+        </div>
+        <span class="status-pill breakeven">Swipe</span>
+        <div class="row-actions">
+          <button class="icon-button subtle" type="button" data-swipe-action="delete" data-id="${escapeAttribute(swipe.id)}" title="Delete swipe" aria-label="Delete swipe">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" />
+            </svg>
+          </button>
+        </div>
+      `;
+      els.swipesTable.appendChild(row);
+    });
+}
+
+  function updateLoungeCalculatedValue() {
+  if (!els.loungeCalculatedValue) return;
+
+  const members = toNumber(els.loungeMembers?.value) || 1;
+  const perPerson = toNumber(els.loungeVisitValue?.value);
+
+  const currentFormTotal = members * perPerson;
+  const existingLoungeTotalValue = getLoungeVisitTotal();
+  const combinedTotal = currentFormTotal + existingLoungeTotalValue;
+
+  els.loungeCalculatedValue.textContent =
+    `Total Benefit: ${formatMoney(combinedTotal)}`;
+}
+
+
+async function saveLoungeVisitFromForm(event) {
+
+  event.preventDefault();
+
+  const members =
+    toNumber(els.loungeMembers?.value) || 1;
+
+  const perPerson =
+    toNumber(els.loungeVisitValue?.value);
+
+  const total = members * perPerson;
+
+  const visit = {
+    id: els.editingLoungeVisitId?.value || createId(),
+
+    cardId: els.loungeCardSelect?.value || "",
+
+    loungeType: els.loungeTypeSelect?.value || "",
+
+    airport:
+      document.getElementById("loungeAirport")?.value.trim() || "",
+
+    members,
+
+    perPerson,
+
+    total,
+
+    date:
+  els.loungeVisitDate?.value
+    ? `${els.loungeVisitDate.value}T00:00:00`
+    : new Date().toISOString(),
+  };
+
+  const existingIndex = state.loungeVisits.findIndex(
+    (item) => item.id === visit.id
+  );
+
+  if (existingIndex >= 0) {
+    state.loungeVisits[existingIndex] = visit;
+  } else {
+    state.loungeVisits.push(visit);
+  }
+syncLoungeBenefitsFromVisits();
+await saveState();
+render();
+resetLoungeVisitForm();
+showToast("Lounge visit saved");
+}
+
+function handleLoungeAction(event) {
+  const button = event.target.closest("[data-lounge-action]");
+  if (!button) return;
+
+  const visit = state.loungeVisits.find((item) => item.id === button.dataset.id);
+  if (!visit) return;
+
+  if (button.dataset.loungeAction === "edit") {
+    populateLoungeVisitForm(visit);
+    return;
+  }
+
+  if (button.dataset.loungeAction === "delete") {
+    state.loungeVisits = state.loungeVisits.filter((item) => item.id !== visit.id);
+    syncLoungeBenefitsFromVisits();
+    saveState();
+    render();
+    showToast("Lounge visit deleted.");
+  }
+}
+
+function populateLoungeVisitForm(visit) {
+  if (els.editingLoungeVisitId) els.editingLoungeVisitId.value = visit.id;
+  if (els.loungeCardSelect) els.loungeCardSelect.value = visit.cardId;
+  if (els.loungeTypeSelect) els.loungeTypeSelect.value = visit.loungeType;
+  if (els.loungeMembers) els.loungeMembers.value = visit.members || "";
+  if (els.loungeAirport) els.loungeAirport.value = visit.airport || "";
+  if (els.loungeVisitDate) els.loungeVisitDate.value = visit.date || "";
+  if (els.loungeVisitValue) {
+    els.loungeVisitValue.value = visit.perPerson || "";
+  }
+  if (els.saveLoungeVisitBtn) els.saveLoungeVisitBtn.textContent = "Update Visit";
+  updateLoungeCalculatedValue();
+}
+
+function resetLoungeVisitForm() {
+  if (els.editingLoungeVisitId) els.editingLoungeVisitId.value = "";
+  if (els.loungeMembers) els.loungeMembers.value = "";
+  if (els.loungeVisitValue) els.loungeVisitValue.value = "";
+  if (els.loungeAirport) els.loungeAirport.value = "";
+  if (els.loungeVisitDate) els.loungeVisitDate.value = "";
+  if (els.loungeTypeSelect) els.loungeTypeSelect.value = "Domestic";
+  if (els.saveLoungeVisitBtn) els.saveLoungeVisitBtn.textContent = "Add Visit";
+  updateLoungeCalculatedValue();
+}
+
+function renderLoungeVisits() {
+  if (!els.loungeTable) return;
+
+  els.loungeTable.innerHTML = "";
+  updateLoungeCalculatedValue();
+  renderLoungeChart();
+
+  if (state.loungeVisits.length > 0) {
+    const head = document.createElement("div");
+
+    head.className = "table-head";
+
+    head.innerHTML = `
+      <span>Visit Details</span>
+      <span>Members</span>
+      <span>Total Value</span>
+      <span>Airport</span>
+      <span></span>
+    `;
+
+    els.loungeTable.appendChild(head);
+  }
+
+  if (!state.loungeVisits.length) {
+    els.loungeTable.appendChild(
+      createEmptyState(
+        "No lounge visits logged",
+        "Add lounge visits to sync benefits into your portfolio."
+      )
+    );
+
+    return;
+  }
+
+  state.loungeVisits
+    .slice()
+    .sort((a, b) =>
+      formatCardName(getCardById(a.cardId))
+        .localeCompare(formatCardName(getCardById(b.cardId)))
+    )
+    .forEach((visit) => {
+
+      const row = document.createElement("article");
+
+      row.className = "card-row";
+
+      row.innerHTML = `
+
+        <div class="card-name">
+
+          <strong>
+            ${escapeHtml(formatCardName(getCardById(visit.cardId)))}
+          </strong>
+
+          <span class="card-meta">
+            ${escapeHtml(visit.loungeType)}
+            |
+            ${escapeHtml(formatDateTime(visit.date))}
+          </span>
+        </div>
+
+        <div class="money-cell">
+          <span class="cell-label">Members</span>
+
+          <strong>
+            ${escapeHtml(String(visit.members))}
+          </strong>
+        </div>
+
+        <div class="money-cell">
+          <span class="cell-label">Total</span>
+
+          <strong>
+            ${escapeHtml(formatMoney(visit.total))}
+          </strong>
+        </div>
+
+        <div class="money-cell">
+          <span class="cell-label">Airport</span>
+
+          <strong>
+            ${escapeHtml(visit.airport || "N/A")}
+          </strong>
+        </div>
+
+        <div class="row-actions">
+
+          <button
+            class="icon-button subtle"
+            type="button"
+            data-lounge-action="edit"
+            data-id="${escapeAttribute(visit.id)}"
+            title="Edit lounge visit"
+            aria-label="Edit lounge visit"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+          </button>
+
+          <button
+            class="icon-button subtle"
+            type="button"
+            data-lounge-action="delete"
+            data-id="${escapeAttribute(visit.id)}"
+            title="Delete lounge visit"
+            aria-label="Delete lounge visit"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" />
+            </svg>
+          </button>
+
+        </div>
+      `;
+
+      els.loungeTable.appendChild(row);
+    });
+}
+
+function renderLoungeChart() {
+  const canvas = document.getElementById("loungeChartCanvas");
+  if (!canvas) return;
+
+  // Calculate lounge visit totals by card
+  const totalsByCard = {};
+  const cardIds = new Set();
+
+  state.loungeVisits.forEach((visit) => {
+    if (!visit.cardId) return;
+    cardIds.add(visit.cardId);
+    totalsByCard[visit.cardId] = (totalsByCard[visit.cardId] || 0) + toNumber(visit.total);
+  });
+
+  // If no visits, show empty state
+  if (Object.keys(totalsByCard).length === 0) {
+    if (loungeChartInstance) {
+      loungeChartInstance.destroy();
+      loungeChartInstance = null;
+    }
+    return;
+  }
+
+  // Prepare chart data
+  const labels = Array.from(cardIds).map((cardId) => {
+    const card = getCardById(cardId);
+    return card ? card.name : "Unknown";
+  });
+
+  const data = Array.from(cardIds).map((cardId) => totalsByCard[cardId]);
+
+  // Color palette for pie chart
+  const colors = [
+    "rgba(34, 197, 94, 0.8)",
+    "rgba(59, 130, 246, 0.8)",
+    "rgba(249, 115, 22, 0.8)",
+    "rgba(239, 68, 68, 0.8)",
+    "rgba(168, 85, 247, 0.8)",
+    "rgba(236, 72, 153, 0.8)",
+    "rgba(6, 182, 212, 0.8)",
+    "rgba(202, 138, 4, 0.8)",
+  ];
+
+  const backgroundColors = labels.map((_, index) => colors[index % colors.length]);
+  const borderColors = backgroundColors.map((color) => color.replace("0.8", "1"));
+
+  const chartData = {
+    labels: labels,
+    datasets: [
+      {
+        data: data,
+        backgroundColor: backgroundColors,
+        borderColor: borderColors,
+        borderWidth: 2,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "bottom",
+        labels: {
+          color: "#cbd5e1",
+          font: {
+            size: 12,
+            weight: "600",
+          },
+          padding: 12,
+          usePointStyle: true,
+        },
+      },
+      tooltip: {
+        backgroundColor: "rgba(30, 41, 59, 0.95)",
+        titleColor: "#f8fafc",
+        bodyColor: "#cbd5e1",
+        borderColor: "#475569",
+        borderWidth: 1,
+        padding: 12,
+        callbacks: {
+          label: function (context) {
+            return `${context.label}: ${formatMoney(context.parsed)}`;
+          },
+        },
+      },
+    },
+  };
+
+  if (loungeChartInstance) {
+    loungeChartInstance.data = chartData;
+    loungeChartInstance.update();
+  } else {
+    loungeChartInstance = new Chart(canvas, {
+      type: "doughnut",
+      data: chartData,
+      options: chartOptions,
+    });
+  }
+}
+
+function syncLoungeBenefitsFromVisits() {
+  const totalsByCardId = {};
+
+  // Calculate totals for each card from lounge visits
+  state.loungeVisits.forEach((visit) => {
+    if (!visit.cardId) return;
+    if (!totalsByCardId[visit.cardId]) {
+      totalsByCardId[visit.cardId] = 0;
+    }
+    totalsByCardId[visit.cardId] += toNumber(visit.total);
+  });
+
+  // Update each card's benefits
+  state.cards = state.cards.map((card) => {
+    // Filter out existing auto-generated lounge benefits to avoid duplicates
+    let benefits = (card.benefits || []).filter((benefit) => {
+      const label = String(benefit.label || "").toLowerCase();
+      return !(benefit.id && String(benefit.id).startsWith("lounge-")) && label !== "lounge benefits";
+    });
+
+    // Add lounge benefits if this card has lounge visits
+    const loungeTotal = totalsByCardId[card.id] || 0;
+    if (loungeTotal > 0) {
+      benefits.push({
+        id: `lounge-${card.id}`,
+        type: "Lounge Access",
+        valueType: "cash",
+        label: "Lounge Benefits",
+        amount: loungeTotal,
+      });
+    }
+
+    return {
+      ...card,
+      benefits,
+    };
+  });
+}
+
 function render() {
+  // Always sync lounge benefits to ensure all cards have correct lounge benefits
+  syncLoungeBenefitsFromVisits();
+  renderDashboard();
   renderSummary();
   renderBenefitsEditor();
   renderCards();
   renderCategories();
+  renderCardDropdowns();
+  renderSwipes();
+  renderLoungeVisits();
 }
 
 function renderSummary() {
@@ -727,7 +1366,7 @@ function showFeePopup() {
             <div style="font-weight:700; color:#f8fafc; font-size:14px; margin-bottom:4px;">
               ${escapeHtml(card.issuer || "Bank")} | ${escapeHtml(card.name)}
             </div>
-            <div style="font-size:12px; color:#94a3b8; line-height:1.6;">
+            <div style="font-family:inherit; font-size:12px; color:#94a3b8; line-height:1.6;">
               ${feeHtml || "No breakdown available"}
             </div>
           </div>
@@ -1081,6 +1720,7 @@ async function saveCardFromForm(event)
     showToast("Card added.");
   }
 
+  syncLoungeBenefitsFromVisits();
   console.log("🔥 Saving to Firebase...", state.cards);
 
   await saveState();   
@@ -1109,6 +1749,7 @@ function handleCardAction(event) {
       benefits: card.benefits.map((benefit) => ({ ...benefit, id: createId() })),
     });
     state.cards.push(copy);
+    syncLoungeBenefitsFromVisits();
     saveState();
     render();
     showToast("Card duplicated.");
@@ -1119,6 +1760,9 @@ function handleCardAction(event) {
     const confirmed = confirm(`Delete ${card.name}?`);
     if (!confirmed) return;
     state.cards = state.cards.filter((item) => item.id !== card.id);
+    state.swipes = state.swipes.filter((swipe) => swipe.cardId !== card.id);
+    state.loungeVisits = state.loungeVisits.filter((visit) => visit.cardId !== card.id);
+    syncLoungeBenefitsFromVisits();
     if (els.editingId.value === card.id) resetForm();
     saveState();
     render();
@@ -1269,6 +1913,9 @@ function importPortfolio(event) {
 
       state.currency = data.currency || state.currency;
       state.cards = data.cards.map(normalizeCard);
+      state.swipes = (data.swipes || []).map(normalizeSwipe);
+      state.loungeVisits = (data.loungeVisits || []).map(normalizeLoungeVisit);
+      syncLoungeBenefitsFromVisits();
       saveState();
       resetForm();
       render();
@@ -1291,6 +1938,9 @@ function startRealtimeSync() {
 
       state.currency = data.currency || "INR";
       state.cards = (data.cards || []).map(normalizeCard);
+      state.swipes = (data.swipes || []).map(normalizeSwipe);
+      state.loungeVisits = (data.loungeVisits || []).map(normalizeLoungeVisit);
+      syncLoungeBenefitsFromVisits();
 
       console.log("🔄 Real-time update", state.cards);
 
@@ -1353,6 +2003,18 @@ function getFutureAnnualFeeTotal(card) {
   return (card.futureAnnualFees || []).reduce((sum, fee) => sum + toNumber(fee.amount), 0);
 }
 
+function getSwipeTotal() {
+  return state.swipes.reduce((sum, swipe) => sum + toNumber(swipe.amount), 0);
+}
+
+function getLoungeVisitTotal() {
+  return state.loungeVisits.reduce((sum, visit) => sum + toNumber(visit.total), 0);
+}
+
+function getCardById(cardId) {
+  return state.cards.find((card) => card.id === cardId);
+}
+
 function getStatus(net) { 
   if (net > 0) return { key: "profit", label: "Profit" };
   if (net < 0) return { key: "loss", label: "Loss" };
@@ -1403,6 +2065,11 @@ function normalizeMonth(value) {
   return /^\d{4}-\d{2}/.test(text) ? text.slice(0, 7) : "";
 }
 
+function normalizeFinancialYear(value) {
+  const allowedYears = ["FY 24-25", "FY 25-26", "FY 26-27", "FY 27-28", "FY 28-29", "FY 29-30"];
+  return allowedYears.includes(value) ? value : "FY 25-26";
+}
+
 function formatMonthYear(value) {
   const normalized = normalizeMonth(value);
   if (!normalized) return "";
@@ -1411,6 +2078,22 @@ function formatMonthYear(value) {
   const date = new Date(year, month - 1, 1);
 
   return date.toLocaleString(undefined, {
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatCardName(card) {
+  if (!card) return "Card not found";
+  return [card.issuer, card.name].filter(Boolean).join(" | ") || "Untitled card";
+}
+
+function formatDateTime(value) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleDateString(undefined, {
+    day: "2-digit",
     month: "short",
     year: "numeric",
   });
@@ -1551,6 +2234,7 @@ function checkPin() {
     }
     document.getElementById("lockScreen").style.display = "none";
     document.getElementById("app").style.display = "block";
+    showView("dashboard");
   } else {
     document.getElementById("pinError").style.display = "block";
   }
@@ -1578,6 +2262,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
     document.getElementById("lockScreen").style.display = "none";
     document.getElementById("app").style.display = "block";
+    showView("dashboard");
   }
 });
 
@@ -1592,6 +2277,9 @@ function updateSortColor() {
 }
 
 function lockApp() {
+  state.currentView = "dashboard";
+  updateAppBackButton();
+
   // clear session
   sessionStorage.removeItem("unlocked");
 
@@ -1611,6 +2299,15 @@ function lockApp() {
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("lockBtn");
   if (btn) {
-    btn.addEventListener("click", lockApp);
+    btn.addEventListener("click", handleAppBackButton);
   }
 });
+
+function handleAppBackButton() {
+  if (state.currentView === "dashboard") {
+    lockApp();
+    return;
+  }
+
+  showView("dashboard");
+}
