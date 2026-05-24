@@ -18,6 +18,11 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
+      
+      /* Style for closed cards */
+      .card-row.is-closed {
+        filter: grayscale(1) opacity(0.6);
+      }
 
       /* Style for currency prefix to make it smaller than the value */
       .currency-prefix {
@@ -203,10 +208,10 @@
       </label>
 
       <label class="field">
-        <span>F / E</span>
+        <span>Full Swipe / EMI</span>
         <select id="swipeTypeSelect" style="width:100%;">
-          <option value="F">F</option>
-          <option value="E">E</option>
+          <option value="F">Full Swipe</option>
+          <option value="E">EMI</option>
         </select>
       </label>
 
@@ -224,15 +229,15 @@
 
     </div>
 
-    <button class="primary-button"
-      type="button"
-      id="addSwipeBtn"
-      style="
-        margin-top:22px;
-        width:100%;
-      ">
-      Add Swipe
-    </button>
+    <div style="display: flex; gap: 12px; margin-top: 22px;">
+      <button class="primary-button"
+        type="button"
+        id="addSwipeBtn"
+        style="flex: 1;">
+        Add Swipe
+      </button>
+      <button class="ghost-button" type="button" id="cancelSwipeBtn" style="flex: 1; border: 1px solid rgba(248, 250, 252, 0.2);" onclick="document.getElementById('swipeCardSelect').selectedIndex=0; document.getElementById('swipeAmount').value=''; document.getElementById('swipeTypeSelect').selectedIndex=0; document.getElementById('swipeFySelect').selectedIndex=0;">Cancel</button>
+    </div>
 
   </div>
 
@@ -265,7 +270,7 @@
 
       <label class="field">
         <span>Card</span>
-        <select id="spentCardSelect" style="width:100%;"></select>
+        <select id="spentCardSelect" style="width:100%;" class="card-dropdown-sync"></select>
       </label>
 
       <label class="field">
@@ -280,10 +285,10 @@
       </label>
 
       <label class="field">
-        <span>F / E</span>
+        <span>Full Swipe / EMI</span>
         <select id="spentTypeSelect" style="width:100%;">
-          <option value="F">F</option>
-          <option value="E">E</option>
+          <option value="F">Full Swipe</option>
+          <option value="E">EMI</option>
         </select>
       </label>
 
@@ -301,26 +306,24 @@
 
     </div>
 
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:18px; align-items:end; margin-top:18px; width:100%;">
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:18px; align-items:start; margin-top:18px; width:100%;">
       <label class="field">
         <span>Spent For</span>
         <input id="spentForText"
           type="text"
           placeholder="Flight tickets, insurance, jewellery..."
-          style="width:100%;" />
+          style="width:100%; height: 42px;" />
       </label>
 
-      <button class="primary-button"
-        type="button"
-        id="spentForBtn">
-        Add Swipe
-      </button>
+      <div style="display: flex; gap: 12px; align-items: flex-end; height: 100%; padding-top: 22px;">
+        <button class="primary-button" type="button" id="spentForBtn" style="flex: 1;">Add Swipe</button>
+        <button class="ghost-button" type="button" id="cancelSpentBtn" style="flex: 1; border: 1px solid rgba(248, 250, 252, 0.2);" onclick="document.getElementById('spentCardSelect').selectedIndex=0; document.getElementById('spentAmount').value=''; document.getElementById('spentTypeSelect').selectedIndex=0; document.getElementById('spentFySelect').selectedIndex=0; document.getElementById('spentForText').value='';">Cancel</button>
+      </div>
     </div>
-
 </div>
           </div>
 </div>
-          <div class="control-band" style="display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-top:18px;">
+          <div class="control-band" style="display:flex; align-items:flex-end; justify-content:flex-start; gap:32px; flex-wrap:wrap; margin-top:18px;">
             <label class="field compact-field">
               <span>View FY</span>
               <select id="swipeFyFilter">
@@ -333,10 +336,25 @@
                 <option value="FY 29-30">FY 29-30</option>
               </select>
             </label>
-            <strong id="swipeFilteredTotal">Total: <span class="currency-prefix">₹</span>0</strong>
+            <label class="field compact-field">
+              <span>Category</span>
+              <select id="swipeCategoryFilter">
+                <option value="all">All</option>
+                <option value="business">Business</option>
+                <option value="personal">Personal</option>
+              </select>
+            </label>
+            <strong id="swipeFilteredTotal" style="margin-left: auto;">Total: <span class="currency-prefix">₹</span>0</strong>
           </div>
 
-          <div class="cards-table" id="swipesTable" style="margin-top: 18px;"></div>
+          <div class="cards-table" id="swipesTable" style="margin-top: 18px;">
+            <div class="table-header">
+              <div class="col-main">Amount / Type</div>
+              <div class="col-issuer">Card</div>
+              <div class="col-type">F/E</div>
+              <div class="col-actions"></div>
+            </div>
+          </div>
         </section>
       </main>
 
@@ -475,6 +493,7 @@
               <input id="editingId" type="hidden" />
 
               <div class="form-grid">
+                <input id="isClosed" type="hidden" value="false" />
                 <div class="field-row">
                   <label class="field">
                     <span>Card name</span>
