@@ -146,11 +146,18 @@ function cacheElements() {
     backFromLoungeBtn: document.getElementById("backFromLoungeBtn"),
     swipeCardSelect: document.getElementById("swipeCardSelect"),
     swipeAmount: document.getElementById("swipeAmount"),
+    swipeCardSelectPersonal: document.getElementById("swipeCardSelectPersonal"),
+    swipeAmountPersonal: document.getElementById("swipeAmountPersonal"),
+    addSwipeBtnPersonal: document.getElementById("addSwipeBtnPersonal"),
+    clearSwipeBtnPersonal: document.getElementById("clearSwipeBtnPersonal"),
     swipeTypeSelect: document.getElementById("swipeTypeSelect"),
     swipeFySelect: document.getElementById("swipeFySelect"),
     swipeFyFilter: document.getElementById("swipeFyFilter"),
+    swipeTypeFilter: document.getElementById("swipeTypeFilter"),
     swipeFilteredTotal: document.getElementById("swipeFilteredTotal"),
     addSwipeBtn: document.getElementById("addSwipeBtn"),
+    clearSwipeBtn: document.getElementById("clearSwipeBtn"),
+    editingSwipeId: document.getElementById("editingSwipeId"), // Ensure this hidden input exists in HTML
     swipesTable: document.getElementById("swipesTable"),
     loungeCardSelect: document.getElementById("loungeCardSelect"),
     loungeTypeSelect: document.getElementById("loungeTypeSelect"),
@@ -255,7 +262,13 @@ document.addEventListener("click", (e) => {
   els.backFromSwipesBtn?.addEventListener("click", () => showView("dashboard"));
   els.backFromLoungeBtn?.addEventListener("click", () => showView("dashboard"));
   els.swipeFyFilter?.addEventListener("change", renderSwipes);
+  els.swipeTypeFilter?.addEventListener("change", renderSwipes);
+  els.swipeTypeFilter?.addEventListener("change", renderSwipes);
   els.addSwipeBtn?.addEventListener("click", addSwipeFromForm);
+  els.clearSwipeBtn?.addEventListener("click", resetSwipeForm);
+  els.swipeCardSelectPersonal?.addEventListener("change", renderSwipes);
+  els.addSwipeBtnPersonal?.addEventListener("click", () => addSwipeFromForm(true));
+  els.clearSwipeBtnPersonal?.addEventListener("click", resetSwipeForm);
   els.swipesTable?.addEventListener("click", handleSwipeAction);
   els.loungeMembers?.addEventListener("input", updateLoungeCalculatedValue);
   els.loungeVisitValue?.addEventListener("input", updateLoungeCalculatedValue);
@@ -310,6 +323,7 @@ function normalizeCard(card) {
     issuer: card.issuer || "",
     annualFee: toNumber(card.annualFee),
     taxFee: toNumber(card.taxFee),
+    isGreyedOut: !!card.isGreyedOut,
     memberSince: card.memberSince || "",
     previousAnnualFees: normalizePreviousAnnualFees(card),
     futureAnnualFees: normalizeFutureAnnualFees(card),
@@ -332,7 +346,7 @@ function normalizeSwipe(swipe) {
     id: swipe.id || createId(),
     cardId: swipe.cardId || "",
     amount: toNumber(swipe.amount),
-    type: swipe.type === "E" ? "E" : "F",
+    type: swipe.type,
     financialYear: normalizeFinancialYear(swipe.financialYear),
     createdAt: swipe.createdAt || new Date().toISOString(),
   };
@@ -654,6 +668,7 @@ function renderDashboard() {
 
 function renderCardDropdowns() {
   renderCardSelect(els.swipeCardSelect);
+  renderCardSelect(els.swipeCardSelectPersonal);
   renderCardSelect(els.loungeCardSelect);
 }
 
@@ -679,9 +694,10 @@ function renderCardSelect(select) {
   }
 }
 
-async function addSwipeFromForm() {
-  const cardId = els.swipeCardSelect?.value || "";
-  const amount = toNumber(els.swipeAmount?.value);
+async function addSwipeFromForm(isPersonal = false) {
+  const cardId = isPersonal ? (els.swipeCardSelectPersonal?.value || "") : (els.swipeCardSelect?.value || "");
+  const amount = isPersonal ? toNumber(els.swipeAmountPersonal?.value) : toNumber(els.swipeAmount?.value);
+  const editingId = els.editingSwipeId?.value;
 
   if (!cardId) {
     showToast("Add cards in portfolio first.");
@@ -694,24 +710,57 @@ async function addSwipeFromForm() {
     return;
   }
 
-  state.swipes.push(normalizeSwipe({
+  const swipeData = normalizeSwipe({
+    id: editingId && editingId !== "" ? editingId : createId(),
     cardId,
     amount,
-    type: els.swipeTypeSelect?.value || "F",
+    type: isPersonal === true ? "Personal" : (els.swipeTypeSelect?.value || "Business"),
     financialYear: els.swipeFySelect?.value || "FY 25-26",
     createdAt: new Date().toISOString(),
-  }));
+  });
 
-  if (els.swipeAmount) els.swipeAmount.value = "";
+  if (editingId && editingId !== "") {
+    const index = state.swipes.findIndex(s => s.id === editingId);
+    if (index !== -1) state.swipes[index] = swipeData;
+    showToast("Swipe updated.");
+  } else {
+    state.swipes.push(swipeData);
+    showToast("Swipe added.");
+  }
+
+  resetSwipeForm();
 
   await saveState();
   render();
-  showToast("Swipe added.");
+}
+
+function resetSwipeForm() {
+  if (els.swipeAmount) els.swipeAmount.value = "";
+  if (els.swipeAmountPersonal) els.swipeAmountPersonal.value = "";
+  if (els.editingSwipeId) els.editingSwipeId.value = "";
+  if (els.addSwipeBtn) els.addSwipeBtn.textContent = "Add Swipe";
+  if (els.addSwipeBtnPersonal) els.addSwipeBtnPersonal.textContent = "Add Swipe";
+  if (els.swipeCardSelect) els.swipeCardSelect.selectedIndex = 0;
+  if (els.swipeCardSelectPersonal) els.swipeCardSelectPersonal.selectedIndex = 0;
+  if (els.clearSwipeBtn) els.clearSwipeBtn.style.display = "none";
+  if (els.clearSwipeBtnPersonal) els.clearSwipeBtnPersonal.style.display = "none";
+  
+  // Reset selects to first option if needed
+  if (els.swipeTypeSelect) els.swipeTypeSelect.selectedIndex = 0;
+  if (els.swipeFySelect) els.swipeFySelect.selectedIndex = 0;
 }
 
 function handleSwipeAction(event) {
   const button = event.target.closest("[data-swipe-action]");
   if (!button) return;
+
+  const swipe = state.swipes.find((s) => s.id === button.dataset.id);
+  if (!swipe) return;
+
+  if (button.dataset.swipeAction === "edit") {
+    populateSwipeForm(swipe);
+    return;
+  }
 
   if (button.dataset.swipeAction === "delete") {
     state.swipes = state.swipes.filter((swipe) => swipe.id !== button.dataset.id);
@@ -719,6 +768,17 @@ function handleSwipeAction(event) {
     render();
     showToast("Swipe deleted.");
   }
+}
+
+function populateSwipeForm(swipe) {
+  if (els.editingSwipeId) els.editingSwipeId.value = swipe.id;
+  if (els.swipeCardSelect) els.swipeCardSelect.value = swipe.cardId;
+  if (els.swipeAmount) els.swipeAmount.value = swipe.amount;
+  if (els.swipeTypeSelect) els.swipeTypeSelect.value = swipe.type;
+  if (els.swipeFySelect) els.swipeFySelect.value = swipe.financialYear;
+  if (els.addSwipeBtn) els.addSwipeBtn.textContent = "Update Swipe";
+  if (els.clearSwipeBtn) els.clearSwipeBtn.style.display = "inline-flex";
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function renderSwipes() {
@@ -733,10 +793,24 @@ function renderSwipes() {
   }
 
   const selectedFy = els.swipeFyFilter?.value || "all";
-  const visibleSwipes = selectedFy === "all"
-    ? state.swipes
-    : state.swipes.filter((swipe) => swipe.financialYear === selectedFy);
-  const visibleTotal = visibleSwipes.reduce((sum, swipe) => sum + toNumber(swipe.amount), 0);
+  const selectedType = els.swipeTypeFilter?.value || "all";
+
+  const visibleSwipes = state.swipes.filter((swipe) => {
+    const matchesFy = selectedFy === "all" || swipe.financialYear === selectedFy;
+    const matchesType = selectedType === "all" || swipe.type === selectedType;
+    return matchesFy && matchesType;
+  });
+
+  // Sort logic: If a specific type is selected, prioritize that type at the top
+  const sortedSwipes = [...visibleSwipes].sort((a, b) => {
+    if (selectedType !== "all") {
+      if (a.type === selectedType && b.type !== selectedType) return -1;
+      if (a.type !== selectedType && b.type === selectedType) return 1;
+    }
+    return String(b.createdAt).localeCompare(String(a.createdAt));
+  });
+
+  const visibleTotal = sortedSwipes.reduce((sum, swipe) => sum + toNumber(swipe.amount), 0);
 
   if (els.swipeFilteredTotal) {
     els.swipeFilteredTotal.textContent = `${selectedFy === "all" ? "All FY" : selectedFy} Total: ${formatMoney(visibleTotal)}`;
@@ -747,32 +821,50 @@ function renderSwipes() {
     return;
   }
 
-  visibleSwipes
-    .slice()
-    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
-    .forEach((swipe) => {
-      const row = document.createElement("article");
-      row.className = "card-row";
-      row.innerHTML = `
+  const businessSwipes = sortedSwipes.filter(s => s.type === "Business" || s.type === "E" || s.type === "F");
+  const personalSwipes = sortedSwipes.filter(s => s.type === "Personal"|| s.type === "E" || s.type === "F");
+
+  const renderGroup = (title, list) => {
+    if (list.length === 0) return "";
+    
+    const groupHtml = list.map(swipe => `
+      <article class="card-row">
         <div class="card-name">
           <strong>${escapeHtml(formatCardName(getCardById(swipe.cardId)))}</strong>
-          <span class="card-meta">${escapeHtml(swipe.type)} | ${escapeHtml(swipe.financialYear)} | ${escapeHtml(formatDateTime(swipe.createdAt))}</span>
+          <span class="card-meta">${escapeHtml(swipe.financialYear)}</span>
         </div>
         <div class="money-cell">
           <span class="cell-label">Amount</span>
           <strong>${escapeHtml(formatMoney(swipe.amount))}</strong>
         </div>
-        <span class="status-pill breakeven">Swipe</span>
+        <span class="status-pill ${title === 'Business' ? 'loss' : 'profit'}">${title}</span>
         <div class="row-actions">
+          <button class="icon-button subtle" type="button" data-swipe-action="edit" data-id="${escapeAttribute(swipe.id)}" title="Edit swipe" aria-label="Edit swipe">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+          </button>
           <button class="icon-button subtle" type="button" data-swipe-action="delete" data-id="${escapeAttribute(swipe.id)}" title="Delete swipe" aria-label="Delete swipe">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" />
             </svg>
           </button>
         </div>
-      `;
-      els.swipesTable.appendChild(row);
-    });
+      </article>
+    `).join("");
+
+    return `
+      <div class="swipe-group" style="margin-bottom: 24px;">
+        <h4 style="color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; padding-left: 4px; border-left: 3px solid ${title === 'Business' ? '#ef4444' : '#10b981'}">${title} Swipes</h4>
+        ${groupHtml}
+      </div>
+    `;
+  };
+
+  let finalHtml = "";
+  finalHtml += renderGroup("Business", businessSwipes);
+  finalHtml += renderGroup("Personal", personalSwipes);
+  els.swipesTable.innerHTML = finalHtml;
 }
 
   function updateLoungeCalculatedValue() {
@@ -1506,6 +1598,7 @@ function renderCards() {
     const totals = getCardTotals(card);
     const status = getStatus(totals.net);
     const netColor = totals.net > 0 ? "#10b981" : totals.net < 0 ? "#ef4444" : "#f8fafc";
+    const cardType = card.notes && card.notes.toUpperCase() === "E" ? "E" : "";
     
     const feeBreakdown = formatFeeBreakdown(card);
 
@@ -1517,12 +1610,14 @@ function renderCards() {
       .filter(Boolean)
       .join(" | ");
     const row = document.createElement("article");
-    row.className = "card-row";
+    row.className = `card-row ${card.isGreyedOut ? "greyed-out" : ""}`;
+    if (card.isGreyedOut) row.style.opacity = "0.4";
     row.innerHTML = `
       <div class="card-name">
         <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;">
           <strong>${escapeHtml(card.name || "Untitled card")}</strong>
           <span class="card-meta" style="margin-top: 0;">${escapeHtml(meta || "Issuer not set")}</span>
+          ${cardType ? `<span class="status-pill ${cardType === 'E' ? 'loss' : 'profit'}" style="font-size: 10px; padding: 1px 6px; margin-left: 4px;">${cardType === 'E' ? 'Business' : 'Personal'}</span>` : ''}
         </div>
         ${formatCardBenefitsHtml(card)}
       </div>
@@ -1540,6 +1635,11 @@ function renderCards() {
       </div>
       <span class="status-pill ${status.key}">${status.label}</span>
       <div class="row-actions">
+        <button class="icon-button subtle" type="button" data-action="toggle-grey" data-id="${escapeAttribute(card.id)}" title="Mute/Unmute card" aria-label="Mute card">
+          <svg viewBox="0 0 24 24" aria-hidden="true" style="fill: ${card.isGreyedOut ? "#94a3b8" : "none"}; stroke: currentColor;">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="1" y1="1" x2="23" y2="23" style="display: ${card.isGreyedOut ? "block" : "none"}"/>
+          </svg>
+        </button>
         <button class="icon-button subtle" type="button" data-action="edit" data-id="${escapeAttribute(card.id)}" title="Edit card" aria-label="Edit card">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
@@ -1738,6 +1838,13 @@ function handleCardAction(event) {
   if (button.dataset.action === "edit") {
     populateForm(card);
     window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+
+  if (button.dataset.action === "toggle-grey") {
+    card.isGreyedOut = !card.isGreyedOut;
+    saveState();
+    render();
     return;
   }
 
