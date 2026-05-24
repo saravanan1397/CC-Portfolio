@@ -6,13 +6,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#080d14" />
     <title>Credit Card Portfolio P/L</title>
+    <style>
+      /* Remove cursor overrides - let browser handle it naturally */
+      input[type="text"], input[type="number"], input[type="search"], input[type="password"], input[type="month"], textarea { cursor: text; }
+      select { cursor: pointer; }
+
+      /* Universal fix for large values to prevent wrapping */
+      .metric-value {
+        white-space: nowrap;
+        font-size: clamp(1.2rem, 5cqi, 2.25rem); /* Responsive font size based on container width */
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Style for currency prefix to make it smaller than the value */
+      .currency-prefix {
+        font-size: 0.6em;
+        margin-right: 2px;
+        vertical-align: middle;
+      }
+    </style>
 <div id="lockScreen" style="
   position:fixed;
   inset:0;
   display:flex;
   align-items:center;
   justify-content:center;
-  background:#0b1220;
+  background:#000000 !important;
   z-index:9999;
   color:#f8fafc;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -33,10 +53,9 @@
   padding: 6px 12px;
   border-radius: 6px;
   border: none;
-  cursor: pointer;
   font-weight: 700;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;">
-  Back
+  Logout
 </button>
     <link rel="stylesheet" href="styles.css" />
 
@@ -61,12 +80,12 @@
   window.firebaseFns = { doc, setDoc, getDoc };
 </script>
 
-
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     <script defer src="app.js"></script>
   </head>
 
 
-  <body>
+  <body style="background-color: #000000 !important;">
     <div class="app-shell">
       <header class="topbar">
         <div class="brand">
@@ -95,7 +114,292 @@
         </div>
       </header>
 
-      <main>
+      <main id="dashboardView">
+        <section class="summary-grid" aria-label="Dashboard">
+          <article class="metric-card net-card">
+            <div class="metric-label">Credit Card Portfolio</div>
+            <div class="metric-value" id="dashboardNetValue">0</div>
+            <div class="metric-hint" id="dashboardNetHint">Portfolio P/L</div>
+            <button class="primary-button full-width" type="button" id="openPortfolioBtn" style="margin-top: 16px;">Open Portfolio</button>
+          </article>
+
+          <article class="metric-card">
+            <div class="metric-label">Swipes</div>
+            <div class="metric-value" id="dashboardSwipeValue">0</div>
+            <div class="metric-hint" id="dashboardSwipeHint">Total big spends</div>
+            <button class="primary-button full-width" type="button" id="openSwipesBtn" style="margin-top: 16px;">Open Swipes</button>
+          </article>
+
+          <article class="metric-card">
+            <div class="metric-label">Lounge / Other Benefits</div>
+            <div class="metric-value" id="dashboardLoungeValue">0</div>
+            <div class="metric-hint" id="dashboardLoungeHint">Total lounge value</div>
+            <button class="primary-button full-width" type="button" id="openLoungeBtn" style="margin-top: 16px;">Open Lounge</button>
+          </article>
+        </section>
+      </main>
+
+      <main id="swipesView" style="display:none;">
+        <section class="portfolio-panel" aria-label="Swipes tracker">
+          <div class="panel-heading portfolio-heading">
+            <div>
+              <p class="eyebrow">Tracker</p>
+              <h2>Swipes</h2>
+            </div>
+            <button class="ghost-button" type="button" id="backFromSwipesBtn">Dashboard</button>
+          </div>
+
+          <div class="control-band" style="display: grid; gap: 14px;">
+       <div style="
+  display:grid;
+  grid-template-columns: minmax(520px, 1fr) minmax(520px, 1fr);
+  gap:80px;
+  align-items:start;
+  width:100%;
+">    
+
+  
+  <!-- BUSINESS -->
+  <div style="
+    border:1px solid rgba(148,163,184,0.18);
+    border-radius:18px;
+    padding:24px;
+    background:rgba(15,23,42,0.45);
+    width:100%;
+  ">
+
+    <div style="
+      margin-bottom:18px;
+      font-size:1rem;
+      font-weight:800;
+      color:#67e8f9;
+      letter-spacing:0.05em;
+      text-transform:uppercase;
+    ">
+      Business
+    </div>
+
+    <div style="
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:18px;
+      width:100%;
+    ">
+
+      <label class="field">
+        <span>Card</span>
+        <select id="swipeCardSelect" style="width:100%;"></select>
+      </label>
+
+      <label class="field">
+        <span>Amount</span>
+        <input id="swipeAmount"
+          type="number"
+          min="0"
+          step="0.01"
+          inputmode="decimal"
+          placeholder="50000"
+          style="width:100%;" />
+      </label>
+
+      <label class="field">
+        <span>F / E</span>
+        <select id="swipeTypeSelect" style="width:100%;">
+          <option value="F">F</option>
+          <option value="E">E</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>Financial year</span>
+        <select id="swipeFySelect" style="width:100%;">
+          <option value="FY 24-25">FY 24-25</option>
+          <option value="FY 25-26">FY 25-26</option>
+          <option value="FY 26-27">FY 26-27</option>
+          <option value="FY 27-28">FY 27-28</option>
+          <option value="FY 28-29">FY 28-29</option>
+          <option value="FY 29-30">FY 29-30</option>
+        </select>
+      </label>
+
+    </div>
+
+    <button class="primary-button"
+      type="button"
+      id="addSwipeBtn"
+      style="
+        margin-top:22px;
+        width:100%;
+      ">
+      Add Swipe
+    </button>
+
+  </div>
+
+  <!-- PERSONAL -->
+  <div style="
+    border:1px solid rgba(148,163,184,0.18);
+    border-radius:18px;
+    padding:24px;
+    background:rgba(15,23,42,0.45);
+    width:100%;
+  ">
+
+    <div style="
+      margin-bottom:18px;
+      font-size:1rem;
+      font-weight:800;
+      color:#67e8f9;
+      letter-spacing:0.05em;
+      text-transform:uppercase;
+    ">
+      Personal
+    </div>
+
+    <div style="
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:18px;
+      width:100%;
+    ">
+
+      <label class="field">
+        <span>Card</span>
+        <select id="spentCardSelect" style="width:100%;"></select>
+      </label>
+
+      <label class="field">
+        <span>Amount</span>
+        <input id="spentAmount"
+          type="number"
+          min="0"
+          step="0.01"
+          inputmode="decimal"
+          placeholder="50000"
+          style="width:100%;" />
+      </label>
+
+      <label class="field">
+        <span>F / E</span>
+        <select id="spentTypeSelect" style="width:100%;">
+          <option value="F">F</option>
+          <option value="E">E</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>Financial year</span>
+        <select id="spentFySelect" style="width:100%;">
+          <option value="FY 24-25">FY 24-25</option>
+          <option value="FY 25-26">FY 25-26</option>
+          <option value="FY 26-27">FY 26-27</option>
+          <option value="FY 27-28">FY 27-28</option>
+          <option value="FY 28-29">FY 28-29</option>
+          <option value="FY 29-30">FY 29-30</option>
+        </select>
+      </label>
+
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:18px; align-items:end; margin-top:18px; width:100%;">
+      <label class="field">
+        <span>Spent For</span>
+        <input id="spentForText"
+          type="text"
+          placeholder="Flight tickets, insurance, jewellery..."
+          style="width:100%;" />
+      </label>
+
+      <button class="primary-button"
+        type="button"
+        id="spentForBtn">
+        Add Swipe
+      </button>
+    </div>
+
+</div>
+          </div>
+</div>
+          <div class="control-band" style="display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-top:18px;">
+            <label class="field compact-field">
+              <span>View FY</span>
+              <select id="swipeFyFilter">
+                <option value="all">All FY</option>
+                <option value="FY 24-25">FY 24-25</option>
+                <option value="FY 25-26">FY 25-26</option>
+                <option value="FY 26-27">FY 26-27</option>
+                <option value="FY 27-28">FY 27-28</option>
+                <option value="FY 28-29">FY 28-29</option>
+                <option value="FY 29-30">FY 29-30</option>
+              </select>
+            </label>
+            <strong id="swipeFilteredTotal">Total: <span class="currency-prefix">₹</span>0</strong>
+          </div>
+
+          <div class="cards-table" id="swipesTable" style="margin-top: 18px;"></div>
+        </section>
+      </main>
+
+      <main id="loungeView" style="display:none;">
+        <section class="portfolio-panel" aria-label="Lounge benefits">
+          <div class="panel-heading portfolio-heading">
+            <div>
+              <p class="eyebrow">Benefits</p>
+              <h2>Lounge / Other Benefits</h2>
+            </div>
+            <button class="ghost-button" type="button" id="backFromLoungeBtn">Dashboard</button>
+          </div>
+
+          <div class="control-band" style="display: grid; grid-template-columns: 1fr 350px; gap: 24px; align-items: start;">
+            <div>
+              <input id="editingLoungeVisitId" type="hidden" />
+              <div class="form-grid">
+                <label class="field">
+                  <span>Card</span>
+                  <select id="loungeCardSelect"></select>
+                </label>
+                <label class="field">
+                  <span>Lounge type</span>
+                  <select id="loungeTypeSelect">
+                    <option value="Domestic">Domestic</option>
+                    <option value="International">International</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>No. of members</span>
+                  <input id="loungeMembers" type="number" min="0" step="0.01" inputmode="numeric" placeholder="2" />
+                </label>
+                <label class="field">
+                  <span>Value per person</span>
+                  <input id="loungeVisitValue" type="number" min="0" step="0.01" inputmode="decimal" placeholder="1500" />
+                </label>
+                <label class="field">
+                  <span>Date</span>
+                  <input id="loungeVisitDate" type="date" />
+                </label>
+                <label class="field">
+                  <span>Airport</span>
+                  <input id="loungeAirport" type="text" placeholder="e.g., DEL, BOM, BLR" />
+                </label>
+              </div>
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top: 18px;">
+                <strong id="loungeCalculatedValue">Benefit: <span class="currency-prefix">₹</span>0</strong>
+                <div style="display:flex; gap:8px;">
+                  <button class="primary-button" type="button" id="saveLoungeVisitBtn">Add Visit</button>
+                  <button class="ghost-button" type="button" id="clearLoungeVisitBtn">Clear</button>
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px;">
+              <canvas id="loungeChartCanvas" style="max-width: 100%; max-height: 300px;"></canvas>
+            </div>
+          </div>
+
+          <div class="cards-table" id="loungeTable" style="margin-top: 18px;"></div>
+        </section>
+      </main>
+
+      <main id="portfolioView" style="display:none;">
         <section class="summary-grid" aria-label="Portfolio totals">
           <article class="metric-card">
             <div class="metric-label">Annual Fees</div>
@@ -133,6 +437,7 @@
               New card
             </button>
             <button class="ghost-button danger-ghost" id="resetBtn">Reset</button>
+            <button class="ghost-button" type="button" id="backFromPortfolioBtn">Dashboard</button>
           </div>
 
           <div class="filter-group" style="display: flex; gap: 16px; flex-grow: 1; align-items: flex-end;">
@@ -190,7 +495,7 @@
     <input id="annualFee"
       type="number"
       min="0"
-      step="1"
+      step="0.01"
       inputmode="decimal"
       placeholder="12500" />
   </label>
@@ -200,7 +505,7 @@
   <input id="taxFee"
     type="number"
     min="0"
-    step="1"
+    step="0.01"
     inputmode="decimal"
     placeholder="2250" />
 </label>
@@ -233,12 +538,14 @@
     <input id="prevYearFee"
       type="number"
       min="0"
-      step="1"
+      step="0.01"
       inputmode="decimal"
       placeholder="Previous annual fee" />
   </label>
 
 </div>
+
+<div id="previousFeeList" class="future-fee-list" style="margin-bottom: 18px;"></div>
 
 <!-- Annual Fee Row -->
 <div class="field-row">
@@ -253,12 +560,14 @@
     <input id="futureAnnualFee"
       type="number"
       min="0"
-      step="1"
+      step="0.01"
       inputmode="decimal"
       placeholder="Future annual fee" />
   </label>
 
 </div>
+
+<div id="futureFeeList" class="future-fee-list"></div>
               </div>
 
               <div class="benefit-editor">
@@ -352,4 +661,3 @@
 
   </body>
 </html>
-</div>
