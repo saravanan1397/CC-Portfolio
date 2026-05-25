@@ -1456,9 +1456,9 @@ function syncLoungeBenefitsFromVisits() {
       
       benefits.push({
         id: `lounge-${card.id}`,
-        type: "Lounge Access",
+        type: "Golf/Lounge Benefit",
         valueType: "cash",
-        label: hasGolf ? "International / Golf Benefits" : "Lounge Benefits",
+        label: hasGolf ? "Airport Lounge" : "Golf Benefits",
         amount: loungeTotal,
       });
     }
