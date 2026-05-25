@@ -376,10 +376,35 @@
                   <select id="loungeCardSelect"></select>
                 </label>
                 <label class="field">
-                  <span>Lounge type</span>
+                  <span>Airport Lounge type</span>
                   <select id="loungeTypeSelect">
-                    <option value="Domestic">Domestic</option>
-                    <option value="International">International</option>
+
+  <option value="" selected disabled>
+    Select Type
+  </option>
+
+  <option value="Domestic">
+    Domestic
+  </option>
+
+  <option value="International">
+    International
+  </option>
+
+</select>
+                </label>
+                <label class="field">
+                  <span>Golf Type</span>
+                  <select id="golfTypeSelect" onchange="this.setAttribute('value', this.value)">
+                    <option value="" selected disabled>
+                      Select Type
+                    </option>
+                    <option value="Domestic_Golf">
+                      Domestic
+                    </option>
+                    <option value="International_Golf">
+                      International
+                    </option>
                   </select>
                 </label>
                 <label class="field">
@@ -395,7 +420,7 @@
                   <input id="loungeVisitDate" type="date" />
                 </label>
                 <label class="field">
-                  <span>Airport</span>
+                  <span>Airport/Golf Course</span>
                   <input id="loungeAirport" type="text" placeholder="e.g., DEL, BOM, BLR" />
                 </label>
               </div>
