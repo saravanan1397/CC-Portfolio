@@ -30,6 +30,15 @@
         margin-right: 2px;
         vertical-align: middle;
       }
+
+      /* Full screen container overrides */
+      .app-shell {
+        max-width: 100% !important;
+        width: 100% !important;
+        padding: 20px 40px !important;
+        margin: 0 !important;
+        box-sizing: border-box;
+      }
     </style>
 <div id="lockScreen" style="
   position:fixed;
@@ -104,20 +113,7 @@
           </div>
         </div>
 
-        <div class="topbar-actions">
-          <button class="icon-button" id="exportBtn" title="Export portfolio" aria-label="Export portfolio">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" />
-            </svg>
-          </button>
-          <button class="icon-button" id="importBtn" title="Import portfolio" aria-label="Import portfolio">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 21V9m0 0 4 4m-4-4-4 4M5 3h14" />
-            </svg>
-          </button>
-          <input id="importFile" type="file" accept="application/json" hidden />
-        </div>
-      </header>
+        </header>
 
       <main id="dashboardView">
         <section class="summary-grid" aria-label="Dashboard">
@@ -156,22 +152,11 @@
 
           <div class="control-band" style="display: grid; gap: 14px;">
             <input type="hidden" id="editingSwipeId">
-       <div style="
-  display:grid;
-  grid-template-columns: minmax(520px, 1fr) 1fr;
-  gap:80px;
-  align-items:start;
-  width:100%;
-">    
+       <div style="width:100%;">    
 
-  
-  <!-- BUSINESS -->
+  <!-- ADD SWIPE SECTION -->
   <div style="
-    border:1px solid rgba(148,163,184,0.18);
-    border-radius:18px;
-    padding:24px;
-    background:rgba(15,23,42,0.45);
-    width:100%;
+    width: 100%;
   ">
 
     <div style="
@@ -186,26 +171,26 @@
     </div>
 
     <div style="
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:18px;
-      width:100%;
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      width: 100%;
     ">
 
-      <label class="field">
+      <label class="field" style="flex: 1; min-width: 140px;">
         <span>Category</span>
-        <select id="swipeCategorySelect" style="width:100%;">
+        <select id="swipeCategorySelect" style="width:100%; height: 42px;">
           <option value="business">Business</option>
           <option value="personal">Personal</option>
         </select>
       </label>
 
-      <label class="field">
+      <label class="field" style="flex: 2; min-width: 240px;">
         <span>Card</span>
-        <select id="swipeCardSelect" style="width:100%;"></select>
+        <select id="swipeCardSelect" style="width:100%; height: 42px;"></select>
       </label>
 
-      <label class="field">
+      <label class="field" style="flex: 1; min-width: 130px;">
         <span>Amount</span>
         <input id="swipeAmount"
           type="number"
@@ -213,20 +198,20 @@
           step="0.01"
           inputmode="decimal"
           placeholder="50000"
-          style="width:100%;" />
+          style="width:100%; height: 42px;" />
       </label>
 
-      <label class="field">
+      <label class="field" style="flex: 1; min-width: 140px;">
         <span>Full Swipe / EMI</span>
-        <select id="swipeTypeSelect" style="width:100%;">
+        <select id="swipeTypeSelect" style="width:100%; height: 42px;">
           <option value="F">Full Swipe</option>
           <option value="E">EMI</option>
         </select>
       </label>
 
-      <label class="field">
+      <label class="field" style="flex: 1; min-width: 140px;">
         <span>Financial year</span>
-        <select id="swipeFySelect" style="width:100%;">
+        <select id="swipeFySelect" style="width:100%; height: 42px;">
           <option value="FY 24-25">FY 24-25</option>
           <option value="FY 25-26">FY 25-26</option>
           <option value="FY 26-27">FY 26-27</option>
@@ -236,33 +221,32 @@
         </select>
       </label>
 
-      <label class="field">
+      <label class="field" style="flex: 2; min-width: 200px;">
         <span>Spent for</span>
         <input id="swipeSpentFor"
           type="text"
           placeholder="e.g. Laptop, Rent"
-          style="width:100%;"
+          style="width:100%; height: 42px;"
           autocomplete="off" />
       </label>
 
+      <div style="display: flex; gap: 8px;">
+        <button class="primary-button"
+          type="button"
+          id="addSwipeBtn"
+          style="height: 42px; white-space: nowrap; padding: 0 20px;">
+          Add
+        </button>
+        <button class="ghost-button" type="button" id="cancelSwipeBtn" style="height: 42px; border: 1px solid rgba(248, 250, 252, 0.2); padding: 0 15px;" onclick="document.getElementById('swipeCardSelect').selectedIndex=0; document.getElementById('swipeAmount').value=''; document.getElementById('swipeTypeSelect').selectedIndex=0; document.getElementById('swipeFySelect').selectedIndex=0;">Cancel</button>
+      </div>
     </div>
-
-    <div style="display: flex; gap: 12px; margin-top: 22px;">
-      <button class="primary-button"
-        type="button"
-        id="addSwipeBtn"
-        style="flex: 1;">
-        Add Swipe
-      </button>
-      <button class="ghost-button" type="button" id="cancelSwipeBtn" style="flex: 1; border: 1px solid rgba(248, 250, 252, 0.2);" onclick="document.getElementById('swipeCardSelect').selectedIndex=0; document.getElementById('swipeAmount').value=''; document.getElementById('swipeTypeSelect').selectedIndex=0; document.getElementById('swipeFySelect').selectedIndex=0;">Cancel</button>
-    </div>
-
   </div>
-
-  <!-- EMPTY SPACE -->
-  <div></div>
           </div>
-</div>
+        </div>
+
+        <!-- Placeholder for future progress bar graphics -->
+        <div id="swipeProgressPlaceholder" style="height: 40px; width: 100%;"></div>
+
           <div class="control-band" style="display:flex; align-items:flex-end; justify-content:flex-start; gap:32px; flex-wrap:wrap; margin-top:18px;">
             <label class="field compact-field">
               <span>View FY</span>
@@ -282,13 +266,6 @@
                 <option value="all">All</option>
                 <option value="business">Business</option>
                 <option value="personal">Personal</option>
-              </select>
-            </label>
-            <label class="field compact-field">
-              <span>Sort Order</span>
-              <select id="swipeSortOrder">
-                <option value="newest first">Newest First</option>
-                <option value="oldest first">Oldest First</option>
               </select>
             </label>
             <strong id="swipeFilteredTotal" style="margin-left: auto;">Total: <span class="currency-prefix">₹</span>0</strong>
@@ -402,7 +379,6 @@
               New card
             </button>
             <button class="ghost-button danger-ghost" id="resetBtn">Reset</button>
-            <button class="ghost-button" type="button" id="backFromPortfolioBtn">Dashboard</button>
           </div>
 
           <div class="filter-group" style="display: flex; gap: 16px; flex-grow: 1; align-items: flex-end;">
@@ -420,6 +396,7 @@
               </select>
             </label>
           </div>
+          <button class="ghost-button" type="button" id="backFromPortfolioBtn">Dashboard</button>
         </section>
 
         <section class="workspace-grid">
