@@ -65,7 +65,7 @@ const state = {
   search: "",
   statusFilter: "all",
   sort: "netAsc",
-  currentView: "dashboard",
+  currentView: sessionStorage.getItem("currentView") || "dashboard",
 };
 
 let draftBenefits = [];
@@ -173,6 +173,11 @@ spentForBtn:document.getElementById("spentForBtn"),
     editingLoungeVisitId: document.getElementById("editingLoungeVisitId"),
     loungeTable: document.getElementById("loungeTable"),
     loungeCalculatedValue: document.getElementById("loungeCalculatedValue"),
+    loungeBenefitType: document.getElementById("loungeBenefitType"),
+    loungeBenefitLabel: document.getElementById("loungeBenefitLabel"),
+    loungeBenefitValue: document.getElementById("loungeBenefitValue"),
+    saveLoungeBenefitBtn: document.getElementById("saveLoungeBenefitBtn"),
+    clearLoungeBenefitBtn: document.getElementById("clearLoungeBenefitBtn"),
 
     prevYearFee: document.getElementById("prevYearFee"), // This maps to the input for Previous Annual Fee
     prevFeeContainer: document.getElementById("prevFeeContainer"),
@@ -273,6 +278,8 @@ document.addEventListener("click", (e) => {
   els.saveLoungeVisitBtn?.addEventListener("click", saveLoungeVisitFromForm);
   els.clearLoungeVisitBtn?.addEventListener("click", resetLoungeVisitForm);
   els.loungeTable?.addEventListener("click", handleLoungeAction);
+  els.saveLoungeBenefitBtn?.addEventListener("click", saveLoungeBenefitFromForm);
+  els.clearLoungeBenefitBtn?.addEventListener("click", resetLoungeBenefitForm);
 }
 
 async function loadState() {
@@ -607,6 +614,7 @@ function renderFutureFeeList() {
 
 function showView(view) {
   state.currentView = view;
+  sessionStorage.setItem("currentView", view);
 
   if (els.dashboardView) els.dashboardView.style.display = view === "dashboard" ? "block" : "none";
   if (els.portfolioView) els.portfolioView.style.display = view === "portfolio" ? "block" : "none";
@@ -1055,7 +1063,7 @@ async function saveLoungeVisitFromForm(event) {
     perPerson,
 
     total,
-
+    createdAt: state.loungeVisits.find(v => v.id === (els.editingLoungeVisitId?.value))?.createdAt || new Date().toISOString(),
     date:
   els.loungeVisitDate?.value
     ? `${els.loungeVisitDate.value}T00:00:00`
@@ -1103,9 +1111,10 @@ function populateLoungeVisitForm(visit) {
   if (els.editingLoungeVisitId) els.editingLoungeVisitId.value = visit.id;
   if (els.loungeCardSelect) els.loungeCardSelect.value = visit.cardId;
   if (els.loungeTypeSelect) els.loungeTypeSelect.value = visit.loungeType;
+  if (els.loungeTypeSelect) els.loungeTypeSelect.selectedIndex = visit.loungeType === "International" ? 1 : 0;
   if (els.loungeMembers) els.loungeMembers.value = visit.members || "";
   if (els.loungeAirport) els.loungeAirport.value = visit.airport || "";
-  if (els.loungeVisitDate) els.loungeVisitDate.value = visit.date || "";
+  if (els.loungeVisitDate) els.loungeVisitDate.value = visit.date ? visit.date.split('T')[0] : "";
   if (els.loungeVisitValue) {
     els.loungeVisitValue.value = visit.perPerson || "";
   }
@@ -1120,8 +1129,79 @@ function resetLoungeVisitForm() {
   if (els.loungeAirport) els.loungeAirport.value = "";
   if (els.loungeVisitDate) els.loungeVisitDate.value = "";
   if (els.loungeTypeSelect) els.loungeTypeSelect.value = "Domestic";
+  if (els.loungeCardSelect) {
+    els.loungeCardSelect.selectedIndex = 0;
+  }
+  if (els.loungeTypeSelect) els.loungeTypeSelect.selectedIndex = 0;
   if (els.saveLoungeVisitBtn) els.saveLoungeVisitBtn.textContent = "Add Visit";
   updateLoungeCalculatedValue();
+}
+
+async function saveLoungeBenefitFromForm(event) {
+  event.preventDefault();
+  
+  const cardId = els.loungeCardSelect?.value;
+  const type = els.loungeBenefitType?.value || "Lounge Access";
+  const label = els.loungeBenefitLabel?.value.trim() || "Lounge Benefit";
+  const amount = toNumber(els.loungeBenefitValue?.value);
+
+  if (!cardId) {
+    showToast("Select a card first.");
+    return;
+  }
+  if (amount <= 0) {
+    showToast("Enter a valid benefit value.");
+    return;
+  }
+
+  const card = state.cards.find(c => c.id === cardId);
+  if (!card) return;
+
+  // Create a manual lounge benefit entry
+  const benefit = {
+    id: `manual-lounge-${createId()}`,
+    type: type,
+    valueType: "cash",
+    label: label,
+    amount: amount
+  };
+
+  if (!card.benefits) card.benefits = [];
+  card.benefits.push(benefit);
+
+  await saveState();
+  render();
+  resetLoungeBenefitForm();
+  showToast("Lounge benefit added to card.");
+}
+
+function resetLoungeBenefitForm() {
+  if (els.loungeBenefitLabel) els.loungeBenefitLabel.value = "";
+  if (els.loungeBenefitValue) els.loungeBenefitValue.value = "";
+  if (els.loungeBenefitType) els.loungeBenefitType.selectedIndex = 0;
+}
+
+function syncLoungeBenefitsFromVisits() {
+  const totalsByCardId = {};
+  state.loungeVisits.forEach((visit) => {
+    if (!visit.cardId) return;
+    totalsByCardId[visit.cardId] = (totalsByCardId[visit.cardId] || 0) + toNumber(visit.total);
+  });
+
+  state.cards = state.cards.map((card) => {
+    let benefits = (card.benefits || []).filter((b) => !String(b.id || "").startsWith("lounge-auto-"));
+    const loungeTotal = totalsByCardId[card.id] || 0;
+    if (loungeTotal > 0) {
+      benefits.push({
+        id: `lounge-auto-${card.id}`,
+        type: "Lounge Access",
+        valueType: "cash",
+        label: "Lounge Visits (Auto)",
+        amount: loungeTotal,
+      });
+    }
+    return { ...card, benefits };
+  });
 }
 
 function renderLoungeVisits() {
@@ -1140,7 +1220,7 @@ function renderLoungeVisits() {
       <span>Visit Details</span>
       <span>Members</span>
       <span>Total Value</span>
-      <span>Airport</span>
+      <span>Airport / Golf Course</span>
       <span></span>
     `;
 
@@ -1181,6 +1261,8 @@ function renderLoungeVisits() {
           <span class="card-meta">
             ${escapeHtml(visit.loungeType)}
             |
+            ${escapeHtml(  visit.loungeType === "International" ? "International Lounge" : visit.loungeType === "Golf" ? "Golf Lesson" : "Airport Lounge")}
+            |
             ${escapeHtml(formatDateTime(visit.date))}
           </span>
         </div>
@@ -1197,7 +1279,7 @@ function renderLoungeVisits() {
           <span class="cell-label">Total</span>
 
           <strong>
-            ${escapeHtml(formatMoney(visit.total))}
+            ${escapeHtml(formatMoney(visit.total || (visit.members * visit.perPerson)))}
           </strong>
         </div>
 
@@ -1369,11 +1451,16 @@ function syncLoungeBenefitsFromVisits() {
     // Add lounge benefits if this card has lounge visits
     const loungeTotal = totalsByCardId[card.id] || 0;
     if (loungeTotal > 0) {
+      const cardVisits = state.loungeVisits.filter(v => v.cardId === card.id);
+      const hasGolf = cardVisits.some(v => 
+        v.loungeType === "International" || v.loungeType.toLowerCase().includes("golf") || (v.airport && v.airport.toLowerCase().includes("golf")) || (v.loungeType === "International")
+      );
+      
       benefits.push({
         id: `lounge-${card.id}`,
         type: "Lounge Access",
         valueType: "cash",
-        label: "Lounge Benefits",
+        label: hasGolf ? "International / Golf Benefits" : "Lounge Benefits",
         amount: loungeTotal,
       });
     }
@@ -2484,7 +2571,7 @@ function checkPin() {
 
     document.getElementById("lockScreen").style.display = "none";
     document.getElementById("app").style.display = "block";
-    showView("dashboard");
+    showView(state.currentView);
   } else {
     document.getElementById("pinError").style.display = "block";
   }
@@ -2507,7 +2594,7 @@ window.addEventListener("DOMContentLoaded", () => {
   if (sessionStorage.getItem("unlocked") === "true") {
     document.getElementById("lockScreen").style.display = "none";
     document.getElementById("app").style.display = "block";
-    showView("dashboard");
+    showView(state.currentView);
   }
 });
 
