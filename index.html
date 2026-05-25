@@ -116,25 +116,25 @@
         </header>
 
       <main id="dashboardView">
-        <section class="summary-grid" aria-label="Dashboard">
+        <section class="summary-grid" aria-label="Dashboard" style="grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 32px;">
           <article class="metric-card net-card">
-            <div class="metric-label">Credit Card Portfolio</div>
-            <div class="metric-value" id="dashboardNetValue">0</div>
-            <div class="metric-hint" id="dashboardNetHint">Portfolio P/L</div>
+            <div class="metric-label" style="font-size: 1.1rem;">Credit Card Portfolio</div>
+            <div class="metric-value" id="dashboardNetValue" style="font-size: 3.5rem; margin: 12px 0;">0</div>
+            <div class="metric-hint" id="dashboardNetHint" style="font-size: 1rem;">Portfolio P/L</div>
             <button class="primary-button full-width" type="button" id="openPortfolioBtn" style="margin-top: 16px;">Open Portfolio</button>
           </article>
 
           <article class="metric-card">
-            <div class="metric-label">Swipes</div>
-            <div class="metric-value" id="dashboardSwipeValue">0</div>
-            <div class="metric-hint" id="dashboardSwipeHint">Total big spends</div>
+            <div class="metric-label" style="font-size: 1.1rem;">Swipes</div>
+            <div class="metric-value" id="dashboardSwipeValue" style="font-size: 3.5rem; margin: 12px 0;">0</div>
+            <div class="metric-hint" id="dashboardSwipeHint" style="font-size: 1rem;">Total big spends</div>
             <button class="primary-button full-width" type="button" id="openSwipesBtn" style="margin-top: 16px;">Open Swipes</button>
           </article>
 
           <article class="metric-card">
-            <div class="metric-label">Lounge / Other Benefits</div>
-            <div class="metric-value" id="dashboardLoungeValue">0</div>
-            <div class="metric-hint" id="dashboardLoungeHint">Total lounge value</div>
+            <div class="metric-label" style="font-size: 1.1rem;">Lounge / Other Benefits</div>
+            <div class="metric-value" id="dashboardLoungeValue" style="font-size: 3.5rem; margin: 12px 0;">0</div>
+            <div class="metric-hint" id="dashboardLoungeHint" style="font-size: 1rem;">Total lounge value</div>
             <button class="primary-button full-width" type="button" id="openLoungeBtn" style="margin-top: 16px;">Open Lounge</button>
           </article>
         </section>
