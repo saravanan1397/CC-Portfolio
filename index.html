@@ -39,6 +39,85 @@
         margin: 0 !important;
         box-sizing: border-box;
       }
+
+      /* Mobile Responsiveness */
+      @media (max-width: 768px) {
+        .app-shell {
+          padding: 15px !important;
+        }
+        .summary-grid {
+          grid-template-columns: 1fr !important;
+          gap: 16px !important;
+        }
+        .control-band {
+          flex-direction: column;
+          align-items: stretch !important;
+        }
+        .workspace-grid {
+          grid-template-columns: 1fr !important;
+        }
+        .form-grid {
+          grid-template-columns: 1fr !important;
+        }
+        .field-row {
+          flex-direction: column !important;
+          gap: 0 !important;
+        }
+        .field-row .field {
+          margin-top: 10px !important;
+        }
+        .metric-value {
+          font-size: 2.2rem !important;
+        }
+        
+        /* Swipes View Mobile Fixes */
+        #swipesView .swipe-form-container {
+          flex-direction: column !important;
+          align-items: stretch !important;
+          gap: 16px !important;
+        }
+        #swipesView .field {
+          min-width: 100% !important;
+        }
+
+        /* Fix eye icon overflow in mobile */
+        .card-row {
+          position: relative;
+        }
+
+        #scrollToTopBtn {
+          bottom: 20px !important;
+          right: 20px !important;
+          width: 40px !important;
+          height: 40px !important;
+        }
+      }
+
+      #scrollToTopBtn {
+        display: none;
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        z-index: 999;
+        background-color: #f59e0b;
+        color: #000;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s, opacity 0.2s;
+      }
+      #scrollToTopBtn:hover {
+        transform: scale(1.1);
+      }
+      #scrollToTopBtn svg {
+        width: 24px;
+        height: 24px;
+      }
     </style>
 <div id="lockScreen" style="
   position:fixed;
@@ -62,7 +141,7 @@
   </div>
 </div>
 
-<div id="app" style="display:none;">
+<div id="app" style="display:none; position: relative;">
 <button id="lockBtn" style="position: absolute; top: 15px; right: 15px; z-index: 10000; background-color: #f59e0b; color: rgb(0, 0, 0);
   padding: 6px 12px;
   border-radius: 6px;
@@ -70,6 +149,11 @@
   font-weight: 700;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;">
   Logout
+</button>
+<button id="scrollToTopBtn" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="Go to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M18 15l-6-6-6 6"/>
+  </svg>
 </button>
     <link rel="stylesheet" href="styles.css" />
 
@@ -153,14 +237,10 @@
           <div class="control-band" style="display: grid; gap: 14px;">
             <input type="hidden" id="editingSwipeId">
        <div style="width:100%;">    
-
-  <!-- ADD SWIPE SECTION -->
-  <div style="
-    width: 100%;
-  ">
+  <div style="width: 100%;">
 
     <div style="
-      margin-bottom:18px;
+      margin-bottom:12px;
       font-size:1rem;
       font-weight:800;
       color:#67e8f9;
@@ -170,12 +250,7 @@
       Add Swipe
     </div>
 
-    <div style="
-      display: flex;
-      align-items: flex-end;
-      gap: 12px;
-      width: 100%;
-    ">
+    <div class="swipe-form-container" style="display: flex; align-items: flex-end; gap: 12px; width: 100%; flex-wrap: wrap;">
 
       <label class="field" style="flex: 1; min-width: 140px;">
         <span>Category</span>
@@ -230,7 +305,7 @@
           autocomplete="off" />
       </label>
 
-      <div style="display: flex; gap: 8px;">
+      <div style="display: flex; gap: 8px; width: 100%; justify-content: flex-end;">
         <button class="primary-button"
           type="button"
           id="addSwipeBtn"
@@ -247,7 +322,7 @@
         <!-- Placeholder for future progress bar graphics -->
         <div id="swipeProgressPlaceholder" style="height: 40px; width: 100%;"></div>
 
-          <div class="control-band" style="display:flex; align-items:flex-end; justify-content:flex-start; gap:32px; flex-wrap:wrap; margin-top:18px;">
+          <div class="control-band" style="display:flex; align-items:flex-end; justify-content:flex-start; gap:16px; flex-wrap:wrap; margin-top:18px;">
             <label class="field compact-field">
               <span>View FY</span>
               <select id="swipeFyFilter">
@@ -292,7 +367,7 @@
             <button class="ghost-button" type="button" id="backFromLoungeBtn">Dashboard</button>
           </div>
 
-          <div class="control-band" style="display: grid; grid-template-columns: 1fr 350px; gap: 24px; align-items: start;">
+          <div class="control-band" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; align-items: start;">
             <div>
               <input id="editingLoungeVisitId" type="hidden" />
               <div class="form-grid">
@@ -324,7 +399,7 @@
                   <input id="loungeAirport" type="text" placeholder="e.g., DEL, BOM, BLR" />
                 </label>
               </div>
-              <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top: 18px;">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top: 24px;">
                 <strong id="loungeCalculatedValue">Benefit: <span class="currency-prefix">₹</span>0</strong>
                 <div style="display:flex; gap:8px;">
                   <button class="primary-button" type="button" id="saveLoungeVisitBtn">Add Visit</button>
@@ -332,7 +407,7 @@
                 </div>
               </div>
             </div>
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px;">
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 250px;">
               <canvas id="loungeChartCanvas" style="max-width: 100%; max-height: 300px;"></canvas>
             </div>
           </div>
