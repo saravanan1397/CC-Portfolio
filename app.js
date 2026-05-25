@@ -87,9 +87,6 @@ render();
 
 function cacheElements() {
   Object.assign(els, {
-    exportBtn: document.getElementById("exportBtn"),
-    importBtn: document.getElementById("importBtn"),
-    importFile: document.getElementById("importFile"),
     newCardBtn: document.getElementById("newCardBtn"),
     resetBtn: document.getElementById("resetBtn"),
     searchInput: document.getElementById("searchInput"),
@@ -245,9 +242,6 @@ document.addEventListener("click", (e) => {
   els.addBenefitBtn.addEventListener("click", addBenefitDraft);
   els.cardForm.addEventListener("submit", saveCardFromForm);
   els.resetBtn.addEventListener("click", resetPortfolio);
-  els.exportBtn.addEventListener("click", exportPortfolio);
-  els.importBtn.addEventListener("click", () => els.importFile.click());
-  els.importFile.addEventListener("change", importPortfolio);
   els.benefitRows.addEventListener("input", updateDraftBenefit);
   els.benefitRows.addEventListener("change", updateDraftBenefit);
   els.benefitRows.addEventListener("click", removeBenefitDraft);
@@ -498,10 +492,7 @@ function removePreviousFeeDraft(event) {
 function renderPreviousFeeList() {
   if (!els.previousFeeList) return;
 
-  if (!draftPreviousAnnualFees.length) {
-    els.previousFeeList.innerHTML = `<div style="font-size:12px; color:#94a3b8;">No previous annual fees added yet.</div>`;
-    return;
-  }
+  
 
   els.previousFeeList.innerHTML = `
     <div style="display:grid; gap:6px;">
@@ -595,10 +586,7 @@ function removeFutureFeeDraft(event) {
 function renderFutureFeeList() {
   if (!els.futureFeeList) return;
 
-  if (!draftFutureAnnualFees.length) {
-    els.futureFeeList.innerHTML = `<div style="font-size:12px; color:#94a3b8;">No future annual fees added yet.</div>`;
-    return;
-  }
+  
 
   els.futureFeeList.innerHTML = `
     <div style="display:grid; gap:6px;">
@@ -633,10 +621,10 @@ function updateAppBackButton() {
   const button = document.getElementById("lockBtn");
   if (!button) return;
 
-  const isDashboard = state.currentView === "dashboard";
-  button.textContent = isDashboard ? "Logout" : "Back";
-  button.title = isDashboard ? "Logout" : "Back to widgets";
+  button.textContent = "Logout";
+  button.title = "Logout";
   button.setAttribute("aria-label", button.title);
+  button.style.display = state.currentView === "dashboard" ? "flex" : "none";
 }
 
 function renderDashboard() {
@@ -2494,11 +2482,6 @@ function checkPin() {
   if (input === APP_PIN) {
     sessionStorage.setItem("unlocked", "true");
 
-    const backBtn = document.getElementById("backBtn");
-    if (backBtn) {
-      backBtn.style.display = "block";
-      backBtn.style.backgroundColor = "rgb(245, 158, 11)";
-    }
     document.getElementById("lockScreen").style.display = "none";
     document.getElementById("app").style.display = "block";
     showView("dashboard");
@@ -2522,11 +2505,6 @@ document.addEventListener("DOMContentLoaded", () => {
 // Auto-check on reload
 window.addEventListener("DOMContentLoaded", () => {
   if (sessionStorage.getItem("unlocked") === "true") {
-    const backBtn = document.getElementById("backBtn");
-    if (backBtn) {
-      backBtn.style.display = "block";
-      backBtn.style.backgroundColor = "rgb(245, 158, 11)";
-    }
     document.getElementById("lockScreen").style.display = "none";
     document.getElementById("app").style.display = "block";
     showView("dashboard");
@@ -2552,7 +2530,6 @@ function lockApp() {
 
   // hide app
   document.getElementById("app").style.display = "none";
-  if (document.getElementById("backBtn")) document.getElementById("backBtn").style.display = "none";
 
   // show lock screen
   document.getElementById("lockScreen").style.display = "flex";
@@ -2571,10 +2548,5 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function handleAppBackButton() {
-  if (state.currentView === "dashboard") {
-    lockApp();
-    return;
-  }
-
-  showView("dashboard");
+  lockApp();
 }
