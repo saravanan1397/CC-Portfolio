@@ -88,7 +88,6 @@ render();
 function cacheElements() {
   Object.assign(els, {
     newCardBtn: document.getElementById("newCardBtn"),
-    resetBtn: document.getElementById("resetBtn"),
     searchInput: document.getElementById("searchInput"),
     statusFilter: document.getElementById("statusFilter"),
     sortSelect: document.getElementById("sortSelect"),
@@ -246,7 +245,6 @@ document.addEventListener("click", (e) => {
   els.clearFormBtn.addEventListener("click", resetForm);
   els.addBenefitBtn.addEventListener("click", addBenefitDraft);
   els.cardForm.addEventListener("submit", saveCardFromForm);
-  els.resetBtn.addEventListener("click", resetPortfolio);
   els.benefitRows.addEventListener("input", updateDraftBenefit);
   els.benefitRows.addEventListener("change", updateDraftBenefit);
   els.benefitRows.addEventListener("click", removeBenefitDraft);
@@ -2207,22 +2205,6 @@ function syncDraftBenefitsFromDom() {
       amount,
     };
   });
-}
-
-function resetPortfolio() {
-  if (!state.cards.length) {
-    showToast("Portfolio is already empty.");
-    return;
-  }
-
-  const confirmed = confirm("Reset the entire portfolio?");
-  if (!confirmed) return;
-
-  state.cards = [];
-  saveState();
-  resetForm();
-  render();
-  showToast("Portfolio reset.");
 }
 
 function exportPortfolio() {
