@@ -140,20 +140,26 @@ function cacheElements() {
     dashboardLoungeHint: document.getElementById("dashboardLoungeHint"),
     openPortfolioBtn: document.getElementById("openPortfolioBtn"),
     openSwipesBtn: document.getElementById("openSwipesBtn"),
+    editingSwipeId:document.getElementById("editingSwipeId"),
     openLoungeBtn: document.getElementById("openLoungeBtn"),
     backFromPortfolioBtn: document.getElementById("backFromPortfolioBtn"),
     backFromSwipesBtn: document.getElementById("backFromSwipesBtn"),
     backFromLoungeBtn: document.getElementById("backFromLoungeBtn"),
     swipeCardSelect: document.getElementById("swipeCardSelect"),
     swipeAmount: document.getElementById("swipeAmount"),
-    swipeCardSelectPersonal: document.getElementById("swipeCardSelectPersonal"),
-    swipeAmountPersonal: document.getElementById("swipeAmountPersonal"),
-    addSwipeBtnPersonal: document.getElementById("addSwipeBtnPersonal"),
-    clearSwipeBtnPersonal: document.getElementById("clearSwipeBtnPersonal"),
+    swipeCategorySelect: document.getElementById("swipeCategorySelect"),
+    editingSwipeId: document.getElementById("editingSwipeId"),
+spentCardSelect:document.getElementById("spentCardSelect"),
+spentAmount:document.getElementById("spentAmount"),
+spentTypeSelect:document.getElementById("spentTypeSelect"),
+spentFySelect:document.getElementById("spentFySelect"),
+spentForText:document.getElementById("spentForText"),
+spentForBtn:document.getElementById("spentForBtn"),
     swipeTypeSelect: document.getElementById("swipeTypeSelect"),
     swipeFySelect: document.getElementById("swipeFySelect"),
     swipeFyFilter: document.getElementById("swipeFyFilter"),
     swipeTypeFilter: document.getElementById("swipeTypeFilter"),
+    swipeSortFilter: document.getElementById("swipeSortFilter"),
     swipeFilteredTotal: document.getElementById("swipeFilteredTotal"),
     addSwipeBtn: document.getElementById("addSwipeBtn"),
     clearSwipeBtn: document.getElementById("clearSwipeBtn"),
@@ -263,12 +269,10 @@ document.addEventListener("click", (e) => {
   els.backFromLoungeBtn?.addEventListener("click", () => showView("dashboard"));
   els.swipeFyFilter?.addEventListener("change", renderSwipes);
   els.swipeTypeFilter?.addEventListener("change", renderSwipes);
+  els.swipeSortFilter?.addEventListener("change", renderSwipes);
   els.swipeTypeFilter?.addEventListener("change", renderSwipes);
   els.addSwipeBtn?.addEventListener("click", addSwipeFromForm);
   els.clearSwipeBtn?.addEventListener("click", resetSwipeForm);
-  els.swipeCardSelectPersonal?.addEventListener("change", renderSwipes);
-  els.addSwipeBtnPersonal?.addEventListener("click", () => addSwipeFromForm(true));
-  els.clearSwipeBtnPersonal?.addEventListener("click", resetSwipeForm);
   els.swipesTable?.addEventListener("click", handleSwipeAction);
   els.loungeMembers?.addEventListener("input", updateLoungeCalculatedValue);
   els.loungeVisitValue?.addEventListener("input", updateLoungeCalculatedValue);
@@ -668,86 +672,161 @@ function renderDashboard() {
 
 function renderCardDropdowns() {
   renderCardSelect(els.swipeCardSelect);
-  renderCardSelect(els.swipeCardSelectPersonal);
+  renderCardSelect(els.spentCardSelect);
   renderCardSelect(els.loungeCardSelect);
 }
 
 function renderCardSelect(select) {
+
   if (!select) return;
 
   const currentValue = select.value;
 
+  // No cards available
   if (!state.cards.length) {
-    select.innerHTML = `<option value="">Add cards in portfolio first</option>`;
+
+    select.innerHTML =
+      `<option value="">Add cards in portfolio first</option>`;
+
     select.disabled = true;
+
     return;
   }
 
+  // Enable dropdown
   select.disabled = false;
+
+  // Render card options
   select.innerHTML = state.cards
-    .slice().sort((a, b) => formatCardName(a).localeCompare(formatCardName(b)))
-    .map((card) => `<option value="${escapeAttribute(card.id)}">${escapeHtml(formatCardName(card))}</option>`)
+    .slice()
+    .sort((a, b) =>
+      formatCardName(a).localeCompare(formatCardName(b))
+    )
+    .map((card) => `
+      <option value="${escapeAttribute(card.id)}">
+        ${escapeHtml(formatCardName(card))}
+      </option>
+    `)
     .join("");
 
-  if (currentValue && state.cards.some((card) => card.id === currentValue)) {
+  // Restore previous selection if valid
+  if (
+    currentValue &&
+    state.cards.some((card) => card.id === currentValue)
+  ) {
+
     select.value = currentValue;
+
+  } else {
+
+    // VERY IMPORTANT FIX
+    // Select first option automatically
+
+    select.selectedIndex = 0;
   }
 }
+async function addSwipeFromForm() {
 
-async function addSwipeFromForm(isPersonal = false) {
-  const cardId = isPersonal ? (els.swipeCardSelectPersonal?.value || "") : (els.swipeCardSelect?.value || "");
-  const amount = isPersonal ? toNumber(els.swipeAmountPersonal?.value) : toNumber(els.swipeAmount?.value);
-  const editingId = els.editingSwipeId?.value;
+  const cardSelect = els.swipeCardSelect;
+
+  const amountInput = els.swipeAmount;
+
+  const typeSelect = els.swipeTypeSelect;
+
+  const fySelect = els.swipeFySelect;
+
+  const cardId = cardSelect?.value || "";
 
   if (!cardId) {
-    showToast("Add cards in portfolio first.");
+    showToast("Select a card first.");
     return;
   }
+
+  const amount = toNumber(amountInput?.value);
 
   if (amount <= 0) {
-    showToast("Enter swipe amount.");
-    els.swipeAmount?.focus();
+    showToast("Enter valid amount.");
     return;
   }
 
-  const swipeData = normalizeSwipe({
-    id: editingId && editingId !== "" ? editingId : createId(),
+  const swipe = {
+
+    id:els.editingSwipeId?.value || createId(),
+
     cardId,
+
     amount,
-    type: isPersonal === true ? "Personal" : (els.swipeTypeSelect?.value || "Business"),
-    financialYear: els.swipeFySelect?.value || "FY 25-26",
+
+    type: typeSelect?.value || "F",
+
+    financialYear: fySelect?.value || "",
+
+    category: (els.swipeCategorySelect?.value || "business"),
+
     createdAt: new Date().toISOString(),
-  });
+  };
 
-  if (editingId && editingId !== "") {
-    const index = state.swipes.findIndex(s => s.id === editingId);
-    if (index !== -1) state.swipes[index] = swipeData;
-    showToast("Swipe updated.");
+  // Category is already set from the category dropdown above
+
+  const existingIndex = state.swipes.findIndex(s => s.id === els.editingSwipeId?.value);
+  if (existingIndex >= 0) {
+    swipe.id = els.editingSwipeId.value;
+    swipe.createdAt = state.swipes[existingIndex].createdAt;
+    state.swipes[existingIndex] = swipe;
   } else {
-    state.swipes.push(swipeData);
-    showToast("Swipe added.");
-  }
+const existingIndex = state.swipes.findIndex(
+  (item) => item.id === swipe.id
+);
 
-  resetSwipeForm();
+if (existingIndex >= 0) {
+
+  state.swipes[existingIndex] = swipe;
+
+} else {
+
+  state.swipes.push(swipe);
+}
+  }
 
   await saveState();
   render();
+  resetSwipeForm();
+
+  showToast("Business swipe added");
+}
+function resetSwipeForm() {
+
+  if (els.swipeAmount) {
+    els.swipeAmount.value = "";
+  }
+
+  if (els.editingSwipeId) {
+    els.editingSwipeId.value = "";
+  }
+
+  if (els.addSwipeBtn) {
+    els.addSwipeBtn.textContent = "Add Swipe";
+  }
+
+  if (els.swipeCardSelect) {
+    els.swipeCardSelect.selectedIndex = 0;
+  }
+
+  if (els.swipeTypeSelect) {
+    els.swipeTypeSelect.selectedIndex = 0;
+  }
+
+  if (els.swipeFySelect) {
+    els.swipeFySelect.selectedIndex = 0;
+  }
+
+  if (els.editingSwipeId) {
+    els.editingSwipeId.value = "";
 }
 
-function resetSwipeForm() {
-  if (els.swipeAmount) els.swipeAmount.value = "";
-  if (els.swipeAmountPersonal) els.swipeAmountPersonal.value = "";
-  if (els.editingSwipeId) els.editingSwipeId.value = "";
-  if (els.addSwipeBtn) els.addSwipeBtn.textContent = "Add Swipe";
-  if (els.addSwipeBtnPersonal) els.addSwipeBtnPersonal.textContent = "Add Swipe";
-  if (els.swipeCardSelect) els.swipeCardSelect.selectedIndex = 0;
-  if (els.swipeCardSelectPersonal) els.swipeCardSelectPersonal.selectedIndex = 0;
-  if (els.clearSwipeBtn) els.clearSwipeBtn.style.display = "none";
-  if (els.clearSwipeBtnPersonal) els.clearSwipeBtnPersonal.style.display = "none";
-  
-  // Reset selects to first option if needed
-  if (els.swipeTypeSelect) els.swipeTypeSelect.selectedIndex = 0;
-  if (els.swipeFySelect) els.swipeFySelect.selectedIndex = 0;
+  if (els.clearSwipeBtn) {
+    els.clearSwipeBtn.style.display = "none";
+  }
 }
 
 function handleSwipeAction(event) {
@@ -771,20 +850,103 @@ function handleSwipeAction(event) {
 }
 
 function populateSwipeForm(swipe) {
-  if (els.editingSwipeId) els.editingSwipeId.value = swipe.id;
-  if (els.swipeCardSelect) els.swipeCardSelect.value = swipe.cardId;
-  if (els.swipeAmount) els.swipeAmount.value = swipe.amount;
-  if (els.swipeTypeSelect) els.swipeTypeSelect.value = swipe.type;
-  if (els.swipeFySelect) els.swipeFySelect.value = swipe.financialYear;
-  if (els.addSwipeBtn) els.addSwipeBtn.textContent = "Update Swipe";
-  if (els.clearSwipeBtn) els.clearSwipeBtn.style.display = "inline-flex";
-  window.scrollTo({ top: 0, behavior: "smooth" });
+
+  const isPersonal = swipe.category === "personal";
+
+  const cardSelect = isPersonal
+    ? els.spentCardSelect
+    : els.swipeCardSelect;
+
+  const amountInput = isPersonal
+    ? els.spentAmount
+    : els.swipeAmount;
+
+  const typeSelect = isPersonal
+    ? els.spentTypeSelect
+    : els.swipeTypeSelect;
+
+  const fySelect = isPersonal
+    ? els.spentFySelect
+    : els.swipeFySelect;
+
+  // Store editing ID
+  if (els.editingSwipeId) {
+
+    els.editingSwipeId.value =
+      swipe.id || "";
+
+    // VERY IMPORTANT
+    // preserve category during update
+
+    els.editingSwipeId.dataset.category =
+      swipe.category || "business";
+  }
+
+  // Card
+  if (cardSelect) {
+    cardSelect.value =
+      swipe.cardId || "";
+  }
+
+  // Amount
+  if (amountInput) {
+    amountInput.value =
+      swipe.amount || "";
+  }
+
+  // Type
+  if (typeSelect) {
+    typeSelect.value =
+      swipe.type || "F";
+  }
+
+  // Financial year
+  if (fySelect) {
+    fySelect.value =
+      swipe.financialYear || "";
+  }
+
+  // Personal spent-for
+  if (isPersonal && els.spentForText) {
+
+    els.spentForText.value =
+      swipe.spentFor || "";
+  }
+
+  // Button labels
+  if (isPersonal) {
+
+    if (els.spentForBtn) {
+      els.spentForBtn.textContent =
+        "Update Personal Spend";
+    }
+
+  } else {
+
+    if (els.addSwipeBtn) {
+      els.addSwipeBtn.textContent =
+        "Update Swipe";
+    }
+  }
 }
 
 function renderSwipes() {
   if (!els.swipesTable) return;
 
   els.swipesTable.innerHTML = "";
+
+  if (state.swipes.length > 0) {
+    const head = document.createElement("div");
+    head.className = "table-head";
+    head.innerHTML = `
+      <span>Swipe Details</span>
+      <span>Amount</span>
+      <span>Swipe Type</span>
+      <span>Type</span>
+      <span></span>
+    `;
+    els.swipesTable.appendChild(head);
+  }
 
   if (!state.swipes.length) {
     if (els.swipeFilteredTotal) els.swipeFilteredTotal.textContent = "Total: " + formatMoney(0);
@@ -794,6 +956,7 @@ function renderSwipes() {
 
   const selectedFy = els.swipeFyFilter?.value || "all";
   const selectedType = els.swipeTypeFilter?.value || "all";
+  const selectedSort = els.swipeSortFilter?.value || "newest";
 
   const visibleSwipes = state.swipes.filter((swipe) => {
     const matchesFy = selectedFy === "all" || swipe.financialYear === selectedFy;
@@ -801,13 +964,11 @@ function renderSwipes() {
     return matchesFy && matchesType;
   });
 
-  // Sort logic: If a specific type is selected, prioritize that type at the top
+  // Sort logic
   const sortedSwipes = [...visibleSwipes].sort((a, b) => {
-    if (selectedType !== "all") {
-      if (a.type === selectedType && b.type !== selectedType) return -1;
-      if (a.type !== selectedType && b.type === selectedType) return 1;
-    }
-    return String(b.createdAt).localeCompare(String(a.createdAt));
+    const dateA = new Date(a.createdAt || 0).getTime();
+    const dateB = new Date(b.createdAt || 0).getTime();
+    return selectedSort === "newest" ? dateB - dateA : dateA - dateB;
   });
 
   const visibleTotal = sortedSwipes.reduce((sum, swipe) => sum + toNumber(swipe.amount), 0);
@@ -821,23 +982,24 @@ function renderSwipes() {
     return;
   }
 
-  const businessSwipes = sortedSwipes.filter(s => s.type === "Business" || s.type === "E" || s.type === "F");
-  const personalSwipes = sortedSwipes.filter(s => s.type === "Personal"|| s.type === "E" || s.type === "F");
+  const businessSwipes = sortedSwipes.filter(s => s.category !== "personal");
+  const personalSwipes = sortedSwipes.filter(s => s.category === "personal");
 
   const renderGroup = (title, list) => {
     if (list.length === 0) return "";
-    
-    const groupHtml = list.map(swipe => `
+
+    return list.map(swipe => `
       <article class="card-row">
         <div class="card-name">
           <strong>${escapeHtml(formatCardName(getCardById(swipe.cardId)))}</strong>
-          <span class="card-meta">${escapeHtml(swipe.financialYear)}</span>
+          <span class="card-meta" style="display: block; margin-top: 2px;">${escapeHtml(swipe.financialYear)} | ${title}</span>
         </div>
         <div class="money-cell">
           <span class="cell-label">Amount</span>
           <strong>${escapeHtml(formatMoney(swipe.amount))}</strong>
         </div>
-        <span class="status-pill ${title === 'Business' ? 'loss' : 'profit'}">${title}</span>
+        <span class="card-meta" style="font-size: 12px; color: #cbd5e1;">${swipe.type === 'E' ? 'EMI' : 'Full Swipe'}</span>
+        <span class="status-pill ${title === 'Personal' ? 'profit' : 'loss'}">${title}</span>
         <div class="row-actions">
           <button class="icon-button subtle" type="button" data-swipe-action="edit" data-id="${escapeAttribute(swipe.id)}" title="Edit swipe" aria-label="Edit swipe">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -852,13 +1014,6 @@ function renderSwipes() {
         </div>
       </article>
     `).join("");
-
-    return `
-      <div class="swipe-group" style="margin-bottom: 24px;">
-        <h4 style="color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; padding-left: 4px; border-left: 3px solid ${title === 'Business' ? '#ef4444' : '#10b981'}">${title} Swipes</h4>
-        ${groupHtml}
-      </div>
-    `;
   };
 
   let finalHtml = "";
@@ -873,12 +1028,15 @@ function renderSwipes() {
   const members = toNumber(els.loungeMembers?.value) || 1;
   const perPerson = toNumber(els.loungeVisitValue?.value);
 
+  const domesticCount = state.loungeVisits.filter(v => v.loungeType === "Domestic").length;
+  const intlCount = state.loungeVisits.filter(v => v.loungeType === "International").length;
+
   const currentFormTotal = members * perPerson;
   const existingLoungeTotalValue = getLoungeVisitTotal();
   const combinedTotal = currentFormTotal + existingLoungeTotalValue;
 
   els.loungeCalculatedValue.textContent =
-    `Total Benefit: ${formatMoney(combinedTotal)}`;
+    `Domestic: ${domesticCount}   |   International: ${intlCount}   |   Total Benefits: ${formatMoney(combinedTotal)}`;
 }
 
 
@@ -1598,10 +1756,11 @@ function renderCards() {
     const totals = getCardTotals(card);
     const status = getStatus(totals.net);
     const netColor = totals.net > 0 ? "#10b981" : totals.net < 0 ? "#ef4444" : "#f8fafc";
-    const cardType = card.notes && card.notes.toUpperCase() === "E" ? "E" : "";
+    
+    const isBusiness = card.notes && card.notes.toUpperCase() === "E";
+    const isPersonal = card.notes && card.notes.toUpperCase() === "F";
     
     const feeBreakdown = formatFeeBreakdown(card);
-
     const meta = [
       card.issuer,
       card.memberSince && `Member since: ${formatMonthYear(card.memberSince)}`,
@@ -1617,7 +1776,8 @@ function renderCards() {
         <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;">
           <strong>${escapeHtml(card.name || "Untitled card")}</strong>
           <span class="card-meta" style="margin-top: 0;">${escapeHtml(meta || "Issuer not set")}</span>
-          ${cardType ? `<span class="status-pill ${cardType === 'E' ? 'loss' : 'profit'}" style="font-size: 10px; padding: 1px 6px; margin-left: 4px;">${cardType === 'E' ? 'Business' : 'Personal'}</span>` : ''}
+          ${isBusiness ? `<span class="status-pill loss" style="font-size: 10px; padding: 1px 6px; margin-left: 4px;">Business</span>` : ''}
+          ${isPersonal ? `<span class="status-pill profit" style="font-size: 10px; padding: 1px 6px; margin-left: 4px;">Personal</span>` : ''}
         </div>
         ${formatCardBenefitsHtml(card)}
       </div>
