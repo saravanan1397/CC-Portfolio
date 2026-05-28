@@ -261,7 +261,7 @@
           </article>
 
           <article class="metric-card">
-            <div class="metric-label" style="font-size: 1.1rem;">Lounge / Other Benefits</div>
+            <div class="metric-label" style="font-size: 1.1rem;">Airport Lounge / Other Benefits</div>
             <div class="metric-value" id="dashboardLoungeValue" style="font-size: 3.5rem; margin: 12px 0;">0</div>
             <div class="metric-hint" id="dashboardLoungeHint" style="font-size: 1rem;">Total lounge value</div>
             <button class="primary-button full-width" type="button" id="openLoungeBtn" style="margin-top: 16px;">Open Lounge</button>
@@ -407,7 +407,7 @@
           <div class="panel-heading portfolio-heading">
             <div>
               <p class="eyebrow">Benefits</p>
-              <h2>Lounge / Other Benefits</h2>
+              <h2>Airport Lounge / Other Benefits</h2>
             </div>
             <button class="ghost-button" type="button" id="backFromLoungeBtn">Dashboard</button>
           </div>
@@ -421,35 +421,25 @@
                   <select id="loungeCardSelect"></select>
                 </label>
                 <label class="field">
-                  <span>Airport Lounge type</span>
-                  <select id="loungeTypeSelect">
-
-  <option value="" selected disabled>
-    Select Type
-  </option>
-
-  <option value="Domestic">
-    Domestic
-  </option>
-
-  <option value="International">
-    International
-  </option>
-
-</select>
-                </label>
-                <label class="field">
-                  <span>Golf Type</span>
-                  <select id="golfTypeSelect" onchange="this.setAttribute('value', this.value)">
-                    <option value="" selected disabled>
-                      Select Type
-                    </option>
-                    <option value="Domestic_Golf">
-                      Domestic
-                    </option>
-                    <option value="International_Golf">
-                      International
-                    </option>
+                  <span>Benefit Type</span>
+                  <select id="loungeTypeSelect" onchange="this.setAttribute('value', this.value)">
+                    <option value="" selected disabled>Select Type</option>
+                    <optgroup label="Airport Lounge">
+                      <option value="Domestic">Domestic Lounge</option>
+                      <option value="International">International Lounge</option>
+                    </optgroup>
+                    <optgroup label="Golf">
+                      <option value="Domestic_Golf">Domestic Golf</option>
+                      <option value="International_Golf">International Golf</option>
+                    </optgroup>
+                    <optgroup label="Airport Services">
+                      <option value="Domestic_Restaurant">Domestic Restaurant</option>
+                      <option value="International_Restaurant">International Restaurant</option>
+                      <option value="Domestic_Spa">Domestic Spa</option>
+                      <option value="International_Spa">International Spa</option>
+                      <option value="Meet_Greet">Meet & Greet</option>
+                      <option value="Airport_Transfer">Airport Transfer</option>
+                    </optgroup>
                   </select>
                 </label>
                 <label class="field">
@@ -494,6 +484,12 @@
                     <option value="International">International Lounge</option>
                     <option value="Domestic_Golf">Domestic Golf</option>
                     <option value="International_Golf">International Golf</option>
+                    <option value="Domestic_Restaurant">Domestic Restaurant</option>
+                    <option value="International_Restaurant">International Restaurant</option>
+                    <option value="Domestic_Spa">Domestic Spa</option>
+                    <option value="International_Spa">International Spa</option>
+                    <option value="Meet_Greet">Meet & Greet</option>
+                    <option value="Airport_Transfer">Airport Transfer</option>
                   </select>
                 </label>
               </div>
