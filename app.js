@@ -365,7 +365,11 @@ function normalizeLoungeVisit(visit) {
   return {
     id: visit.id || createId(),
     cardId: visit.cardId || "",
-    loungeType: visit.loungeType === "International" ? "International" : "Domestic",
+    // Preserve explicit loungeType (including values like "Domestic_Golf" or "International_Restaurant");
+    // fall back to "International"/"Domestic" for legacy entries that only used those values.
+    loungeType: (typeof visit.loungeType === 'string' && visit.loungeType.trim() !== '')
+      ? visit.loungeType
+      : (visit.loungeType === "International" ? "International" : "Domestic"),
     airport: visit.airport || "",
     members,
     perPerson,
@@ -1048,12 +1052,14 @@ async function saveLoungeVisitFromForm(event) {
 
   const total = members * perPerson;
 
+  const loungeType = els.loungeTypeSelect?.value || "Domestic";
+
   const visit = {
     id: els.editingLoungeVisitId?.value || createId(),
 
     cardId: els.loungeCardSelect?.value || "",
 
-    loungeType: els.loungeTypeSelect?.value || "",
+    loungeType: loungeType,
 
     airport:
       document.getElementById("loungeAirport")?.value.trim() || "",
@@ -1079,6 +1085,9 @@ async function saveLoungeVisitFromForm(event) {
   } else {
     state.loungeVisits.push(visit);
   }
+  
+  console.log("Lounge visits after save:", state.loungeVisits);
+  
 syncLoungeBenefitsFromVisits();
 await saveState();
 render();
@@ -1110,8 +1119,7 @@ function handleLoungeAction(event) {
 function populateLoungeVisitForm(visit) {
   if (els.editingLoungeVisitId) els.editingLoungeVisitId.value = visit.id;
   if (els.loungeCardSelect) els.loungeCardSelect.value = visit.cardId;
-  if (els.loungeTypeSelect) els.loungeTypeSelect.value = visit.loungeType;
-  if (els.loungeTypeSelect) els.loungeTypeSelect.selectedIndex = visit.loungeType === "International" ? 1 : 0;
+  if (els.loungeTypeSelect) els.loungeTypeSelect.value = visit.loungeType || "";
   if (els.loungeMembers) els.loungeMembers.value = visit.members || "";
   if (els.loungeAirport) els.loungeAirport.value = visit.airport || "";
   if (els.loungeVisitDate) els.loungeVisitDate.value = visit.date ? visit.date.split('T')[0] : "";
@@ -1128,11 +1136,13 @@ function resetLoungeVisitForm() {
   if (els.loungeVisitValue) els.loungeVisitValue.value = "";
   if (els.loungeAirport) els.loungeAirport.value = "";
   if (els.loungeVisitDate) els.loungeVisitDate.value = "";
-  if (els.loungeTypeSelect) els.loungeTypeSelect.value = "Domestic";
+  if (els.loungeTypeSelect) {
+    els.loungeTypeSelect.value = "";
+    els.loungeTypeSelect.selectedIndex = 0;
+  }
   if (els.loungeCardSelect) {
     els.loungeCardSelect.selectedIndex = 0;
   }
-  if (els.loungeTypeSelect) els.loungeTypeSelect.selectedIndex = 0;
   if (els.saveLoungeVisitBtn) els.saveLoungeVisitBtn.textContent = "Add Visit";
   updateLoungeCalculatedValue();
 }
@@ -1182,24 +1192,61 @@ function resetLoungeBenefitForm() {
 }
 
 function syncLoungeBenefitsFromVisits() {
-  const totalsByCardId = {};
+  // Group lounge visit totals by cardId and by benefit category
+  const totalsByCard = {};
   state.loungeVisits.forEach((visit) => {
     if (!visit.cardId) return;
-    totalsByCardId[visit.cardId] = (totalsByCardId[visit.cardId] || 0) + toNumber(visit.total);
+
+    // Determine category key and readable type/label
+    const lt = (visit.loungeType || "").toString();
+    let key = "airport-lounge";
+    let typeLabel = "Airport Lounge";
+
+    if (lt.includes("Golf")) {
+      key = "golf";
+      typeLabel = "Golf";
+    } else if (lt.includes("Restaurant")) {
+      key = "restaurant";
+      typeLabel = "Airport Restaurant";
+    } else if (lt.includes("Spa")) {
+      key = "spa";
+      typeLabel = "Spa";
+    } else if (/meet\s*&\s*greet/i.test(lt) || lt.toLowerCase().includes("meet")) {
+      key = "meet-greet";
+      typeLabel = "Meet & Greet";
+    } else if (lt.toLowerCase().includes("transfer")) {
+      key = "airport-transfer";
+      typeLabel = "Airport Transfer";
+    } else if (lt === "International") {
+      key = "airport-lounge";
+      typeLabel = "International Lounge";
+    }
+
+    totalsByCard[visit.cardId] = totalsByCard[visit.cardId] || {};
+    totalsByCard[visit.cardId][key] = (totalsByCard[visit.cardId][key] || 0) + toNumber(visit.total);
+    // store label for key so we can reuse it later (first occurrence wins)
+    totalsByCard[visit.cardId][`__label__${key}`] = totalsByCard[visit.cardId][`__label__${key}`] || typeLabel;
   });
 
   state.cards = state.cards.map((card) => {
     let benefits = (card.benefits || []).filter((b) => !String(b.id || "").startsWith("lounge-auto-"));
-    const loungeTotal = totalsByCardId[card.id] || 0;
-    if (loungeTotal > 0) {
-      benefits.push({
-        id: `lounge-auto-${card.id}`,
-        type: "Lounge Access",
-        valueType: "cash",
-        label: "Lounge Visits (Auto)",
-        amount: loungeTotal,
-      });
-    }
+    const totals = totalsByCard[card.id] || {};
+
+    Object.keys(totals).forEach((k) => {
+      if (k.startsWith("__label__")) return;
+      const amount = totals[k] || 0;
+      if (amount > 0) {
+        const label = totals[`__label__${k}`] || "Lounge Visits";
+        benefits.push({
+          id: `lounge-auto-${card.id}-${k}`,
+          type: label,
+          valueType: "cash",
+          label: `${label} (Auto)`,
+          amount: amount,
+        });
+      }
+    });
+
     return { ...card, benefits };
   });
 }
@@ -1281,7 +1328,14 @@ function renderLoungeVisits() {
           <span class="card-meta">
             ${escapeHtml(visit.loungeType)}
             |
-            ${escapeHtml(  visit.loungeType === "International" ? "International Lounge" : visit.loungeType === "Golf" ? "Golf Lesson" : "Airport Lounge")}
+            ${escapeHtml(
+              visit.loungeType?.includes("Golf") ? "Golf" :
+              visit.loungeType?.includes("Restaurant") ? "Restaurant" :
+              visit.loungeType?.includes("Spa") ? "Spa" :
+              (/meet\s*&\s*greet/i.test(visit.loungeType || "") || (visit.loungeType || "").toLowerCase().includes("meet")) ? "Meet & Greet" :
+              (visit.loungeType || "").toLowerCase().includes("transfer") ? "Airport Transfer" :
+              visit.loungeType === "International" ? "International Lounge" : "Airport Lounge"
+            )}
             |
             ${escapeHtml(formatDateTime(visit.date))}
           </span>
@@ -1449,39 +1503,68 @@ function renderLoungeChart() {
 }
 
 function syncLoungeBenefitsFromVisits() {
-  const totalsByCardId = {};
-
-  // Calculate totals for each card from lounge visits
-  state.loungeVisits.forEach((visit) => {
-    if (!visit.cardId) return;
-    if (!totalsByCardId[visit.cardId]) {
-      totalsByCardId[visit.cardId] = 0;
-    }
-    totalsByCardId[visit.cardId] += toNumber(visit.total);
-  });
-
-  // Update each card's benefits
+  // Update each card's benefits based on lounge visits
   state.cards = state.cards.map((card) => {
     // Filter out existing auto-generated lounge benefits to avoid duplicates
     let benefits = (card.benefits || []).filter((benefit) => {
-      const label = String(benefit.label || "").toLowerCase();
-      return !(benefit.id && String(benefit.id).startsWith("lounge-")) && label !== "lounge benefits";
+      return !(benefit.id && String(benefit.id).startsWith("lounge-"));
     });
 
-    // Add lounge benefits if this card has lounge visits
-    const loungeTotal = totalsByCardId[card.id] || 0;
-    if (loungeTotal > 0) {
-      const cardVisits = state.loungeVisits.filter(v => v.cardId === card.id);
-      const hasGolf = cardVisits.some(v => 
-        v.loungeType === "International" || v.loungeType.toLowerCase().includes("golf") || (v.airport && v.airport.toLowerCase().includes("golf")) || (v.loungeType === "International")
-      );
-      
-      benefits.push({
-        id: `lounge-${card.id}`,
-        type: "Golf/Lounge Benefit",
-        valueType: "cash",
-        label: hasGolf ? "Airport Lounge" : "Golf Benefits",
-        amount: loungeTotal,
+    // Group visits by type for this card
+    const cardVisits = state.loungeVisits.filter(v => v.cardId === card.id);
+    
+    if (cardVisits.length > 0) {
+      const groupedBenefits = {};
+
+      // Group visits by loungeType
+      cardVisits.forEach((visit) => {
+        const benefitType = visit.loungeType || "Domestic";
+        if (!groupedBenefits[benefitType]) {
+          groupedBenefits[benefitType] = 0;
+        }
+        groupedBenefits[benefitType] += toNumber(visit.total);
+      });
+
+      // Create benefit for each type
+      Object.entries(groupedBenefits).forEach(([benefitType, amount]) => {
+        let displayLabel = benefitType;
+        let benefitTypeLabel = benefitType;
+
+        // Convert stored values into readable labels
+        switch (benefitType) {
+          case "Domestic":
+            displayLabel = "Domestic Lounge";
+            benefitTypeLabel = "Airport Lounge";
+            break;
+          case "International":
+            displayLabel = "International Lounge";
+            benefitTypeLabel = "Airport Lounge";
+            break;
+          case "Domestic_Golf":
+            displayLabel = "Domestic Golf";
+            benefitTypeLabel = "Golf";
+            break;
+          case "International_Golf":
+            displayLabel = "International Golf";
+            benefitTypeLabel = "Golf";
+            break;
+          case "Domestic_Restaurant":
+            displayLabel = "Domestic Restaurant";
+            benefitTypeLabel = "Airport Restaurant";
+            break;
+          case "International_Restaurant":
+            displayLabel = "International Restaurant";
+            benefitTypeLabel = "Airport Restaurant";
+            break;
+        }
+
+        benefits.push({
+          id: `lounge-${card.id}-${benefitType}`,
+          type: benefitTypeLabel,
+          valueType: "cash",
+          label: displayLabel,
+          amount,
+        });
       });
     }
 
