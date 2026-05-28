@@ -179,13 +179,27 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 signInAnonymously(auth)
-  .then(() => {
+
+  .then(async (userCredential) => {
 
     console.log(
       "Anonymous authentication successful"
     );
 
+    console.log(
+      "UID:",
+      userCredential.user.uid
+    );
+
+    // IMPORTANT
+    // load app only AFTER auth succeeds
+
+    if (typeof init === "function") {
+      await init();
+    }
+
   })
+
   .catch((error) => {
 
     console.error(
