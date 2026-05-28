@@ -161,6 +161,7 @@
      <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAeWDg6WyZQshKc1Hks_AWOVJ7I4_gWe_U",
@@ -171,11 +172,36 @@
     appId: "1:459587513450:web:b93829e8cb1d57f4516e13"
   };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+const app = initializeApp(firebaseConfig);
 
-  window.db = db;
-  window.firebaseFns = { doc, setDoc, getDoc };
+const db = getFirestore(app);
+
+const auth = getAuth(app);
+
+signInAnonymously(auth)
+  .then(() => {
+
+    console.log(
+      "Anonymous authentication successful"
+    );
+
+  })
+  .catch((error) => {
+
+    console.error(
+      "Anonymous auth failed:",
+      error
+    );
+
+  });
+
+window.db = db;
+
+window.firebaseFns = {
+  doc,
+  setDoc,
+  getDoc
+};
 </script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
