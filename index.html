@@ -157,10 +157,11 @@
 </button>
     <link rel="stylesheet" href="styles.css" />
 
-    <!-- Firebase code -->
+    <!-- Firebase code with Authentication for Firestore Security Rules -->
      <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAeWDg6WyZQshKc1Hks_AWOVJ7I4_gWe_U",
@@ -173,9 +174,53 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const auth = getAuth(app);
 
+  // Enable anonymous authentication for Firestore security rules
+  // Security rule requires: request.auth.uid != null
+  signInAnonymously(auth)
+    .then((userCredential) => {
+      console.log("✅ Anonymous authentication successful");
+      console.log("UID:", userCredential.user.uid);
+      
+      // Monitor auth state changes
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          console.log("✅ User authenticated. App can now access Firestore.");
+          // Load app only AFTER auth is confirmed
+          if (typeof init === "function") {
+            init();
+          }
+        } else {
+          console.error("❌ User not authenticated. Check Firestore security rules.");
+        }
+      });
+    })
+    .catch((error) => {
+      console.error("❌ Anonymous authentication failed:", error.message);
+      console.error("Make sure Anonymous sign-in is enabled in Firebase Console > Authentication > Sign-in method");
+      
+      // Show error to user
+      const lockScreen = document.getElementById("lockScreen");
+      if (lockScreen) {
+        lockScreen.innerHTML = `
+          <div style="text-align:center; color:#ef4444;">
+            <h2>Authentication Error</h2>
+            <p>${error.message}</p>
+            <p style="font-size:0.875rem; margin-top:16px;">Please enable Anonymous sign-in in Firebase Console.</p>
+          </div>
+        `;
+      }
+    });
+
+  // Export Firebase references for use in app.js
   window.db = db;
-  window.firebaseFns = { doc, setDoc, getDoc };
+  window.auth = auth;
+  window.firebaseFns = {
+    doc,
+    setDoc,
+    getDoc
+  };
 </script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
