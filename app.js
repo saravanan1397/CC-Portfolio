@@ -157,6 +157,7 @@ spentForBtn:document.getElementById("spentForBtn"),
     swipeTypeFilter: document.getElementById("swipeTypeFilter"),
     swipeSortFilter: document.getElementById("swipeSortFilter"),
     swipeFilteredTotal: document.getElementById("swipeFilteredTotal"),
+    swipeCardFilter: document.getElementById("swipeCardFilter"),
     addSwipeBtn: document.getElementById("addSwipeBtn"),
     clearSwipeBtn: document.getElementById("clearSwipeBtn"),
     editingSwipeId: document.getElementById("editingSwipeId"), // Ensure this hidden input exists in HTML
@@ -268,6 +269,7 @@ document.addEventListener("click", (e) => {
   els.swipeFyFilter?.addEventListener("change", renderSwipes);
   els.swipeTypeFilter?.addEventListener("change", renderSwipes);
   els.swipeSortFilter?.addEventListener("change", renderSwipes);
+  els.swipeCardFilter?.addEventListener("change", renderSwipes);
   els.swipeTypeFilter?.addEventListener("change", renderSwipes);
   els.addSwipeBtn?.addEventListener("click", addSwipeFromForm);
   els.clearSwipeBtn?.addEventListener("click", resetSwipeForm);
@@ -674,6 +676,7 @@ function renderCardDropdowns() {
   renderCardSelect(els.swipeCardSelect);
   renderCardSelect(els.spentCardSelect);
   renderCardSelect(els.loungeCardSelect);
+  updateSwipeCardFilter();
 }
 
 function renderCardSelect(select) {
@@ -957,11 +960,13 @@ function renderSwipes() {
   const selectedFy = els.swipeFyFilter?.value || "all";
   const selectedType = els.swipeTypeFilter?.value || "all";
   const selectedSort = els.swipeSortFilter?.value || "newest";
+  const selectedCard = els.swipeCardFilter?.value || "all";
 
   const visibleSwipes = state.swipes.filter((swipe) => {
     const matchesFy = selectedFy === "all" || swipe.financialYear === selectedFy;
     const matchesType = selectedType === "all" || swipe.type === selectedType;
-    return matchesFy && matchesType;
+    const matchesCard = selectedCard === "all" || swipe.cardId === selectedCard;
+    return matchesFy && matchesType && matchesCard;
   });
 
   // Sort logic
@@ -1020,6 +1025,24 @@ function renderSwipes() {
   finalHtml += renderGroup("Business", businessSwipes);
   finalHtml += renderGroup("Personal", personalSwipes);
   els.swipesTable.innerHTML = finalHtml;
+}
+
+function updateSwipeCardFilter() {
+  if (!els.swipeCardFilter) return;
+  const currentSelection = els.swipeCardFilter.value;
+  
+  els.swipeCardFilter.innerHTML = '<option value="all">All Cards</option>';
+  
+  state.cards.slice().sort((a, b) => formatCardName(a).localeCompare(formatCardName(b))).forEach(card => {
+    const option = document.createElement('option');
+    option.value = card.id;
+    option.textContent = formatCardName(card);
+    els.swipeCardFilter.appendChild(option);
+  });
+  
+  if ([...els.swipeCardFilter.options].some(opt => opt.value === currentSelection)) {
+    els.swipeCardFilter.value = currentSelection;
+  }
 }
 
   function updateLoungeCalculatedValue() {
