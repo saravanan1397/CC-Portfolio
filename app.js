@@ -1092,7 +1092,7 @@ syncLoungeBenefitsFromVisits();
 await saveState();
 render();
 resetLoungeVisitForm();
-showToast("Lounge visit saved");
+showToast("Benefit saved");
 }
 
 function handleLoungeAction(event) {
@@ -1112,7 +1112,7 @@ function handleLoungeAction(event) {
     syncLoungeBenefitsFromVisits();
     saveState();
     render();
-    showToast("Lounge visit deleted.");
+    showToast("Benefit Removed.");
   }
 }
 
