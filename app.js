@@ -142,6 +142,9 @@ function cacheElements() {
     backFromPortfolioBtn: document.getElementById("backFromPortfolioBtn"),
     backFromSwipesBtn: document.getElementById("backFromSwipesBtn"),
     backFromLoungeBtn: document.getElementById("backFromLoungeBtn"),
+    exportBtn: document.getElementById("exportBtn"),
+    importBtn: document.getElementById("importBtn"),
+    importFile: document.getElementById("importFile"),
     swipeCardSelect: document.getElementById("swipeCardSelect"),
     swipeAmount: document.getElementById("swipeAmount"),
     swipeCategorySelect: document.getElementById("swipeCategorySelect"),
@@ -284,6 +287,9 @@ document.addEventListener("click", (e) => {
   });
   els.swipeTypeFilter?.addEventListener("change", renderSwipes);
   els.addSwipeBtn?.addEventListener("click", addSwipeFromForm);
+  els.exportBtn?.addEventListener("click", exportPortfolio);
+  els.importBtn?.addEventListener("click", () => els.importFile?.click());
+  els.importFile?.addEventListener("change", importPortfolio);
   els.clearSwipeBtn?.addEventListener("click", resetSwipeForm);
   els.swipesTable?.addEventListener("click", handleSwipeAction);
   els.loungeMembers?.addEventListener("input", updateLoungeCalculatedValue);
@@ -2479,7 +2485,14 @@ function exportPortfolio() {
     exportedAt: new Date().toISOString(),
     currency: state.currency,
     cards: state.cards,
+    swipes: state.swipes,
+    loungeVisits: state.loungeVisits,
   };
+  try {
+    localStorage.setItem(storageKey + "-backup", JSON.stringify(payload));
+  } catch (e) {
+    console.warn("Could not save local backup", e);
+  }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -2489,7 +2502,7 @@ function exportPortfolio() {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-  showToast("Portfolio exported.");
+  showToast("Portfolio exported and saved locally.");
 }
 
 function importPortfolio(event) {
@@ -2519,6 +2532,8 @@ function importPortfolio(event) {
   };
   reader.readAsText(file);
 }
+
+
 
 function startRealtimeSync() {
   const { doc } = window.firebaseFns;
