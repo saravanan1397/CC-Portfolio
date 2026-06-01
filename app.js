@@ -63,6 +63,7 @@ const state = {
   swipes: [],
   loungeVisits: [],
   search: "",
+  swipeSearch: "",
   statusFilter: "all",
   sort: "netAsc",
   currentView: sessionStorage.getItem("currentView") || "dashboard",
@@ -161,6 +162,7 @@ spentForBtn:document.getElementById("spentForBtn"),
     swipeSortFilter: document.getElementById("swipeSortFilter"),
     swipeFilteredTotal: document.getElementById("swipeFilteredTotal"),
     swipeCardFilter: document.getElementById("swipeCardFilter"),
+    swipeSearchInput: document.getElementById("swipeSearchInput"),
     addSwipeBtn: document.getElementById("addSwipeBtn"),
     clearSwipeBtn: document.getElementById("clearSwipeBtn") || document.getElementById("cancelSwipeBtn"),
     editingSwipeId: document.getElementById("editingSwipeId"), // Ensure this hidden input exists in HTML
@@ -276,6 +278,10 @@ document.addEventListener("click", (e) => {
   els.swipeTypeFilter?.addEventListener("change", renderSwipes);
   els.swipeSortFilter?.addEventListener("change", renderSwipes);
   els.swipeCardFilter?.addEventListener("change", renderSwipes);
+  els.swipeSearchInput?.addEventListener("input", () => {
+    state.swipeSearch = els.swipeSearchInput.value.trim().toLowerCase();
+    renderSwipes();
+  });
   els.swipeTypeFilter?.addEventListener("change", renderSwipes);
   els.addSwipeBtn?.addEventListener("click", addSwipeFromForm);
   els.clearSwipeBtn?.addEventListener("click", resetSwipeForm);
@@ -894,6 +900,8 @@ function resetSwipeFilters() {
   if (els.swipeTypeFilter) els.swipeTypeFilter.value = "all";
   if (els.swipeSortFilter) els.swipeSortFilter.value = "newest";
   if (els.swipeCardFilter) els.swipeCardFilter.value = "all";
+  state.swipeSearch = "";
+  if (els.swipeSearchInput) els.swipeSearchInput.value = "";
   renderSwipes();
 }
 
@@ -1018,13 +1026,27 @@ function renderSwipes() {
   const selectedType = els.swipeTypeFilter?.value || "all";
   const selectedSort = els.swipeSortFilter?.value || "newest";
   const selectedCard = els.swipeCardFilter?.value || "all";
+  const searchQuery = state.swipeSearch?.trim().toLowerCase() || "";
 
   const visibleSwipes = state.swipes.filter((swipe) => {
     const matchesFy = selectedFy === "all" || swipe.financialYear === selectedFy;
     const matchesCategory = selectedCategory === "all" || normalizeSwipeCategory(swipe.category) === selectedCategory;
     const matchesType = selectedType === "all" || swipe.type === selectedType;
     const matchesCard = selectedCard === "all" || swipe.cardId === selectedCard;
-    return matchesFy && matchesCategory && matchesType && matchesCard;
+
+    const card = getCardById(swipe.cardId) || {};
+    const swipeText = [
+      card.name,
+      card.issuer,
+      swipe.spentFor,
+      swipe.financialYear,
+      swipe.category,
+      swipe.type === "E" ? "emi" : "full swipe",
+      swipe.amount ? formatMoney(swipe.amount) : ""
+    ].join(" ").toLowerCase();
+
+    const matchesSearch = !searchQuery || swipeText.includes(searchQuery);
+    return matchesFy && matchesCategory && matchesType && matchesCard && matchesSearch;
   });
 
   // Sort logic
