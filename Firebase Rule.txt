@@ -6,3 +6,13 @@ service cloud.firestore {
     }
   }
 }
+
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAeWDg6WyZQshKc1Hks_AWOVJ7I4_gWe_U",
+    authDomain: "credit-card-portfolio-d04db.firebaseapp.com",
+    projectId: "credit-card-portfolio-d04db",
+    storageBucket: "credit-card-portfolio-d04db.firebasestorage.app",
+    messagingSenderId: "459587513450",
+    appId: "1:459587513450:web:b93829e8cb1d57f4516e13"
+  };
