@@ -265,14 +265,14 @@
 </div>
 
 <div id="app" style="display:none; position: relative;">
-<button id="lockBtn" style="position: absolute; top: 15px; right: 15px; z-index: 10000; background-color: #f59e0b; color: rgb(0, 0, 0);
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: none;
-  font-weight: 700;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;">
-  Logout
-</button>
+  <input id="importFile" type="file" accept="application/json" style="display:none" />
+  <div style="position: absolute; top: 15px; right: 110px; z-index:10000; display:flex; gap:8px;">
+    <button class="ghost-button" type="button" id="exportBtn">Export</button>
+    <button class="ghost-button" type="button" id="importBtn">Import</button>
+  </div>
+  <button id="lockBtn" class="ghost-button" type="button" style="position: absolute; top: 15px; right: 15px; z-index: 10000;">
+    Logout
+  </button>
     <link rel="stylesheet" href="styles.css" />
 
     <!-- Firebase code with Authentication for Firestore Security Rules -->
@@ -281,7 +281,7 @@
   import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-  const firebaseConfig = {
+const firebaseConfig = {
     apiKey: "AIzaSyAeWDg6WyZQshKc1Hks_AWOVJ7I4_gWe_U",
     authDomain: "credit-card-portfolio-d04db.firebaseapp.com",
     projectId: "credit-card-portfolio-d04db",
@@ -346,13 +346,14 @@
   </head>
 
 
-    <body style="background-color: #000000 !important;">
+  <body style="background-color: #000000 !important;">
     <div class="app-shell">
       <header class="topbar">
         <div class="brand">
           <div class="brand-mark" aria-hidden="true">
             <span></span>
           </div>
+        
           <div>
             <p class="eyebrow">Portfolio</p>
             <h1>Credit Card P/L Portfolio</h1>
