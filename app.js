@@ -75,6 +75,12 @@ let draftFutureAnnualFees = [];
 let toastTimer = null;
 let loungeChartInstance = null;
 
+// Client-side rendering limits to improve initial load performance
+const INITIAL_VISIBLE_CARDS = 20;
+let cardsAllExpanded = false; // set true when user clicks "Load more"
+let swipesAllExpanded = false;
+let loungeAllExpanded = false;
+
 const els = {};
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -207,16 +213,20 @@ spentForBtn:document.getElementById("spentForBtn"),
 function bindEvents() {
   els.searchInput.addEventListener("input", () => {
     state.search = els.searchInput.value.trim().toLowerCase();
+    // collapse expanded list when new query typed
+    cardsAllExpanded = false;
     renderCards();
   });
 
   els.statusFilter.addEventListener("change", () => {
     state.statusFilter = els.statusFilter.value;
+    cardsAllExpanded = false;
     renderCards();
   });
 
   els.sortSelect.addEventListener("change", () => {
     state.sort = els.sortSelect.value;
+    cardsAllExpanded = false;
     renderCards();
   });
 
@@ -277,13 +287,14 @@ document.addEventListener("click", (e) => {
   els.backFromPortfolioBtn?.addEventListener("click", () => showView("dashboard"));
   els.backFromSwipesBtn?.addEventListener("click", () => showView("dashboard"));
   els.backFromLoungeBtn?.addEventListener("click", () => showView("dashboard"));
-  els.swipeFyFilter?.addEventListener("change", renderSwipes);
-  els.swipeCategoryFilter?.addEventListener("change", renderSwipes);
-  els.swipeTypeFilter?.addEventListener("change", renderSwipes);
-  els.swipeSortFilter?.addEventListener("change", renderSwipes);
-  els.swipeCardFilter?.addEventListener("change", renderSwipes);
+  els.swipeFyFilter?.addEventListener("change", () => { swipesAllExpanded = false; renderSwipes(); });
+  els.swipeCategoryFilter?.addEventListener("change", () => { swipesAllExpanded = false; renderSwipes(); });
+  els.swipeTypeFilter?.addEventListener("change", () => { swipesAllExpanded = false; renderSwipes(); });
+  els.swipeSortFilter?.addEventListener("change", () => { swipesAllExpanded = false; renderSwipes(); });
+  els.swipeCardFilter?.addEventListener("change", () => { swipesAllExpanded = false; renderSwipes(); });
   els.swipeSearchInput?.addEventListener("input", () => {
     state.swipeSearch = els.swipeSearchInput.value.trim().toLowerCase();
+    swipesAllExpanded = false;
     renderSwipes();
   });
   els.swipeTypeFilter?.addEventListener("change", renderSwipes);
@@ -300,8 +311,8 @@ document.addEventListener("click", (e) => {
   els.loungeTable?.addEventListener("click", handleLoungeAction);
   els.saveLoungeBenefitBtn?.addEventListener("click", saveLoungeBenefitFromForm);
   els.clearLoungeBenefitBtn?.addEventListener("click", resetLoungeBenefitForm);
-  els.loungeCardFilter?.addEventListener("change", renderLoungeVisits);
-  els.loungeTypeFilter?.addEventListener("change", renderLoungeVisits);
+  els.loungeCardFilter?.addEventListener("change", () => { loungeAllExpanded = false; renderLoungeVisits(); });
+  els.loungeTypeFilter?.addEventListener("change", () => { loungeAllExpanded = false; renderLoungeVisits(); });
   els.scrollTopBtn?.addEventListener("click", scrollToPageTop);
   window.addEventListener("scroll", updateScrollTopButton, { passive: true });
 }
@@ -650,6 +661,15 @@ function showView(view) {
   const previousView = state.currentView;
   state.currentView = view;
   sessionStorage.setItem("currentView", view);
+
+  // Reset any expanded lists when switching views so UI always starts collapsed
+  cardsAllExpanded = false;
+  swipesAllExpanded = false;
+  loungeAllExpanded = false;
+  // Remove any leftover load-more UI
+  removeLoadMore();
+  removeLoadMoreIn(els.swipesTable);
+  removeLoadMoreIn(els.loungeTable);
 
   if (els.dashboardView) els.dashboardView.style.display = view === "dashboard" ? "block" : "none";
   if (els.portfolioView) els.portfolioView.style.display = view === "portfolio" ? "block" : "none";
@@ -1149,10 +1169,21 @@ function renderSwipes() {
       swipe.financialYear,
       swipe.category,
       swipe.type === "E" ? "emi" : "full swipe",
-      swipe.amount ? formatMoney(swipe.amount) : ""
+      swipe.amount ? formatMoney(swipe.amount) : "",
     ].join(" ").toLowerCase();
+    // Match text fields
+    let matchesSearch = !searchQuery || swipeText.includes(searchQuery);
 
-    const matchesSearch = !searchQuery || swipeText.includes(searchQuery);
+    // If search contains digits, also try matching against the raw numeric amount (e.g. "500" or "1500.50")
+    if (!matchesSearch && searchQuery) {
+      const numericQuery = searchQuery.replace(/[^0-9.\-]/g, "");
+      if (numericQuery) {
+        const amtStr = String(toNumber(swipe.amount));
+        if (amtStr.includes(numericQuery)) {
+          matchesSearch = true;
+        }
+      }
+    }
     return matchesFy && matchesCategory && matchesType && matchesCard && matchesSearch;
   });
 
@@ -1175,13 +1206,12 @@ function renderSwipes() {
     return;
   }
 
-  const businessSwipes = sortedSwipes.filter(s => normalizeSwipeCategory(s.category) !== "personal");
-  const personalSwipes = sortedSwipes.filter(s => normalizeSwipeCategory(s.category) === "personal");
-
-  const renderGroup = (title, list) => {
-    if (list.length === 0) return "";
-
-    return list.map(swipe => `
+  const shouldShowAllSwipes = Boolean(state.swipeSearch && state.swipeSearch.trim() !== "");
+  const totalSwipes = sortedSwipes.length;
+  const visibleCountSwipes = shouldShowAllSwipes ? totalSwipes : (swipesAllExpanded ? totalSwipes : INITIAL_VISIBLE_CARDS);
+  const renderSwipeRow = (swipe) => {
+    const title = normalizeSwipeCategory(swipe.category) === "personal" ? "Personal" : "Business";
+    return `
       <article class="card-row">
         <div class="card-name">
           <strong>${escapeHtml(formatCardName(getCardById(swipe.cardId)))}</strong>
@@ -1206,13 +1236,19 @@ function renderSwipes() {
           </button>
         </div>
       </article>
-    `).join("");
+    `;
   };
+  const rowsToRender = sortedSwipes.slice(0, visibleCountSwipes);
+  els.swipesTable.innerHTML = rowsToRender.map(renderSwipeRow).join("");
 
-  let finalHtml = "";
-  finalHtml += renderGroup("Business", businessSwipes);
-  finalHtml += renderGroup("Personal", personalSwipes);
-  els.swipesTable.innerHTML = finalHtml;
+  if (!shouldShowAllSwipes && !swipesAllExpanded && totalSwipes > visibleCountSwipes) {
+    renderLoadMoreIn(els.swipesTable, totalSwipes - visibleCountSwipes, () => {
+      swipesAllExpanded = true;
+      renderSwipes();
+    });
+  } else {
+    removeLoadMoreIn(els.swipesTable);
+  }
 }
 
 function renderSwipeProgress() {
@@ -1579,7 +1615,11 @@ function renderLoungeVisits() {
     return;
   }
 
-  visibleVisits.forEach((visit) => {
+  const totalVisits = visibleVisits.length;
+  const visibleCountLounge = loungeAllExpanded ? totalVisits : INITIAL_VISIBLE_CARDS;
+  const visitsToRender = visibleVisits.slice(0, visibleCountLounge);
+
+  visitsToRender.forEach((visit) => {
 
       const row = document.createElement("article");
 
@@ -1666,6 +1706,15 @@ function renderLoungeVisits() {
 
       els.loungeTable.appendChild(row);
     });
+
+  if (!loungeAllExpanded && totalVisits > visibleCountLounge) {
+    renderLoadMoreIn(els.loungeTable, totalVisits - visibleCountLounge, () => {
+      loungeAllExpanded = true;
+      renderLoungeVisits();
+    });
+  } else {
+    removeLoadMoreIn(els.loungeTable);
+  }
 }
 
 function renderLoungeChart() {
@@ -2177,13 +2226,17 @@ function renderCards() {
   const cards = getFilteredCards();
   els.cardsTable.innerHTML = "";
 
+  // No cards at all
   if (!state.cards.length) {
     els.cardsTable.appendChild(createEmptyState("No cards in portfolio", "Add your first card or load the example portfolio."));
+    removeLoadMore();
     return;
   }
 
+  // No matches after filtering/search
   if (!cards.length) {
     els.cardsTable.appendChild(createEmptyState("No matching cards", "Adjust search, status, or sort filters."));
+    removeLoadMore();
     return;
   }
 
@@ -2199,7 +2252,13 @@ function renderCards() {
   `;
   els.cardsTable.appendChild(head);
 
-  cards.forEach((card) => {
+  // Determine how many cards to render initially.
+  // If user has typed a search, show all matching cards so search finds hidden items.
+  const shouldShowAll = Boolean(state.search && state.search.trim() !== "");
+  const visibleCount = shouldShowAll ? cards.length : (cardsAllExpanded ? cards.length : INITIAL_VISIBLE_CARDS);
+
+  // Render only the visible subset
+  cards.slice(0, visibleCount).forEach((card) => {
     const totals = getCardTotals(card);
     const status = getStatus(totals.net);
     const netColor = totals.net > 0 ? "#10b981" : totals.net < 0 ? "#ef4444" : "#f8fafc";
@@ -2265,6 +2324,80 @@ function renderCards() {
       </div>
     `;
     els.cardsTable.appendChild(row);
+  });
+
+  // If not showing all and there are more cards, render a Load more button
+  if (!shouldShowAll && !cardsAllExpanded && cards.length > visibleCount) {
+    renderLoadMore(cards.length - visibleCount);
+  } else {
+    removeLoadMore();
+  }
+}
+
+function renderLoadMore(remaining) {
+  removeLoadMore();
+  const container = document.createElement('div');
+  container.id = 'loadMoreContainer';
+  container.style.cssText = 'display:flex; justify-content:center; padding:12px 0;';
+  const btn = document.createElement('button');
+  btn.className = 'ghost-button';
+  btn.type = 'button';
+  btn.textContent = `Load more (${remaining})`;
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    btn.textContent = 'Loading...';
+    // expand and re-render (we already have the full data in `state.cards`)
+    cardsAllExpanded = true;
+    renderCards();
+  });
+  container.appendChild(btn);
+  els.cardsTable.parentNode?.insertBefore(container, els.cardsTable.nextSibling);
+}
+
+function removeLoadMore() {
+  const existing = document.getElementById('loadMoreContainer');
+  if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+}
+
+// Generic helpers for other tables (swipes, lounge)
+function renderLoadMoreIn(containerEl, remaining, onExpand) {
+  if (!containerEl) return;
+  removeLoadMoreIn(containerEl);
+  const container = document.createElement('div');
+  container.className = 'load-more-container';
+  container.style.cssText = 'display:flex; justify-content:center; padding:12px 0;';
+  const btn = document.createElement('button');
+  btn.className = 'ghost-button';
+  btn.type = 'button';
+  btn.textContent = `Load more (${remaining})`;
+  btn.addEventListener('click', () => {
+    btn.disabled = true;
+    btn.textContent = 'Loading...';
+    try {
+      onExpand && onExpand();
+    } finally {
+      removeLoadMoreIn(containerEl);
+    }
+  });
+  container.appendChild(btn);
+  containerEl.appendChild(container);
+}
+
+function removeLoadMoreIn(containerEl) {
+  if (!containerEl) return;
+  const existing = containerEl.querySelector('.load-more-container');
+  if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+}
+
+function enforceVisibleLimitIn(containerEl, visibleCount, expanded) {
+  if (!containerEl) return;
+  const rows = Array.from(containerEl.querySelectorAll('.card-row'));
+  rows.forEach((row, idx) => {
+    if (expanded) {
+      row.style.display = '';
+    } else {
+      row.style.display = idx < visibleCount ? '' : 'none';
+    }
   });
 }
 
