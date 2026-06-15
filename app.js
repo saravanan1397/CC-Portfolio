@@ -949,7 +949,7 @@ function renderCardSelect(select) {
   const voucherPlatforms = [
     { value: "CRED", label: "CRED" },
     { value: "Shopwise", label: "Shopwise" },
-    { value: "Maximise", label: "Maximise" },
+    { value: "Maximize", label: "Maximize" },
   ];
 
   if (!state.cards.length && !isRpCardSelect) {
@@ -1472,8 +1472,19 @@ async function saveRpSpendFromForm(event) {
   }
 
   if (existingIndex >= 0) {
+    // Determine previous product-level points for this purchase (before overwrite)
+    const purchaseId = state.rpSpends[existingIndex].purchaseId || state.rpSpends[existingIndex].id;
+    const priorRep = state.rpSpends.find((row) => (row.purchaseId || row.id) === purchaseId && toNumber(row.pointsReceived) > 0);
+    const priorPoints = priorRep ? toNumber(priorRep.pointsReceived) : 0;
+
+    // Update the edited row
     state.rpSpends[existingIndex] = rpSpend;
-    syncRpProductFieldsForPurchase(rpSpend);
+
+    // If pointsReceived changed compared to prior group value, propagate it.
+    const newPoints = toNumber(rpSpend.pointsReceived);
+    const shouldSyncPoints = newPoints !== priorPoints;
+
+    syncRpProductFieldsForPurchase(rpSpend, shouldSyncPoints);
   } else {
     state.rpSpends.push(rpSpend);
   }
@@ -1568,24 +1579,32 @@ function prepareNextRpPaymentRow(previousRow) {
   if (els.rpPurchasedFrom) els.rpPurchasedFrom.value = previousRow.purchasedFrom || "";
   if (els.rpProductName) els.rpProductName.value = previousRow.productName || "";
   if (els.rpProductValue) els.rpProductValue.value = previousRow.productValue || "";
-  if (els.rpPointsReceived) els.rpPointsReceived.value = previousRow.pointsReceived || "";
+  // Do not pre-fill points received for subsequent payment rows to avoid
+  // duplicating the same product-level points across multiple rows.
+  if (els.rpPointsReceived) els.rpPointsReceived.value = "";
   if (els.saveRpSpendBtn) els.saveRpSpendBtn.textContent = "Add Payment Row";
   clearRpPaymentFields();
   els.rpCardSelect?.focus();
 }
 
-function syncRpProductFieldsForPurchase(sourceRow) {
+function syncRpProductFieldsForPurchase(sourceRow, syncPoints = false) {
   const purchaseId = sourceRow.purchaseId || sourceRow.id;
   state.rpSpends = state.rpSpends.map((row) => {
     if ((row.purchaseId || row.id) !== purchaseId || row.id === sourceRow.id) return row;
 
-    return {
+    const updated = {
       ...row,
       purchasedFrom: sourceRow.purchasedFrom,
       productName: sourceRow.productName,
       productValue: sourceRow.productValue,
-      pointsReceived: sourceRow.pointsReceived,
     };
+
+    if (syncPoints) {
+      // Propagate the pointsReceived change to all rows for the same purchase
+      updated.pointsReceived = sourceRow.pointsReceived;
+    }
+
+    return updated;
   });
 }
 
@@ -1593,20 +1612,51 @@ function handleRpSpendAction(event) {
   const button = event.target.closest("[data-rp-spend-action]");
   if (!button) return;
 
-  const rpSpend = state.rpSpends.find((item) => item.id === button.dataset.id);
-  if (!rpSpend) return;
+  const action = button.dataset.rpSpendAction;
 
-  if (button.dataset.rpSpendAction === "edit") {
-    populateRpSpendForm(rpSpend);
+  // Item-level actions (edit/delete) use data-id
+  if (action === "edit" || action === "delete") {
+    const rpSpend = state.rpSpends.find((item) => item.id === button.dataset.id);
+    if (!rpSpend) return;
+
+    if (action === "edit") {
+      populateRpSpendForm(rpSpend);
+      window.scrollTo({ top: 0, behavior: shouldReduceMotion() ? "auto" : "smooth" });
+      return;
+    }
+
+    if (action === "delete") {
+      state.rpSpends = state.rpSpends.filter((item) => item.id !== rpSpend.id);
+      saveState();
+      render();
+      showToast("RP spend deleted.");
+      return;
+    }
+  }
+
+  // Group-level actions use data-purchase-id
+  if (action === "add-to-group") {
+    const pid = button.dataset.purchaseId;
+    if (!pid) return;
+    const rep = state.rpSpends.find((row) => (row.purchaseId || row.id) === pid);
+    if (!rep) return;
+    // Prepare the form to add another payment row for this product
+    prepareNextRpPaymentRow(rep);
+    // Ensure the purchaseId is set so the new row attaches to the group
+    if (els.editingRpPurchaseId) els.editingRpPurchaseId.value = pid;
+    if (els.saveRpSpendBtn) els.saveRpSpendBtn.textContent = "Add Payment Row";
     window.scrollTo({ top: 0, behavior: shouldReduceMotion() ? "auto" : "smooth" });
     return;
   }
 
-  if (button.dataset.rpSpendAction === "delete") {
-    state.rpSpends = state.rpSpends.filter((item) => item.id !== rpSpend.id);
+  if (action === "delete-group") {
+    const pid = button.dataset.purchaseId;
+    if (!pid) return;
+    state.rpSpends = state.rpSpends.filter((item) => (item.purchaseId || item.id) !== pid);
     saveState();
     render();
-    showToast("RP spend deleted.");
+    showToast("Product and its payment rows deleted.");
+    return;
   }
 }
 
@@ -1621,7 +1671,14 @@ function populateRpSpendForm(rpSpend) {
   if (els.rpPurchasedFrom) els.rpPurchasedFrom.value = rpSpend.purchasedFrom || "";
   if (els.rpProductName) els.rpProductName.value = rpSpend.productName || "";
   if (els.rpProductValue) els.rpProductValue.value = rpSpend.productValue || "";
-  if (els.rpPointsReceived) els.rpPointsReceived.value = rpSpend.pointsReceived || "";
+  // If this specific row doesn't have pointsReceived set, try to find the
+  // purchase-level value from any row sharing the same purchaseId so editing
+  // any row for the product will pre-fill the original Neucoins value.
+  if (els.rpPointsReceived) {
+    const thisPurchaseId = rpSpend.purchaseId || rpSpend.id;
+    const rep = state.rpSpends.find((row) => (row.purchaseId || row.id) === thisPurchaseId && toNumber(row.pointsReceived) > 0);
+    els.rpPointsReceived.value = (rpSpend.pointsReceived || (rep && rep.pointsReceived)) || "";
+  }
   if (els.saveRpSpendBtn) els.saveRpSpendBtn.textContent = "Update RP Spend";
   updateRpPaidValue();
   refreshAllFieldStates();
@@ -1648,6 +1705,7 @@ function renderRpSpends() {
     <span>Earned Points</span>
     <span>Paid Value</span>
     <span>Points</span>
+    <span></span>
   `;
   els.rpSpendsTable.appendChild(head);
 
@@ -1657,6 +1715,7 @@ function renderRpSpends() {
     const pid = spend.purchaseId || spend.id;
     if (!groups[pid]) {
       groups[pid] = {
+        purchaseId: pid,
         items: [],
         latestDate: spend.createdAt,
         productName: spend.productName,
@@ -1682,11 +1741,13 @@ function renderRpSpends() {
     
     const totalPaidValue = group.items.reduce((sum, item) => sum + getRpSpendPaidValue(item), 0);
     const totalPoints = group.items.reduce((sum, item) => sum + toNumber(item.points), 0);
-    const totalEarned = group.items.reduce((sum, item) => sum + toNumber(item.pointsReceived), 0);
+    // Treat pointsReceived as a product-level value (one value per purchase),
+    // do not sum across payment rows to avoid multiplying the same Neucoins.
+    const totalEarned = toNumber(group.pointsReceived);
 
     row.innerHTML = `
       <div class="card-name">
-        <strong>${escapeHtml(group.productName || "Untitled product")}</strong>
+        <strong style="min-width:0;">${escapeHtml(group.productName || "Untitled product")}</strong>
         <span class="card-meta" style="display: block; margin-bottom: 8px;">
           ${escapeHtml(group.purchasedFrom || "N/A")} | ${escapeHtml(formatDateTime(group.latestDate))}
         </span>
@@ -1722,6 +1783,13 @@ function renderRpSpends() {
       <div class="money-cell">
         <span class="cell-label">Total Points</span>
         <strong>${formatPoints(totalPoints)}</strong>
+      </div>
+      <div class="money-cell rp-spend-actions-cell">
+        <span class="cell-label">Actions</span>
+        <div class="row-actions" style="justify-content:flex-end;">
+          <button class="icon-button subtle" type="button" data-rp-spend-action="add-to-group" data-purchase-id="${escapeAttribute(group.purchaseId)}" title="Add payment to this product"><svg viewBox="0 0 24 24" width="14"><path d="M12 5v14M5 12h14" /></svg></button>
+          <button class="icon-button subtle" type="button" data-rp-spend-action="delete-group" data-purchase-id="${escapeAttribute(group.purchaseId)}" title="Delete entire product"><svg viewBox="0 0 24 24" width="14"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg></button>
+        </div>
       </div>
     `;
     els.rpSpendsTable.appendChild(row);
@@ -3299,7 +3367,17 @@ function getRpSpendTotal() {
 }
 
 function getRpPointsReceivedTotal() {
-  return state.rpSpends.reduce((sum, rpSpend) => sum + toNumber(rpSpend.pointsReceived), 0);
+  // Sum pointsReceived per purchase group (one value per purchase),
+  // so multiple payment rows don't multiply the same Neucoins.
+  const groups = {};
+  state.rpSpends.forEach((spend) => {
+    const pid = spend.purchaseId || spend.id;
+    if (!groups[pid]) {
+      groups[pid] = toNumber(spend.pointsReceived || 0);
+    }
+  });
+
+  return Object.values(groups).reduce((sum, v) => sum + v, 0);
 }
 
 function getLoungeVisitTotal() {
@@ -3387,7 +3465,7 @@ function formatRpSourceName(sourceId) {
   const platformNames = {
     CRED: "CRED",
     Shopwise: "Shopwise",
-    Maximise: "Maximise",
+    Maximize: "Maximize",
   };
 
   if (platformNames[sourceId]) return platformNames[sourceId];
