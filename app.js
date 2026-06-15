@@ -883,6 +883,7 @@ function renderDashboard() {
   const totals = getTotals(state.cards);
   const swipeTotal = getSwipeTotal();
   const swipeCategoryTotals = getSwipeCategoryTotals();
+  const rpPointsUsedTotal = getRpPointsUsedTotal();
   const rpSpendTotal = getRpSpendTotal();
   const rpPointsReceivedTotal = getRpPointsReceivedTotal();
   const loungeTotal = getLoungeVisitTotal();
@@ -924,11 +925,11 @@ function renderDashboard() {
   }
 
   if (els.dashboardRpValue) {
-    els.dashboardRpValue.textContent = formatPoints(rpPointsReceivedTotal);
+    els.dashboardRpValue.textContent = formatPoints(rpPointsUsedTotal);
   }
 
   if (els.dashboardRpHint) {
-    els.dashboardRpHint.textContent = `${state.rpSpends.length} ${state.rpSpends.length === 1 ? "entry" : "entries"} | ${formatPoints(rpPointsReceivedTotal)} received`;
+    els.dashboardRpHint.textContent = `${state.rpSpends.length} ${state.rpSpends.length === 1 ? "entry" : "entries"} | ${formatPoints(rpPointsUsedTotal)} used`;
   }
 }
 
@@ -3366,6 +3367,10 @@ function getRpSpendPaidValue(rpSpend) {
 
 function getRpSpendTotal() {
   return state.rpSpends.reduce((sum, rpSpend) => sum + getRpSpendPaidValue(rpSpend), 0);
+}
+
+function getRpPointsUsedTotal() {
+  return state.rpSpends.reduce((sum, rpSpend) => sum + toNumber(rpSpend.points), 0);
 }
 
 function getRpPointsReceivedTotal() {
