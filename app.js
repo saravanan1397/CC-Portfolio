@@ -1706,7 +1706,7 @@ function renderRpSpends() {
     <span>Card / Platform</span>
     <span>Earned Points</span>
     <span>Paid Value</span>
-    <span>Points</span>
+    <span>Points Used</span>
     <span></span>
   `;
   els.rpSpendsTable.appendChild(head);
@@ -1762,7 +1762,7 @@ function renderRpSpends() {
               <span class="benefit-line-name">${escapeHtml(formatRpSourceName(item.cardId))}</span>
               <span class="benefit-line-meta">
                 ${toNumber(item.points) > 0 ? `${formatPoints(item.points)} (${formatMoney(item.pointsValue)})` : ''}
-                ${toNumber(item.cardPaid) > 0 ? ` | Card: ${formatMoney(item.cardPaid)}` : ''}
+                ${toNumber(item.cardPaid) > 0 ? ` Card: ${formatMoney(item.cardPaid)}` : ''}
                 ${toNumber(item.voucherPaid) > 0 ? `Voucher: ${formatMoney(item.voucherPaid)}` : ''}
               </span>
               <div class="row-actions inline-actions">
