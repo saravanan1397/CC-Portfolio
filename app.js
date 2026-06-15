@@ -1751,7 +1751,7 @@ function renderRpSpends() {
       <div class="card-name">
         <strong style="min-width:0;">${escapeHtml(group.productName || "Untitled product")}</strong>
         <span class="card-meta" style="display: block; margin-bottom: 8px;">
-          ${escapeHtml(group.purchasedFrom || "N/A")} | ${escapeHtml(formatDateTime(group.latestDate))}
+          ${escapeHtml(group.purchasedFrom || "N/A")}
         </span>
       </div>
       <div class="money-cell">
