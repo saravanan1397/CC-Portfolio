@@ -950,6 +950,8 @@ function renderCardSelect(select) {
     { value: "CRED", label: "CRED" },
     { value: "Shopwise", label: "Shopwise" },
     { value: "Maximize", label: "Maximize" },
+    { value: "Neucoins", label: "Neucoins" },
+    { value: "Axis Rewards", label: "Axis Rewards" },
   ];
 
   if (!state.cards.length && !isRpCardSelect) {
@@ -3466,6 +3468,8 @@ function formatRpSourceName(sourceId) {
     CRED: "CRED",
     Shopwise: "Shopwise",
     Maximize: "Maximize",
+    Neucoins: "Neucoins",
+    "Axis Rewards": "Axis Rewards",
   };
 
   if (platformNames[sourceId]) return platformNames[sourceId];
