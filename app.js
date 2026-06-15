@@ -924,7 +924,7 @@ function renderDashboard() {
   }
 
   if (els.dashboardRpValue) {
-    els.dashboardRpValue.textContent = formatMoney(rpSpendTotal);
+    els.dashboardRpValue.textContent = formatPoints(rpPointsReceivedTotal);
   }
 
   if (els.dashboardRpHint) {
