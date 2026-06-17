@@ -1706,7 +1706,7 @@ function renderRpSpends() {
   head.innerHTML = `
     <span>Product Details</span>
     <span>Card / Platform</span>
-    <span>Earned Points</span>
+    <span>Product / Service Details</span>
     <span>Paid Value</span>
     <span>Points Used</span>
     <span></span>
