@@ -951,7 +951,8 @@ function renderCardSelect(select) {
     { value: "CRED", label: "CRED" },
     { value: "Shopwise", label: "Shopwise" },
     { value: "Maximize", label: "Maximize" },
-    { value: "Neucoins", label: "Neucoins" },
+    { value: "Neucoins", label: "Tata Neucoins" },
+    { value: "Tata Neu Voucher", label: "Tata Neu Gift Voucher" },
     { value: "Axis Rewards", label: "Axis Rewards" },
   ];
 
