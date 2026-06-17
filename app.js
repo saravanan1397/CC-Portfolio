@@ -1704,9 +1704,9 @@ function renderRpSpends() {
   const head = document.createElement("div");
   head.className = "table-head";
   head.innerHTML = `
-    <span>Product Details</span>
+    <span>Product Details / Service Details</span>
     <span>Card / Platform</span>
-    <span>Product / Service Details</span>
+    <span>Earned Points</span>
     <span>Paid Value</span>
     <span>Points Used</span>
     <span></span>
