@@ -3475,6 +3475,7 @@ function formatRpSourceName(sourceId) {
     Shopwise: "Shopwise",
     Maximize: "Maximize",
     Neucoins: "Neucoins",
+    "Tata Neu Voucher": "Tata Neu Voucher",
     "Axis Rewards": "Axis Rewards",
   };
 
