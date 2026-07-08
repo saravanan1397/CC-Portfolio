@@ -399,6 +399,7 @@ document.addEventListener("click", (e) => {
   els.rpPartnerTransferBtn?.addEventListener("click", async () => {
     const result = await showPartnerProgramTransferPrompt({
       partnerName: els.rpPurchasedFrom?.value.trim() || "",
+      ratio: els.rpPartnerTransferRatio?.value || "",
       originatingCardId: els.rpOriginatingCardId?.value || "",
     });
 
@@ -410,6 +411,9 @@ document.addEventListener("click", (e) => {
     if (els.rpPurchasedFrom) {
       els.rpPurchasedFrom.value = result.partnerName;
       els.rpPurchasedFrom.dataset.partnerProgramAuto = "true";
+    }
+    if (els.rpPartnerTransferRatio) {
+      els.rpPartnerTransferRatio.value = result.ratio || "";
     }
     if (els.rpOriginatingCardId) {
       els.rpOriginatingCardId.value = result.originatingCardId || "";
@@ -3342,6 +3346,7 @@ async function handleRpCardSelectChange(event) {
   if (select.value === partnerProgramPlatformValue) {
     const result = await showPartnerProgramTransferPrompt({
       partnerName: els.rpPurchasedFrom?.value.trim() || "",
+      ratio: els.rpPartnerTransferRatio?.value || "",
       originatingCardId: els.rpOriginatingCardId?.value || "",
     });
 
@@ -3350,6 +3355,9 @@ async function handleRpCardSelectChange(event) {
       if (els.rpPurchasedFrom) {
         els.rpPurchasedFrom.value = "";
         delete els.rpPurchasedFrom.dataset.partnerProgramAuto;
+      }
+      if (els.rpPartnerTransferRatio) {
+        els.rpPartnerTransferRatio.value = "";
       }
       if (els.rpOriginatingCardId) {
         els.rpOriginatingCardId.value = "";
@@ -3361,6 +3369,9 @@ async function handleRpCardSelectChange(event) {
     if (els.rpPurchasedFrom) {
       els.rpPurchasedFrom.value = result.partnerName;
       els.rpPurchasedFrom.dataset.partnerProgramAuto = "true";
+    }
+    if (els.rpPartnerTransferRatio) {
+      els.rpPartnerTransferRatio.value = result.ratio || "";
     }
     if (els.rpOriginatingCardId) {
       els.rpOriginatingCardId.value = result.originatingCardId || "";
@@ -3438,22 +3449,27 @@ function showPartnerProgramTransferPrompt(initial = {}) {
     aiModalResolver = resolve;
     const partnerNameId = "partnerProgramPromptPartnerName";
     const originatingCardId = "partnerProgramPromptOriginatingCard";
+    const ratioId = "partnerProgramPromptRatio";
     const infoId = "partnerProgramPromptInfo";
     const errorId = "partnerProgramPromptError";
 
     openAiModal({
       mode: "customPrompt",
       title: "Partner name",
-      subtitle: "Add the partner name and, optionally, the source card.",
+      subtitle: "Add the partner name, ratio, and optionally the source card.",
       bodyHtml: `
         <div class="ai-prompt-shell" style="gap:16px;">
           <div>
             <p class="ai-prompt-title">Partner Program Transfer</p>
-            <p class="ai-prompt-copy">Partner name is required. Source card is optional and only updates the redeemed-points benefit.</p>
+            <p class="ai-prompt-copy">Partner name and ratio are required. Source card is optional and only updates the redeemed-points benefit.</p>
           </div>
           <label class="field">
             <span>Partner name</span>
             <input id="${partnerNameId}" type="text" placeholder="e.g. Marriott, Emirates" value="${escapeAttribute(initial.partnerName || "")}" autocomplete="off" />
+          </label>
+          <label class="field">
+            <span>Redemption Ratio (number1:number2)</span>
+            <input id="${ratioId}" type="text" placeholder="e.g. 1:2 (1 point = 2 PPR value)" value="${escapeAttribute(initial.ratio || "")}" autocomplete="off" />
           </label>
           <label class="field">
             <span>Originating Card</span>
@@ -3472,6 +3488,7 @@ function showPartnerProgramTransferPrompt(initial = {}) {
     });
 
     const partnerNameInput = document.getElementById(partnerNameId);
+    const ratioInput = document.getElementById(ratioId);
     const originatingCardSelect = document.getElementById(originatingCardId);
     const infoEl = document.getElementById(infoId);
     const errorEl = document.getElementById(errorId);
@@ -3483,6 +3500,10 @@ function showPartnerProgramTransferPrompt(initial = {}) {
     cancelBtn?.addEventListener("click", () => resolveAiModal(null));
     confirmBtn?.addEventListener("click", () => {
       const partnerName = String(partnerNameInput?.value || "").trim();
+      const ratio = String(ratioInput?.value || "").trim();
+
+      if (errorEl) errorEl.style.display = "none";
+
       if (!partnerName) {
         if (errorEl) {
           errorEl.textContent = "Partner name is required.";
@@ -3492,13 +3513,39 @@ function showPartnerProgramTransferPrompt(initial = {}) {
         return;
       }
 
+      if (!ratio) {
+        if (errorEl) {
+          errorEl.textContent = "Redemption ratio is required (e.g. 1:2).";
+          errorEl.style.display = "block";
+        }
+        ratioInput?.focus();
+        return;
+      }
+
+      if (!parsePartnerTransferRatio(ratio)) {
+        if (errorEl) {
+          errorEl.textContent = "Invalid ratio format. Use number1:number2 (e.g. 1:2).";
+          errorEl.style.display = "block";
+        }
+        ratioInput?.focus();
+        return;
+      }
+
       resolveAiModal({
         partnerName,
+        ratio,
         originatingCardId: String(originatingCardSelect?.value || "").trim(),
       });
     });
 
     partnerNameInput?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        ratioInput?.focus();
+      }
+    });
+
+    ratioInput?.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
         confirmBtn?.click();
@@ -3969,11 +4016,18 @@ async function saveRpSpendFromForm(event) {
   const isPartnerProgram = cardId === partnerProgramPlatformValue;
   const partnerName = els.rpPurchasedFrom?.value.trim() || "";
   const originatingCardId = els.rpOriginatingCardId?.value || "";
+  const partnerTransferRatio = els.rpPartnerTransferRatio?.value || "";
   const pointsReceived = toNumber(els.rpPointsReceived?.value);
 
   if (isPartnerProgram && !partnerName) {
     showToast("Partner name is required.");
     els.rpPurchasedFrom?.focus();
+    return;
+  }
+
+  if (isPartnerProgram && !partnerTransferRatio) {
+    showToast("Redemption ratio is required for partner programs.");
+    els.rpPartnerTransferRatio?.focus();
     return;
   }
 
@@ -4004,6 +4058,7 @@ async function saveRpSpendFromForm(event) {
     purchasedFrom: partnerName,
     partnerName,
     originatingCardId: isPartnerProgram ? originatingCardId : "",
+    partnerTransferRatio: isPartnerProgram ? partnerTransferRatio : "",
     productName,
     productValue: els.rpProductValue?.value,
     pointsReceived: els.rpPointsReceived?.value,
@@ -4084,6 +4139,9 @@ function resetRpSpendForm() {
   if (els.rpOriginatingCardId) {
     els.rpOriginatingCardId.value = "";
   }
+  if (els.rpPartnerTransferRatio) {
+    els.rpPartnerTransferRatio.value = "";
+  }
   updatePartnerTransferDetailsButton();
 
   if (els.saveRpSpendBtn) els.saveRpSpendBtn.textContent = "Add RP Spend";
@@ -4149,6 +4207,9 @@ function prepareNextRpPaymentRow(previousRow) {
     } else {
       delete els.rpPurchasedFrom.dataset.partnerProgramAuto;
     }
+  }
+  if (els.rpPartnerTransferRatio) {
+    els.rpPartnerTransferRatio.value = previousRow.partnerTransferRatio || "";
   }
   if (els.rpProductName) els.rpProductName.value = previousRow.productName || "";
   if (els.rpProductValue) els.rpProductValue.value = previousRow.productValue || "";
@@ -4262,6 +4323,9 @@ function populateRpSpendForm(rpSpend) {
   }
   if (els.rpOriginatingCardId) {
     els.rpOriginatingCardId.value = rpSpend.originatingCardId || "";
+  }
+  if (els.rpPartnerTransferRatio) {
+    els.rpPartnerTransferRatio.value = rpSpend.partnerTransferRatio || "";
   }
   if (els.rpProductName) els.rpProductName.value = rpSpend.productName || "";
   if (els.rpProductValue) els.rpProductValue.value = rpSpend.productValue || "";
