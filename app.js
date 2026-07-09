@@ -170,6 +170,12 @@ function cacheElements() {
     pprWidgetTotal: document.getElementById("pprWidgetTotal"),
     pprWidgetCount: document.getElementById("pprWidgetCount"),
     pprWidgetList: document.getElementById("pprWidgetList"),
+    pprValueModal: document.getElementById("pprValueModal"),
+    pprValueModalTitle: document.getElementById("pprValueModalTitle"),
+    pprValueModalPartner: document.getElementById("pprValueModalPartner"),
+    pprValueInput: document.getElementById("pprValueInput"),
+    pprValueModalCancelBtn: document.getElementById("pprValueModalCancelBtn"),
+    pprValueModalSaveBtn: document.getElementById("pprValueModalSaveBtn"),
     aiCommandForm: document.getElementById("aiCommandForm"),
     aiCommandInput: document.getElementById("aiCommandInput"),
     aiCommandRunBtn: document.getElementById("aiCommandRunBtn"),
@@ -375,6 +381,21 @@ document.addEventListener("click", (e) => {
   els.backFromSwipesBtn?.addEventListener("click", () => showView("dashboard"));
   els.backFromRpSpendsBtn?.addEventListener("click", () => showView("dashboard"));
   els.backFromPprBtn?.addEventListener("click", () => showView("dashboard"));
+  els.pprValueModalCancelBtn?.addEventListener("click", () => {
+    if (els.pprValueModal) els.pprValueModal.style.display = "none";
+  });
+  els.pprValueModalSaveBtn?.addEventListener("click", savePprPartnerValue);
+  els.pprValueInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      savePprPartnerValue();
+    }
+  });
+  els.pprValueModal?.addEventListener("click", (event) => {
+    if (event.target === els.pprValueModal) {
+      els.pprValueModal.style.display = "none";
+    }
+  });
   els.backFromLoungeBtn?.addEventListener("click", () => showView("dashboard"));
   els.swipeCategorySelect?.addEventListener("change", refreshSwipeSpentForRequirement);
   els.swipeFyFilter?.addEventListener("change", () => { swipesAllExpanded = false; renderSwipes(); });
@@ -4094,6 +4115,11 @@ async function saveRpSpendFromForm(event) {
     state.rpSpends.push(rpSpend);
   }
 
+  // Distribute redeemed value proportionally if this is a partner program with redeemed value
+  if (isPartnerProgram && rpSpend.partnerName && toNumber(rpSpend.pointsValue) > 0) {
+    distributePartnerRedeemedValue(rpSpend.partnerName, toNumber(rpSpend.pointsValue));
+  }
+
   syncRpRedeemedBenefitsFromSpends();
   await saveState();
   render();
@@ -4332,6 +4358,12 @@ function populateRpSpendForm(rpSpend) {
     els.rpPointsReceived.value = (rpSpend.pointsReceived || (rep && rep.pointsReceived)) || "";
   }
   if (els.saveRpSpendBtn) els.saveRpSpendBtn.textContent = "Update RP Spend";
+  
+  // Show info message for partner programs about auto-distribution
+  if (isPartnerProgramRpSpend(rpSpend) && (rpSpend.partnerName || rpSpend.purchasedFrom)) {
+    showToast("Note: Redeemed value will be distributed proportionally across all cards contributing to this partner.");
+  }
+  
   updateRpPaidValue();
   updatePartnerTransferDetailsButton();
   refreshAllFieldStates();
@@ -6146,6 +6178,106 @@ function getPprSummary() {
   };
 }
 
+function distributePartnerRedeemedValue(partnerName, totalRedeemedValue) {
+  if (!partnerName || totalRedeemedValue <= 0) return;
+
+  // Find all RP spends for this partner
+  const partnerSpends = state.rpSpends.filter(spend => 
+    isPartnerProgramRpSpend(spend) && 
+    (spend.partnerName || spend.purchasedFrom) === partnerName
+  );
+
+  if (partnerSpends.length === 0) return;
+
+  // Group by originatingCardId and calculate total points per card
+  const cardContributions = {};
+  let totalPartnerPoints = 0;
+
+  partnerSpends.forEach(spend => {
+    const originatingCardId = String(spend.originatingCardId || "").trim();
+    if (!originatingCardId) return; // Skip if no originating card
+
+    const spendPoints = getPartnerProgramPoints(spend);
+    if (spendPoints <= 0) return;
+
+    if (!cardContributions[originatingCardId]) {
+      cardContributions[originatingCardId] = {
+        points: 0,
+        spends: []
+      };
+    }
+
+    cardContributions[originatingCardId].points += spendPoints;
+    cardContributions[originatingCardId].spends.push(spend);
+    totalPartnerPoints += spendPoints;
+  });
+
+  if (totalPartnerPoints <= 0) return;
+
+  // Distribute redeemed value proportionally
+  Object.keys(cardContributions).forEach(originatingCardId => {
+    const contribution = cardContributions[originatingCardId];
+    const proportion = contribution.points / totalPartnerPoints;
+    const cardRedeemedValue = totalRedeemedValue * proportion;
+
+    // Update all spends for this card with this partner
+    contribution.spends.forEach(spend => {
+      spend.pointsValue = cardRedeemedValue;
+    });
+  });
+}
+
+let pprValueModalPartnerName = null;
+
+function showPprValueModal(partnerName, currentValue = 0) {
+  pprValueModalPartnerName = partnerName;
+  
+  if (els.pprValueModalTitle) {
+    els.pprValueModalTitle.textContent = `Enter Redeemed Value`;
+  }
+  
+  if (els.pprValueModalPartner) {
+    els.pprValueModalPartner.textContent = `Partner: ${escapeHtml(partnerName)}`;
+  }
+  
+  if (els.pprValueInput) {
+    els.pprValueInput.value = currentValue > 0 ? currentValue : "";
+    els.pprValueInput.focus();
+  }
+  
+  if (els.pprValueModal) {
+    els.pprValueModal.style.display = "flex";
+  }
+}
+
+function savePprPartnerValue() {
+  if (!pprValueModalPartnerName) return;
+  
+  const value = toNumber(els.pprValueInput?.value || 0);
+  
+  if (value <= 0) {
+    showToast("Enter a valid redeemed value.");
+    els.pprValueInput?.focus();
+    return;
+  }
+  
+  // Distribute the value proportionally
+  distributePartnerRedeemedValue(pprValueModalPartnerName, value);
+  
+  // Sync benefits and save
+  syncRpRedeemedBenefitsFromSpends();
+  saveState();
+  render();
+  
+  // Close modal
+  if (els.pprValueModal) {
+    els.pprValueModal.style.display = "none";
+  }
+  
+  showToast(`Redeemed value of ₹${formatMoney(value)} distributed across contributing cards.`);
+  pprValueModalPartnerName = null;
+}
+
 function renderPprWidget() {
   const summary = getPprSummary();
 
@@ -6186,20 +6318,82 @@ function renderPprWidget() {
     return;
   }
 
-  els.pprWidgetList.innerHTML = summary.partnerRows
-    .map((row) => `
-      <div class="ppr-row">
-        <div class="ppr-row-copy">
-          <strong>${escapeHtml(row.partnerName)}</strong>
-          <span>${escapeHtml(`${row.purchases} ${row.purchases === 1 ? "entry" : "entries"}`)}</span>
-        </div>
-        <div class="ppr-row-stats">
-          <strong class="ppr-row-points">${escapeHtml(formatPoints(row.points))}</strong>
-          <span class="ppr-row-value">Value: ${escapeHtml(formatMoney(row.value || 0))}</span>
-        </div>
+  if (!els.pprWidgetList) return;
+
+  if (!summary.purchaseCount) {
+    els.pprWidgetList.innerHTML = `
+      <div class="empty-state ppr-empty-state">
+        <div class="empty-icon" aria-hidden="true"></div>
+        <h3>No partner rewards yet</h3>
+        <p class="empty-copy">Select Hotel/Airline Partners in RP Spends and enter the partner name to see rewards here.</p>
       </div>
-    `)
-    .join("");
+    `;
+    return;
+  }
+
+  // Create table header
+  let html = `
+    <div class="cards-table ppr-table" style="width: 100%;">
+      <div class="table-head" style="padding: 12px 16px; gap: 0;">
+        <span style="flex: 1; padding: 0 8px;">PARTNER DETAILS</span>
+        <span style="min-width: 140px; padding: 0 8px; text-align: center;">POINTS EARNED</span>
+        <span style="min-width: 140px; padding: 0 8px; text-align: center;">REDEEMED VALUE</span>
+        <span style="min-width: 100px; padding: 0 8px; text-align: center;">STATUS</span>
+        <span style="min-width: 50px; padding: 0 8px; text-align: center;"></span>
+      </div>
+  `;
+
+  // Add each partner row
+  summary.partnerRows.forEach((row) => {
+    const hasValue = toNumber(row.value) > 0;
+    const statusLabel = hasValue ? "Redeemed" : "Pending";
+    const statusColor = hasValue ? "#10b981" : "#f59e0b";
+    
+    html += `
+      <article class="card-row ppr-partner-row" style="padding: 12px 16px; gap: 0; align-items: center;">
+        <div class="card-name" style="flex: 1; padding: 0 8px;">
+          <strong style="min-width:0; font-size: 0.95rem;">${escapeHtml(row.partnerName)}</strong>
+          <span class="card-meta" style="display: block; margin-top: 3px; font-size: 0.85rem;">${escapeHtml(`${row.purchases} ${row.purchases === 1 ? "entry" : "entries"}`)}</span>
+        </div>
+        
+        <div class="money-cell" style="min-width: 140px; padding: 0 8px; text-align: center; flex-direction: row; gap: 6px;">
+          <strong style="color: #10b981; font-size: 1rem;">${escapeHtml(formatPoints(row.points))}</strong>
+        </div>
+        
+        <div class="money-cell" style="min-width: 140px; padding: 0 8px; text-align: center; flex-direction: row; gap: 6px;">
+          <strong style="color: #3b82f6; font-size: 1rem;">${escapeHtml(formatMoney(row.value || 0))}</strong>
+        </div>
+        
+        <div class="money-cell" style="min-width: 100px; padding: 0 8px; text-align: center; flex-direction: row; gap: 6px;">
+          <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: ${statusColor};"></span>
+          <span style="color: ${statusColor}; font-weight: 500; font-size: 0.9rem;">${statusLabel}</span>
+        </div>
+        
+        <div class="money-cell" style="min-width: 50px; padding: 0 8px; justify-content: center;">
+          <div class="row-actions inline-actions" style="gap: 4px;">
+            <button class="icon-button subtle ppr-edit-value" data-partner-name="${escapeAttribute(row.partnerName)}" data-current-value="${row.value || 0}" title="Edit redeemed value" style="padding: 4px;">
+              <svg viewBox="0 0 24 24" width="14">
+                <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </article>
+    `;
+  });
+
+  html += `</div>`;
+
+  els.pprWidgetList.innerHTML = html;
+  
+  // Add event listeners to edit value buttons
+  document.querySelectorAll(".ppr-edit-value").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const partnerName = btn.dataset.partnerName;
+      const currentValue = toNumber(btn.dataset.currentValue);
+      showPprValueModal(partnerName, currentValue);
+    });
+  });
 }
 
 function getViewTitle(view) {
