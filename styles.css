@@ -3066,14 +3066,6 @@ h3 { letter-spacing: -0.015em !important; }
   letter-spacing: -0.055em !important;
 }
 
-#dashboardView::after {
-  content: "A live view of the cards, rewards, and benefits that matter most.";
-  display: block;
-  margin: -7px 0 22px 3px;
-  color: var(--muted);
-  font-size: 0.92rem;
-}
-
 .ai-assist-panel {
   position: relative;
   display: grid;
