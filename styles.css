@@ -1848,6 +1848,290 @@ h3 {
   #dashboardView .metric-card .metric-value { font-size: 2rem !important; }
 }
 
+/* Intl Travel Expenses */
+.intl-travel-panel {
+  background:
+    radial-gradient(circle at 10% 0%, rgba(84, 224, 192, 0.08), transparent 34%),
+    linear-gradient(135deg, rgba(141, 213, 255, 0.05), transparent 42%),
+    var(--panel);
+}
+
+.intl-travel-heading,
+.intl-travel-detail-heading,
+.intl-travel-section-heading,
+.intl-travel-editor-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.intl-travel-heading .primary-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.panel-subtitle {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.intl-travel-home-view,
+.intl-travel-detail-view {
+  margin-top: 24px;
+}
+
+.intl-travel-section-heading {
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.intl-travel-section-heading h3,
+.intl-travel-editor-heading h3,
+.intl-travel-detail-heading h3 {
+  margin: 0;
+  color: var(--ink);
+}
+
+.intl-travel-count {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.intl-travel-trip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.intl-travel-trip-card {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 20px;
+  border: 1px solid rgba(164, 184, 207, 0.16);
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, rgba(84, 224, 192, 0.09), transparent 48%),
+    rgba(12, 22, 31, 0.86);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 12px 26px rgba(0, 0, 0, 0.14);
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.22s var(--ease-fluid), border-color 0.22s var(--ease-fluid), box-shadow 0.22s var(--ease-fluid);
+}
+
+.intl-travel-trip-card:hover,
+.intl-travel-trip-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: rgba(84, 224, 192, 0.46);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.24), 0 0 0 3px rgba(84, 224, 192, 0.08);
+}
+
+.intl-travel-trip-card-topline {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.intl-travel-trip-arrow {
+  color: var(--accent);
+  font-size: 1.3rem;
+  font-weight: 900;
+}
+
+.intl-travel-trip-card h3 {
+  margin: 12px 0 0;
+  color: var(--ink);
+  font-size: 1.25rem;
+}
+
+.intl-travel-trip-date,
+.intl-travel-trip-meta,
+.intl-travel-trip-currencies {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.intl-travel-trip-total {
+  margin-top: auto;
+  color: var(--profit);
+  font-size: 1.45rem;
+  font-weight: 900;
+}
+
+.intl-travel-trip-currencies {
+  width: 100%;
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+}
+
+.intl-travel-view-label {
+  margin-top: 14px;
+  color: var(--sky);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.intl-travel-empty-state {
+  grid-column: 1 / -1;
+  padding: 42px 22px;
+  border: 1px dashed rgba(164, 184, 207, 0.22);
+  border-radius: 18px;
+  color: var(--muted);
+  text-align: center;
+  background: rgba(10, 17, 25, 0.34);
+}
+
+.intl-travel-empty-state h3 {
+  margin: 12px 0 6px;
+  color: var(--ink);
+}
+
+.intl-travel-expense-editor {
+  margin-top: 24px;
+  padding: 22px;
+  border: 1px solid rgba(84, 224, 192, 0.2);
+  border-radius: 18px;
+  background: rgba(10, 17, 25, 0.52);
+}
+
+.intl-travel-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.intl-travel-destination-field,
+.intl-travel-description-field,
+.intl-travel-notes-field {
+  grid-column: span 2;
+}
+
+.intl-travel-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.intl-travel-back-button {
+  margin-bottom: 16px;
+}
+
+.intl-travel-expense-table {
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+  overflow-x: auto;
+}
+
+.intl-travel-expense-head,
+.intl-travel-expense-row {
+  display: grid;
+  grid-template-columns: minmax(92px, 0.8fr) minmax(180px, 1.7fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(150px, 1.25fr) minmax(90px, 0.8fr) minmax(150px, 1.35fr) max-content;
+  align-items: center;
+  gap: 12px;
+  min-width: 1120px;
+}
+
+.intl-travel-expense-head {
+  padding: 0 14px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.intl-travel-expense-row {
+  min-height: 82px;
+  padding: 14px;
+  border: 1px solid rgba(164, 184, 207, 0.14);
+  border-radius: 15px;
+  background: rgba(17, 25, 35, 0.82);
+}
+
+.intl-travel-cell {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.intl-travel-description-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.intl-travel-description-cell strong,
+.intl-travel-local-value,
+.intl-travel-inr-value {
+  color: var(--ink);
+}
+
+.intl-travel-description-cell span {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.intl-travel-inr-value {
+  color: var(--profit);
+}
+
+.intl-travel-notes-cell {
+  max-height: 42px;
+  overflow: auto;
+}
+
+.intl-travel-row-actions {
+  justify-content: flex-end;
+}
+
+@media (max-width: 980px) {
+  .intl-travel-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .intl-travel-destination-field,
+  .intl-travel-description-field,
+  .intl-travel-notes-field {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .intl-travel-heading,
+  .intl-travel-detail-heading,
+  .intl-travel-editor-heading {
+    flex-direction: column;
+  }
+
+  .intl-travel-heading .primary-button,
+  .intl-travel-detail-heading .primary-button {
+    width: 100%;
+  }
+
+  .intl-travel-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .intl-travel-destination-field,
+  .intl-travel-description-field,
+  .intl-travel-notes-field {
+    grid-column: auto;
+  }
+}
+
 /* Net cash benefits: a wide card grid so the portfolio can be scanned at a glance. */
 #pointsModal.cash-benefits-modal .details-dialog {
   width: min(96vw, 1560px) !important;
@@ -3720,7 +4004,8 @@ body,
 .topbar-navigation > #backFromSwipesBtn,
 .topbar-navigation > #backFromRpSpendsBtn,
 .topbar-navigation > #backFromPprBtn,
-.topbar-navigation > #backFromLoungeBtn {
+.topbar-navigation > #backFromLoungeBtn,
+.topbar-navigation > #backFromIntlTravelBtn {
   display: none !important;
 }
 
@@ -3728,7 +4013,8 @@ body[data-view="portfolio"] .topbar-navigation > #backFromPortfolioBtn,
 body[data-view="swipes"] .topbar-navigation > #backFromSwipesBtn,
 body[data-view="rpSpends"] .topbar-navigation > #backFromRpSpendsBtn,
 body[data-view="ppr"] .topbar-navigation > #backFromPprBtn,
-body[data-view="lounge"] .topbar-navigation > #backFromLoungeBtn {
+body[data-view="lounge"] .topbar-navigation > #backFromLoungeBtn,
+body[data-view="intlTravel"] .topbar-navigation > #backFromIntlTravelBtn {
   display: inline-flex !important;
 }
 
