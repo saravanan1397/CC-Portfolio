@@ -512,11 +512,8 @@ document.addEventListener("click", (e) => {
     rpSpendsAllExpanded = false;
     renderRpSpends();
   });
-  els.rpSpendUnredeemedOnly?.addEventListener("change", () => {
-    state.rpSpendUnredeemedOnly = els.rpSpendUnredeemedOnly.value === "unredeemed";
-    rpSpendsAllExpanded = false;
-    renderRpSpends();
-  });
+  els.rpSpendUnredeemedOnly?.addEventListener("change", handleRpSpendUnredeemedFilterChange);
+  els.rpSpendUnredeemedOnly?.addEventListener("input", handleRpSpendUnredeemedFilterChange);
   els.addSwipeBtn?.addEventListener("click", addSwipeFromForm);
   els.exportBtn?.addEventListener("click", exportPortfolio);
   els.importBtn?.addEventListener("click", () => els.importFile?.click());
@@ -4821,7 +4818,11 @@ function resetRpSpendFilters() {
   rpSpendsAllExpanded = false;
   renderRpSpends();
 }
-
+function handleRpSpendUnredeemedFilterChange() {
+  state.rpSpendUnredeemedOnly = els.rpSpendUnredeemedOnly?.value === "unredeemed";
+  rpSpendsAllExpanded = false;
+  renderRpSpends();
+}
 function resetLoungeFilters() {
   if (els.loungeCardFilter) els.loungeCardFilter.value = "all";
   if (els.loungeTypeFilter) els.loungeTypeFilter.value = "all";
