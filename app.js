@@ -7476,6 +7476,9 @@ function showCashPopup() {
 function getBenefitSourceLabel(benefit) {
   const benefitId = String(benefit?.id || "");
   if (benefitId.startsWith("lounge-")) return "Lounge / Other Benefits";
+  if (benefitId.startsWith(rpRedeemedBenefitPrefix) && benefit?.type === "Unredeemed Points") {
+    return "RP Spends / Unredeemed Points";
+  }
   if (benefitId.startsWith(rpRedeemedBenefitPrefix)) return "RP Spends / Redeemed Value";
   return "Card Benefits";
 }
