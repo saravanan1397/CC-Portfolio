@@ -6181,7 +6181,7 @@ function renderLoungeLimitsTable() {
       <tbody>
         ${cards.map((card) => {
           const limit = getLoungeCardLimit(card.id);
-          const label = card.name || formatCardName(card);
+          const label = formatCardName(card);
           return `
             <tr>
               <td>
