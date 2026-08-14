@@ -10392,7 +10392,7 @@ function formatMixedValue(cash, points) {
   return parts.length ? parts.join(" + ") : formatMoney(0);
 }
 
-function formatMixedValueHtml(cash, points) {
+function formatMixedValueHtml(cash, points, pointsFirst = false) {
   if (cash > 0 && points > 0) {
     return `<strong>${escapeHtml(formatMoney(cash))}</strong><span class="value-subline">${escapeHtml(formatPoints(points))}</span>`;
   }
