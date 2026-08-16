@@ -27,20 +27,15 @@ const issuerBankOptions = [
   "American Express",
   "Axis Bank",
   "Bank of Baroda",
-  "Bank of India",
   "Citibank",
-  "CorpBank",
   "Federal Bank",
   "HDFC Bank",
   "HSBC",
   "ICICI Bank",
   "IDFC",
-  "Indian Overseas Bank",
   "IndusInd Bank",
-  "Syndicate Bank",
-  "Union Bank of India",
-  "Vijaya Bank",
-];
+  "Yes Bank",
+  ];
 
 const sampleCards = [
   {
