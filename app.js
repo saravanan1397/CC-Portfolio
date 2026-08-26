@@ -683,7 +683,7 @@ document.addEventListener("keydown", (e) => {
     if (!row) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      showPprPartnerDetails(row.dataset.partnerName || "Partner");
+      showPprPartnerDetails(row.dataset.partnerName || "Partner", row.dataset.pprScope || "all");
     }
   });
   els.backFromLoungeBtn?.addEventListener("click", () => showView("dashboard"));
@@ -10788,7 +10788,7 @@ function renderPprWidget() {
             `
           : "";
         return `
-        <article class="card-row ppr-partner-row" data-partner-name="${escapeAttribute(row.partnerName)}" tabindex="0" role="button" aria-label="View details for ${escapeAttribute(row.partnerName)}" style="padding: 10px 12px; gap: 0; align-items: center; margin: 0;">
+        <article class="card-row ppr-partner-row" data-partner-name="${escapeAttribute(row.partnerName)}" data-ppr-scope="${escapeAttribute(scope)}" tabindex="0" role="button" aria-label="View details for ${escapeAttribute(row.partnerName)}" style="padding: 10px 12px; gap: 0; align-items: center; margin: 0;">
           <div class="card-name" style="flex: 1; padding: 0 6px;">
             <strong style="min-width:0; font-size: 0.95rem;">${escapeHtml(row.partnerName)}</strong>
             <span class="card-meta" style="display: block; margin-top: 3px; font-size: 0.85rem;">${escapeHtml(`${row.purchases} ${row.purchases === 1 ? "entry" : "entries"}`)}</span>
@@ -10863,12 +10863,21 @@ function closePprDetailsModal() {
   if (els.pprDetailsModal) els.pprDetailsModal.style.display = "none";
 }
 
-function getPprPartnerDetailGroups(partnerName) {
+function getPprPartnerDetailGroups(partnerName, scope = "all") {
   const normalizedPartnerName = String(partnerName || "").trim();
   if (!normalizedPartnerName) return [];
 
   const partnerSpends = state.rpSpends
-    .filter((spend) => isPartnerProgramRpSpend(spend) && String(spend.partnerName || spend.purchasedFrom || "").trim() === normalizedPartnerName)
+    .filter((spend) => {
+      if (!isPartnerProgramRpSpend(spend) || String(spend.partnerName || spend.purchasedFrom || "").trim() !== normalizedPartnerName) {
+        return false;
+      }
+
+      const hasMonetaryValue = toNumber(spend.pointsValue) > 0;
+      if (scope === "redeemed") return hasMonetaryValue;
+      if (scope === "unredeemed") return !hasMonetaryValue;
+      return true;
+    })
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
   const groups = new Map();
@@ -10921,11 +10930,11 @@ function handlePprWidgetAction(event) {
   const row = event.target.closest(".ppr-partner-row");
   if (!row) return;
 
-  showPprPartnerDetails(row.dataset.partnerName || row.textContent || "Partner");
+  showPprPartnerDetails(row.dataset.partnerName || row.textContent || "Partner", row.dataset.pprScope || "all");
 }
 
-function showPprPartnerDetails(partnerName) {
-  const detailGroups = getPprPartnerDetailGroups(partnerName);
+function showPprPartnerDetails(partnerName, scope = "all") {
+  const detailGroups = getPprPartnerDetailGroups(partnerName, scope);
   const getDetailGroupPoints = (group) => group.isManual
     ? toNumber(group.manualEntry?.points)
     : group.items.reduce((groupSum, item) => groupSum + getPartnerProgramPoints(item), 0);
