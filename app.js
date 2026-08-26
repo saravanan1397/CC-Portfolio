@@ -918,6 +918,7 @@ function normalizeCard(card) {
           label: benefit.label || "",
           amount: toNumber(benefit.amount),
           pointsAmount: toNumber(benefit.pointsAmount),
+          addedAt: benefit.addedAt || "",
           ...(Object.prototype.hasOwnProperty.call(benefit, "originalPoints")
             ? { originalPoints: toNumber(benefit.originalPoints) }
             : {}),
@@ -1385,12 +1386,19 @@ function getCardPointAllocation(card) {
   const cache = getRenderCacheMap("pointAllocations");
   if (cache && cardId && cache.has(cardId)) return cache.get(cardId);
 
-  const welcomeSources = (card?.benefits || []).filter((benefit) => benefit?.type === welcomeBenefitPointsType);
+  const welcomeSources = (card?.benefits || [])
+    .filter((benefit) => benefit?.type === welcomeBenefitPointsType)
+    .sort((a, b) => {
+      const aAddedAt = a.addedAt ? new Date(a.addedAt).getTime() : 0;
+      const bAddedAt = b.addedAt ? new Date(b.addedAt).getTime() : 0;
+      return aAddedAt - bAddedAt;
+    });
   const welcomePoints = welcomeSources.reduce((sum, benefit) => sum + getWelcomeBenefitPoints(benefit), 0);
   const welcomeValue = welcomeSources.reduce((sum, benefit) => sum + toNumber(benefit.amount), 0);
   const normalPoints = getCardNormalPointsBaseline(card);
   const rows = getCardRedemptionRows(card?.id || "");
 
+  const welcomeRedeemedBySource = new Map();
   let welcomeRedeemedPoints = 0;
   let normalRedeemedPoints = 0;
   let welcomeRedeemedValue = 0;
@@ -1399,10 +1407,29 @@ function getCardPointAllocation(card) {
   rows.forEach((rpSpend) => {
     const redemptionPoints = getRpSpendRedemptionAmount(rpSpend);
     const redemptionValue = toNumber(rpSpend.pointsValue);
-    const availableWelcome = Math.max(0, welcomePoints - welcomeRedeemedPoints);
-    const welcomePart = Math.min(redemptionPoints, availableWelcome);
+    let welcomePart = 0;
+    let remainingRedemptionPoints = redemptionPoints;
+
+    welcomeSources.forEach((benefit) => {
+      if (remainingRedemptionPoints <= 0) return;
+
+      const addedAt = benefit.addedAt ? new Date(benefit.addedAt).getTime() : 0;
+      const redemptionAt = new Date(rpSpend.createdAt || 0).getTime();
+      if (addedAt > 0 && redemptionAt < addedAt) return;
+
+      const sourcePoints = getWelcomeBenefitPoints(benefit);
+      const sourceRedeemedPoints = welcomeRedeemedBySource.get(benefit.id) || 0;
+      const availableSourcePoints = Math.max(0, sourcePoints - sourceRedeemedPoints);
+      const sourcePart = Math.min(remainingRedemptionPoints, availableSourcePoints);
+      if (sourcePart <= 0) return;
+
+      welcomeRedeemedBySource.set(benefit.id, sourceRedeemedPoints + sourcePart);
+      welcomePart += sourcePart;
+      remainingRedemptionPoints -= sourcePart;
+    });
+
     const normalPart = Math.min(
-      Math.max(0, redemptionPoints - welcomePart),
+      remainingRedemptionPoints,
       Math.max(0, normalPoints - normalRedeemedPoints)
     );
 
@@ -9726,6 +9753,15 @@ async function saveCardFromForm(event)
     (benefit) => !isRpRedeemedAutoBenefit(benefit)
       && (benefit.label.trim() || toNumber(benefit.amount) > 0 || toNumber(benefit.pointsAmount) > 0)
   );
+  const existingBenefitIds = new Set((existingCard?.benefits || []).map((benefit) => benefit.id));
+  const welcomeBenefitAddedAt = new Date().toISOString();
+  const savedCardBenefits = cardBenefits.map((benefit) => (
+    benefit.type === welcomeBenefitPointsType
+      && !existingBenefitIds.has(benefit.id)
+      && !benefit.addedAt
+      ? { ...benefit, addedAt: welcomeBenefitAddedAt }
+      : benefit
+  ));
 
   const card = normalizeCard({
     id: editingCardId || createId(),
@@ -9743,7 +9779,7 @@ async function saveCardFromForm(event)
     futureAnnualFees: draftFutureAnnualFees,
     targetValue: els.targetValue?.value || "",
     notes: els.notes.value.trim(),
-    benefits: cardBenefits,
+    benefits: savedCardBenefits,
   });
 
   if (!card.name) {
@@ -10860,19 +10896,7 @@ function getPprPartnerDetailGroups(partnerName) {
     }
   });
 
-  const manualGroups = getPprManualPointEntries()
-    .filter((entry) => String(entry.partnerName || "").trim() === normalizedPartnerName)
-    .map((entry) => ({
-      purchaseId: `manual-${entry.id}`,
-      productName: "Manual partner points",
-      purchasedFrom: normalizedPartnerName,
-      latestDate: entry.date || entry.createdAt || "",
-      isManual: true,
-      manualEntry: entry,
-      items: [],
-    }));
-
-  return [...Array.from(groups.values()), ...manualGroups]
+  return Array.from(groups.values())
     .sort((a, b) => new Date(b.latestDate || 0) - new Date(a.latestDate || 0));
 }
 
