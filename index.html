@@ -1,0 +1,2007 @@
+ <!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link rel="icon" type="image/png" href="credit-card.png">
+    <link rel="preload" as="image" href="assets/dashboard/login-sunset-runway-v3.webp" type="image/webp">
+    <link rel="preload" as="image" href="assets/dashboard/login-plane-takeoff-v3.webp" type="image/webp">
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#080d14" />
+    <link rel="stylesheet" href="styles.css?v=20260904-widget-art-v4" />
+    <title>Credit Card Portfolio P/L</title>
+    <style>
+      /* Remove cursor overrides - let browser handle it naturally */
+      input[type="text"], input[type="number"], input[type="search"], input[type="password"], input[type="month"], input[type="date"], textarea { cursor: text; }
+      select { cursor: pointer; }
+
+      /* Universal fix for large values to prevent wrapping */
+      .metric-value {
+        white-space: nowrap;
+        font-size: clamp(1.2rem, 5cqi, 2.25rem); /* Responsive font size based on container width */
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      
+      /* Style for closed cards */
+      .card-row.is-closed {
+        filter: grayscale(1) opacity(0.6);
+      }
+
+      /* Style for currency prefix to make it smaller than the value */
+      .currency-prefix {
+        font-size: 0.6em;
+        margin-right: 2px;
+        vertical-align: middle;
+      }
+
+      /* Full screen container overrides */
+      .app-shell {
+        max-width: 100% !important;
+        width: 100% !important;
+        padding: 20px 40px !important;
+        margin: 0 !important;
+        box-sizing: border-box;
+      }
+
+      /* Mobile Responsiveness */
+      @media (max-width: 768px) {
+        .app-shell {
+          padding: 15px !important;
+        }
+        .summary-grid {
+          grid-template-columns: 1fr !important;
+          gap: 16px !important;
+        }
+        .control-band {
+          flex-direction: column;
+          align-items: stretch !important;
+        }
+        .workspace-grid {
+          grid-template-columns: 1fr !important;
+        }
+        .form-grid {
+          grid-template-columns: 1fr !important;
+        }
+        .field-row {
+          flex-direction: column !important;
+          gap: 0 !important;
+        }
+        .field-row .field {
+          margin-top: 10px !important;
+        }
+        .metric-value {
+          font-size: 2.2rem !important;
+        }
+        
+        /* Swipes View Mobile Fixes */
+        #swipesView .swipe-form-container {
+          flex-direction: column !important;
+          align-items: stretch !important;
+          gap: 16px !important;
+        }
+        #swipesView .field {
+          min-width: 100% !important;
+        }
+
+        /* Fix eye icon overflow in mobile */
+        .card-row {
+          position: relative;
+        }
+
+      }
+      #lockScreen {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100dvh;
+        padding: 32px;
+        overflow: hidden;
+        background:
+          linear-gradient(90deg, rgba(0, 0, 0, 0.86) 0%, rgba(2, 8, 18, 0.64) 42%, rgba(2, 8, 18, 0.3) 100%),
+          linear-gradient(180deg, rgba(2, 8, 18, 0.1), rgba(0, 0, 0, 0.82)),
+          url("bg1.jpg") center / cover no-repeat;
+        z-index: 9999;
+        color: #f8fafc;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      }
+
+      #lockScreen::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(110deg, rgba(103, 232, 249, 0.16), transparent 42%);
+        pointer-events: none;
+      }
+
+      #lockScreen::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.48) 100%);
+        pointer-events: none;
+      }
+
+      #lockScreen .pin-card {
+        position: relative;
+        z-index: 1;
+        width: min(100%, 380px);
+        margin: 0 auto;
+        padding: 28px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 16px;
+        background: rgba(8, 13, 20, 0.66);
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48);
+        backdrop-filter: blur(14px);
+        text-align: center;
+      }
+
+      #lockScreen .pin-eyebrow {
+        margin: 0 0 8px;
+        color: #67e8f9;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      #lockScreen h2 {
+        margin: 0 0 20px;
+        color: #ffffff;
+        font-size: clamp(1.8rem, 4vw, 2.45rem);
+        line-height: 1;
+      }
+
+      #pinInput {
+        width: 100%;
+        height: 54px;
+        padding: 12px 16px;
+        border: 1px solid rgba(148, 163, 184, 0.38);
+        border-radius: 10px;
+        outline: none;
+        background: rgba(15, 23, 42, 0.82);
+        color: #ffffff;
+        font-size: 1.35rem;
+        font-weight: 800;
+        letter-spacing: 0.55em;
+        text-align: center;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      }
+
+      #pinInput:focus {
+        border-color: #67e8f9;
+        background: rgba(15, 23, 42, 0.96);
+        box-shadow: 0 0 0 4px rgba(103, 232, 249, 0.12);
+      }
+
+      #lockScreen .pin-button {
+        width: 100%;
+        min-height: 48px;
+        margin-top: 14px;
+        padding: 0 18px;
+        border: 0;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #f59e0b, #facc15);
+        color: #071019;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: 900;
+        transition: transform 0.15s ease, filter 0.15s ease;
+      }
+
+      #lockScreen .pin-button:hover {
+        filter: brightness(1.06);
+        transform: translateY(-1px);
+      }
+
+      #pinError {
+        display: none;
+        min-height: 20px;
+        margin: 14px 0 0;
+        color: #fecaca;
+        font-size: 0.875rem;
+        font-weight: 700;
+      }
+
+      @media (max-width: 980px) {
+        #lockScreen .pin-card {
+          margin-right: 0;
+        }
+      }
+
+      @media (max-width: 760px) {
+        #lockScreen {
+          align-items: flex-end;
+          padding: 20px;
+          background:
+            linear-gradient(180deg, rgba(2, 8, 18, 0.12) 0%, rgba(0, 0, 0, 0.72) 48%, rgba(0, 0, 0, 0.92) 100%),
+            url("bg1.jpg") center top / cover no-repeat;
+        }
+
+        #lockScreen .pin-card {
+          width: 100%;
+          margin: 0;
+          padding: 22px;
+          border-radius: 14px;
+        }
+      }
+
+      @media (max-width: 420px) {
+        #lockScreen {
+          padding: 14px;
+        }
+
+        #lockScreen .pin-card {
+          padding: 18px;
+        }
+
+        #pinInput {
+          height: 50px;
+          font-size: 1.18rem;
+          letter-spacing: 0.42em;
+        }
+      }
+
+      @media (max-height: 520px) {
+        #lockScreen {
+          align-items: center;
+        }
+
+        #lockScreen .pin-card {
+          padding: 18px;
+        }
+
+        #lockScreen h2 {
+          margin-bottom: 14px;
+        }
+      }
+    </style>
+<div id="lockScreen">
+  <div class="login-sunset-layer" aria-hidden="true"></div>
+  <div class="login-flight-layer" aria-hidden="true"></div>
+  <section class="pin-card" aria-label="Portfolio unlock">
+    <p class="pin-eyebrow">Credit Card Portfolio</p>
+    <h2>Enter PIN</h2>
+    <input id="pinInput" type="password" maxlength="4" placeholder="PIN" aria-label="PIN" inputmode="numeric" autocomplete="off" />
+    <button class="pin-button" type="button" onclick="checkPin()">Unlock Portfolio</button>
+    <p id="pinError">Incorrect PIN. Please try again.</p>
+  </section>
+</div>
+
+<div id="app" class="app-frame" style="display:none; position: relative;">
+  <input id="importFile" type="file" accept="application/json" style="display:none" />
+    <!-- Firebase code with Authentication for Firestore Security Rules -->
+     <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAeWDg6WyZQshKc1Hks_AWOVJ7I4_gWe_U",
+    authDomain: "credit-card-portfolio-d04db.firebaseapp.com",
+    projectId: "credit-card-portfolio-d04db",
+    storageBucket: "credit-card-portfolio-d04db.firebasestorage.app",
+    messagingSenderId: "459587513450",
+    appId: "1:459587513450:web:b93829e8cb1d57f4516e13"
+  };
+
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  // Enable anonymous authentication for Firestore security rules
+  // Security rule requires: request.auth.uid != null
+  signInAnonymously(auth)
+    .then((userCredential) => {
+      console.log("✅ Anonymous authentication successful");
+      console.log("UID:", userCredential.user.uid);
+      
+      // Monitor auth state changes
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          console.log("✅ User authenticated. App can now access Firestore.");
+          // Load app only AFTER auth is confirmed
+          if (typeof init === "function") {
+            init();
+          }
+        } else {
+          console.error("❌ User not authenticated. Check Firestore security rules.");
+        }
+      });
+    })
+    .catch((error) => {
+      console.error("❌ Anonymous authentication failed:", error.message);
+      console.error("Make sure Anonymous sign-in is enabled in Firebase Console > Authentication > Sign-in method");
+      
+      // Show error to user
+      const lockScreen = document.getElementById("lockScreen");
+      if (lockScreen) {
+        lockScreen.innerHTML = `
+          <div style="text-align:center; color:#ef4444;">
+            <h2>Authentication Error</h2>
+            <p>${error.message}</p>
+            <p style="font-size:0.875rem; margin-top:16px;">Please enable Anonymous sign-in in Firebase Console.</p>
+          </div>
+        `;
+      }
+    });
+
+  // Export Firebase references for use in app.js
+  window.db = db;
+  window.auth = auth;
+  window.firebaseFns = {
+    doc,
+    setDoc,
+    getDoc
+  };
+</script>
+
+    <script defer src="app.js?v=20260904-widget-art-v4"></script>
+  </head>
+
+
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <span></span>
+          </div>
+        
+          <div>
+            <p class="eyebrow">Personal Rewards Control Centre</p>
+            <h1 id="appPageTitle">Personal Finance</h1>
+          </div>
+        </div>
+
+        <div class="topbar-actions topbar-navigation" aria-label="View and portfolio actions">
+          <button class="ghost-button" type="button" id="backFromPortfolioBtn">Dashboard</button>
+          <button class="ghost-button" type="button" id="backFromSwipesBtn">Dashboard</button>
+          <button class="ghost-button" type="button" id="backFromRpSpendsBtn">Dashboard</button>
+          <button class="ghost-button" type="button" id="backFromPprBtn">Dashboard</button>
+          <button class="ghost-button" type="button" id="backFromInterestIncomeBtn">Dashboard</button>
+          <button class="ghost-button" type="button" id="backFromLoungeBtn">Dashboard</button>
+          <button class="ghost-button" type="button" id="backFromIntlTravelBtn">Dashboard</button>
+          <button class="widget-activity-button" type="button" id="widgetActivityBtn" title="Recent updates" aria-label="View recent updates" style="display:none;">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+              <path d="M3 3v5h5M12 7v5l3 2" />
+            </svg>
+          </button>
+          <div class="floating-actions" aria-label="Portfolio file actions">
+            <button class="ghost-button" type="button" id="exportBtn">Export</button>
+            <button class="ghost-button" type="button" id="importBtn">Import</button>
+          </div>
+          <button id="lockBtn" class="ghost-button" type="button">Logout</button>
+        </div>
+
+        </header>
+
+      <aside class="widget-v2-sidebar" aria-label="Application navigation">
+        <div class="widget-v2-brand">
+          <span class="widget-v2-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M5 7.5h14M5 16.5h9" /></svg>
+          </span>
+          <div>
+            <strong>PORTFOLIO</strong>
+            <span>REWARDS</span>
+          </div>
+        </div>
+        <nav class="widget-v2-nav">
+          <button type="button" class="widget-v2-nav-item" data-dashboard-nav="dashboard">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm10 7h6v-9h-6v9ZM4 20h6v-3H4v3Zm10-13h6V4h-6v3Z" /></svg>
+            <span>Dashboard</span>
+          </button>
+          <button type="button" class="widget-v2-nav-item" data-dashboard-nav="portfolio">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18" /></svg>
+            <span>Card portfolio</span>
+          </button>
+          <button type="button" class="widget-v2-nav-item" data-dashboard-nav="swipes">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" /><path d="M8 8h8M8 12h5" /></svg>
+            <span>Swipes</span>
+          </button>
+          <button type="button" class="widget-v2-nav-item" data-dashboard-nav="rpSpends">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 8v8M9.5 10h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4" /></svg>
+            <span>Reward points</span>
+          </button>
+          <button type="button" class="widget-v2-nav-item" data-dashboard-nav="ppr">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 11 3 3 5-6" /><path d="M5 4h14v16H5z" /></svg>
+            <span>Partner rewards</span>
+          </button>
+          <button type="button" class="widget-v2-nav-item" data-dashboard-nav="interestIncome">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16M6 16V9m4 7V5m4 11v-4m4 4V7" /><path d="m5 7 4-3 5 4 5-5" /></svg>
+            <span>Interest &amp; income</span>
+          </button>
+          <button type="button" class="widget-v2-nav-item" data-dashboard-nav="lounge">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13h14v6H5zM7 13V8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v5M3 19h18" /></svg>
+            <span>Lounge benefits</span>
+          </button>
+          <button type="button" class="widget-v2-nav-item" data-dashboard-nav="intlTravel">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 18-7-7 18-3-8-8-3Z" /><path d="m11 14 4-4" /></svg>
+            <span>Travel expenses</span>
+          </button>
+          <button type="button" class="widget-v2-nav-item" data-dashboard-focus="ai">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.3 4.2L17.5 8.5l-4.2 1.3L12 14l-1.3-4.2-4.2-1.3 4.2-1.3L12 3Z" /><path d="m18 14 .8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8L18 14Z" /></svg>
+            <span>AI search</span>
+          </button>
+        </nav>
+        <div class="widget-v2-owner">
+          <span>SS</span>
+          <div><strong>SSK</strong><small>Portfolio owner</small></div>
+        </div>
+      </aside>
+
+      <main id="dashboardView">
+        <div class="dashboard-v2-shell">
+          <aside class="dashboard-v2-sidebar" aria-label="Dashboard navigation">
+            <div class="dashboard-v2-brand">
+              <span class="dashboard-v2-brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M5 7.5h14M5 16.5h9" /></svg>
+              </span>
+              <div class="dashboard-v2-brand-name">portfolio<span>.one</span></div>
+            </div>
+            <p class="dashboard-v2-brand-kicker">Rewards command centre</p>
+
+            <p class="dashboard-v2-nav-label">Workspace</p>
+            <nav class="dashboard-v2-nav">
+              <button type="button" class="dashboard-v2-nav-item is-active" data-dashboard-nav="dashboard">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V4H4v9Zm10 7h6v-9h-6v9ZM4 20h6v-3H4v3Zm10-13h6V4h-6v3Z" /></svg>
+                <span>Dashboard</span>
+              </button>
+              <button type="button" class="dashboard-v2-nav-item" data-dashboard-nav="portfolio">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18" /></svg>
+                <span>Card portfolio</span>
+              </button>
+              <button type="button" class="dashboard-v2-nav-item" data-dashboard-nav="swipes">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" /><path d="M8 8h8M8 12h5" /></svg>
+                <span>Swipes</span>
+              </button>
+              <button type="button" class="dashboard-v2-nav-item" data-dashboard-nav="rpSpends">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 8v8M9.5 10h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4" /></svg>
+                <span>Reward points</span>
+              </button>
+              <button type="button" class="dashboard-v2-nav-item" data-dashboard-nav="ppr">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 11 3 3 5-6" /><path d="M5 4h14v16H5z" /></svg>
+                <span>Partner rewards</span>
+              </button>
+              <button type="button" class="dashboard-v2-nav-item" data-dashboard-nav="interestIncome">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16M6 16V9m4 7V5m4 11v-4m4 4V7" /><path d="m5 7 4-3 5 4 5-5" /></svg>
+                <span>Interest &amp; income</span>
+              </button>
+              <button type="button" class="dashboard-v2-nav-item" data-dashboard-nav="lounge">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13h14v6H5zM7 13V8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v5M3 19h18" /></svg>
+                <span>Lounge benefits</span>
+              </button>
+              <button type="button" class="dashboard-v2-nav-item" data-dashboard-nav="intlTravel">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 18-7-7 18-3-8-8-3Z" /><path d="m11 14 4-4" /></svg>
+                <span>Travel expenses</span>
+              </button>
+              <button type="button" class="dashboard-v2-nav-item" data-dashboard-focus="ai">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.3 4.2L17.5 8.5l-4.2 1.3L12 14l-1.3-4.2-4.2-1.3 4.2-1.3L12 3Z" /><path d="m18 14 .8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8L18 14Z" /></svg>
+                <span>AI search</span>
+              </button>
+            </nav>
+
+            <div class="dashboard-v2-sidebar-footer">
+              <div class="dashboard-v2-avatar">SK</div>
+              <div>
+                <strong>Sarav</strong>
+                <span>Personal portfolio</span>
+              </div>
+            </div>
+          </aside>
+
+          <section class="dashboard-v2-main">
+            <header class="dashboard-v2-topbar">
+              <span class="dashboard-v2-page-title">Dashboard overview</span>
+              <div class="dashboard-v2-top-actions" aria-label="Dashboard actions">
+                <button type="button" class="dashboard-v2-icon-action" data-dashboard-action="import" aria-label="Import portfolio" title="Import portfolio">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>
+                </button>
+                <button type="button" class="dashboard-v2-icon-action" data-dashboard-action="export" aria-label="Export portfolio" title="Export portfolio">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M5 20h14" /></svg>
+                </button>
+                <button type="button" class="dashboard-v2-icon-action" data-dashboard-action="logout" aria-label="Logout" title="Logout">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9" /></svg>
+                </button>
+              </div>
+            </header>
+
+            <div class="dashboard-v2-content">
+              <section class="dashboard-v2-hero" aria-label="Portfolio snapshot">
+                <div class="dashboard-v2-hero-copy">
+                  <p class="dashboard-v2-eyebrow" id="dashboardDateLabel">Portfolio pulse</p>
+                  <h2><span id="dashboardGreetingLead">Good evening, Sarav.</span></h2>
+                </div>
+                <div class="dashboard-v2-hero-metrics" aria-label="Portfolio summary">
+                  <div class="dashboard-v2-hero-metric-action" data-dashboard-hero-action="points" role="button" tabindex="0" aria-label="View consolidated unredeemed points" title="View consolidated unredeemed points">
+                    <span>Available points</span>
+                    <strong id="dashboardHeroPoints">0 pts</strong>
+                  </div>
+                  <div class="dashboard-v2-hero-metric-action" data-dashboard-hero-action="net" role="button" tabindex="0" aria-label="View net cash benefits breakdown" title="View net cash benefits breakdown">
+                    <span>Net portfolio value</span>
+                    <strong id="dashboardHeroNet">INR 0</strong>
+                  </div>
+                  <small id="dashboardHeroStatus">Portfolio synced</small>
+                </div>
+              </section>
+
+              <section class="ai-assist-panel dashboard-v2-ai-panel" aria-label="AI search and command bar">
+                <div class="ai-assist-copy">
+                  <p class="dashboard-v2-eyebrow">Ask your portfolio</p>
+                  <p>Search balances and spends, or add and update a record with a confirmed preview.</p>
+                </div>
+                <form id="aiCommandForm" class="ai-assist-form" autocomplete="off">
+                  <label class="field ai-command-field">
+                    <span>Ask, search, or command</span>
+                    <input
+                      id="aiCommandInput"
+                      type="search"
+                      placeholder="Show Axis Atlas unredeemed points or add a partner redemption"
+                      autocomplete="off"
+                    />
+                  </label>
+                  <button class="primary-button" type="submit" id="aiCommandRunBtn">Run</button>
+                </form>
+                <div class="ai-assist-hints" aria-label="Suggested prompts">
+                  <button type="button" class="ai-chip" data-ai-sample="Amex points">Amex points</button>
+                  <button type="button" class="ai-chip" data-ai-sample="Atlas fee">Atlas fee</button>
+                  <button type="button" class="ai-chip" data-ai-sample="Show Axis Atlas spends">Axis Atlas spends</button>
+                  <button type="button" class="ai-chip" data-ai-sample="Show Axis Atlas unredeemed points">Unredeemed points</button>
+                  <button type="button" class="ai-chip" data-ai-sample="Add a 25000 business full swipe on Axis Atlas for insurance in FY 26-27">Add card spend</button>
+                  <button type="button" class="ai-chip" data-ai-sample="Transfer 2500 Axis Atlas points to Accor at 1:2 value 10000">Add partner redemption</button>
+                  <button type="button" class="ai-chip" data-ai-sample="Update the 25000 Axis Atlas spend for insurance to 28000">Update card spend</button>
+                </div>
+              </section>
+
+              <div class="dashboard-v2-layout">
+                <section class="dashboard-v2-widget-hub" aria-labelledby="dashboardWidgetTitle">
+                  <div class="dashboard-v2-section-heading">
+                    <h3 id="dashboardWidgetTitle">Financial ecosystem</h3>
+                    <span>All values update from connected records.</span>
+                  </div>
+
+                  <div class="dashboard-v2-widget-grid">
+                    <article class="dashboard-v2-widget dashboard-v2-portfolio-widget">
+                      <header class="dashboard-v2-widget-top">
+                        <span>Credit card portfolio</span>
+                        <button class="dashboard-v2-open-widget" type="button" id="openPortfolioBtn" aria-label="Open card portfolio" title="Open card portfolio">
+                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9" /></svg>
+                        </button>
+                      </header>
+                      <h4>Complete portfolio position</h4>
+                      <div class="dashboard-v2-overview-grid">
+                        <div><span>Net P/L</span><strong id="dashboardNetValue">INR 0</strong></div>
+                        <div><span>Annual fees</span><strong id="dashboardPortfolioFeeValue">INR 0</strong></div>
+                        <div><span>Unredeemed points</span><strong id="dashboardPortfolioPointsValue">0 pts</strong></div>
+                        <div><span>Recovery</span><strong id="dashboardPortfolioRecoveryValue">0%</strong></div>
+                      </div>
+                      <div class="dashboard-v2-summary-line" id="dashboardNetHint">0 cards in portfolio</div>
+                    </article>
+
+                    <article class="dashboard-v2-widget dashboard-v2-rewards-widget">
+                      <header class="dashboard-v2-widget-top">
+                        <span>Reward points</span>
+                        <button class="dashboard-v2-open-widget" type="button" id="openRpSpendsBtn" aria-label="Open reward points" title="Open reward points">
+                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9" /></svg>
+                        </button>
+                      </header>
+                      <h4>Redeemed and unredeemed balances</h4>
+                      <div id="dashboardRpValue" class="dashboard-v2-points-grid"></div>
+                      <div class="dashboard-v2-widget-context" id="dashboardRpHint"></div>
+                    </article>
+
+                    <article class="dashboard-v2-widget dashboard-v2-swipes-widget">
+                      <header class="dashboard-v2-widget-top">
+                        <span>Swipes</span>
+                        <button class="dashboard-v2-open-widget" type="button" id="openSwipesBtn" aria-label="Open swipes" title="Open swipes">
+                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9" /></svg>
+                        </button>
+                      </header>
+                      <h4>Business vs personal spend</h4>
+                      <div class="dashboard-v2-primary-value" id="dashboardSwipeValue">INR 0</div>
+                      <div class="dashboard-v2-spend-track" aria-hidden="true">
+                        <span id="dashboardSwipeBusinessBar"></span>
+                        <span id="dashboardSwipePersonalBar"></span>
+                      </div>
+                      <div class="dashboard-v2-detail-list">
+                        <div><span id="dashboardSwipeBusinessLabel">Business</span><strong id="dashboardSwipeBusinessValue">INR 0</strong></div>
+                        <div><span id="dashboardSwipePersonalLabel">Personal</span><strong id="dashboardSwipePersonalValue">INR 0</strong></div>
+                      </div>
+                      <div class="dashboard-v2-widget-context" id="dashboardSwipeHint"></div>
+                    </article>
+
+                    <article class="dashboard-v2-widget dashboard-v2-lounge-widget">
+                      <header class="dashboard-v2-widget-top">
+                        <span>Lounge &amp; benefits</span>
+                        <button class="dashboard-v2-open-widget" type="button" id="openLoungeBtn" aria-label="Open lounge benefits" title="Open lounge benefits">
+                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9" /></svg>
+                        </button>
+                      </header>
+                      <h4>Airport lounge / other benefits</h4>
+                      <div class="dashboard-v2-primary-value" id="dashboardLoungeValue">INR 0</div>
+                      <div class="dashboard-v2-detail-list">
+                        <div><span>Visit types</span><strong id="dashboardLoungeVisitTypes">No visits recorded</strong></div>
+                        <div><span>Access methods</span><strong id="dashboardLoungeAccessMethods">Not entered</strong></div>
+                        <div><span>Latest visit</span><strong id="dashboardLoungeLatestVisit">Not entered</strong></div>
+                      </div>
+                      <div class="dashboard-v2-widget-context" id="dashboardLoungeHint"></div>
+                    </article>
+
+                    <article class="dashboard-v2-widget dashboard-v2-travel-widget">
+                      <header class="dashboard-v2-widget-top">
+                        <span>International travel</span>
+                        <button class="dashboard-v2-open-widget" type="button" id="openIntlTravelBtn" aria-label="Open international travel expenses" title="Open international travel expenses">
+                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9" /></svg>
+                        </button>
+                      </header>
+                      <h4>International Travel Expenses</h4>
+                      <div class="dashboard-v2-primary-value" id="dashboardIntlTravelValue">0 trips</div>
+                      <div class="dashboard-v2-detail-list">
+                        <div><span>Expenses recorded</span><strong id="dashboardIntlTravelHint">0 expenses</strong></div>
+                        <div><span>Display</span><strong>Trip-wise summary</strong></div>
+                        <div><span>Details</span><strong>Itemised on open</strong></div>
+                      </div>
+                    </article>
+
+                    <article class="dashboard-v2-widget dashboard-v2-partner-widget">
+                      <header class="dashboard-v2-widget-top">
+                        <span>Partner program rewards</span>
+                        <button class="dashboard-v2-open-widget" type="button" id="openPprBtn" aria-label="Open partner program rewards" title="Open partner program rewards">
+                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9" /></svg>
+                        </button>
+                      </header>
+                      <h4>Consolidated partner balance</h4>
+                      <div class="dashboard-v2-primary-value" id="dashboardPprValue">0 pts</div>
+                      <div class="dashboard-v2-detail-list">
+                        <div><span>Programs</span><strong id="dashboardPprPrograms">No programs</strong></div>
+                        <div><span>Partner entries</span><strong id="dashboardPprEntries">0 entries</strong></div>
+                        <div><span>Tracking</span><strong>Redeemed + Unredeemed</strong></div>
+                      </div>
+                      <div class="dashboard-v2-widget-context" id="dashboardPprHint"></div>
+                    </article>
+
+                    <article class="dashboard-v2-widget dashboard-v2-income-widget">
+                      <header class="dashboard-v2-widget-top">
+                        <span>Interest &amp; additional income</span>
+                        <button class="dashboard-v2-open-widget" type="button" id="openInterestIncomeBtn" aria-label="Open interest and additional income" title="Open interest and additional income">
+                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9" /></svg>
+                        </button>
+                      </header>
+                      <h4>Lifetime available income</h4>
+                      <div class="dashboard-v2-primary-value" id="dashboardIncomeNet">INR 0</div>
+                      <div class="dashboard-v2-detail-list">
+                        <div><span>Interest</span><strong id="dashboardIncomeInterest">INR 0</strong></div>
+                        <div><span>Miscellaneous income</span><strong id="dashboardIncomeMisc">INR 0</strong></div>
+                        <div><span>Spends</span><strong id="dashboardIncomeSpends">INR 0</strong></div>
+                      </div>
+                      <div class="dashboard-v2-widget-context" id="dashboardIncomeHint">Calendar-year interest with lifetime adjustments</div>
+                    </article>
+                  </div>
+                </section>
+
+                <aside class="dashboard-v2-right-rail">
+                  <section class="dashboard-v2-rail-section">
+                    <div class="dashboard-v2-section-heading">
+                      <h3>Top balances</h3>
+                      <button type="button" class="dashboard-v2-text-action" data-dashboard-nav="portfolio">View all</button>
+                    </div>
+                    <div class="dashboard-v2-balance-list" id="dashboardTopBalancesList"></div>
+                  </section>
+
+                  <section class="dashboard-v2-rail-section">
+                    <div class="dashboard-v2-section-heading">
+                      <h3>Upcoming</h3>
+                      <button type="button" class="dashboard-v2-text-action" data-dashboard-nav="portfolio">Manage</button>
+                    </div>
+                    <div class="dashboard-v2-upcoming-list" id="dashboardUpcomingList"></div>
+                  </section>
+                </aside>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <main id="intlTravelView" style="display:none;">
+        <section class="portfolio-panel intl-travel-panel" aria-label="International travel expenses">
+          <div class="panel-heading portfolio-heading intl-travel-heading">
+            <div>
+              <p class="eyebrow">Travel tracker</p>
+              <h2>International Travel Expenses</h2>
+              <p class="panel-subtitle">Keep every destination, currency, and INR value together.</p>
+            </div>
+            <button class="primary-button" type="button" id="addIntlTravelExpenseBtn">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+              Add new Trip Expense
+            </button>
+          </div>
+
+          <div id="intlTravelHomeView" class="intl-travel-home-view">
+            <div class="intl-travel-section-heading">
+              <div>
+                <p class="eyebrow">Your trips</p>
+                <h3>Previously entered expenses</h3>
+              </div>
+              <span id="intlTravelTripCount" class="intl-travel-count">0 trips</span>
+            </div>
+            <div id="intlTravelTripCards" class="intl-travel-trip-grid"></div>
+          </div>
+
+          <form id="intlTravelExpenseForm" class="intl-travel-expense-editor" style="display:none;" autocomplete="off">
+            <div class="intl-travel-editor-heading">
+              <div>
+                <p class="eyebrow">Expense entry</p>
+                <h3 id="intlTravelExpenseFormTitle">Add new Trip Expense</h3>
+              </div>
+              <button class="ghost-button" type="button" id="cancelIntlTravelExpenseBtn">Cancel</button>
+            </div>
+
+            <div class="intl-travel-form-grid">
+              <label class="field intl-travel-destination-field">
+                <span>Name of destination</span>
+                <input id="intlTravelDestination" type="text" placeholder="Malaysia, Vietnam, Bali" required autocomplete="off" />
+              </label>
+              <label class="field">
+                <span>Date <small>(optional)</small></span>
+                <input id="intlTravelExpenseDate" type="date" />
+              </label>
+              <label class="field">
+                <span>Category</span>
+                <select id="intlTravelCategory" required>
+                  <option value="" selected disabled>Select category</option>
+                  <option value="Food & Dining">Food & Dining</option>
+                  <option value="Shopping">Shopping</option>
+                  <option value="Transport">Transport</option>
+                  <option value="Accommodation">Accommodation</option>
+                  <option value="Flights">Flights</option>
+                  <option value="Visa">Visa</option>
+                  <option value="Activities">Activities</option>
+                  <option value="SIM / Roaming">SIM / Roaming</option>
+                  <option value="Fees">Fees</option>
+                  <option value="Other">Other</option>
+                </select>
+              </label>
+              <label class="field intl-travel-description-field">
+                <span>Merchant / description</span>
+                <input id="intlTravelDescription" type="text" placeholder="Dinner, flight, shopping, activity" required autocomplete="off" />
+              </label>
+              <label class="field">
+                <span>Currency</span>
+                <select id="intlTravelCurrency" required>
+                  <option value="" selected disabled>Select currency</option>
+                  <option value="MYR">MYR</option>
+                  <option value="VND">VND</option>
+                  <option value="IDR">IDR</option>
+                  <option value="USD">USD</option>
+                  <option value="SGD">SGD</option>
+                  <option value="THB">THB</option>
+                  <option value="AED">AED</option>
+                  <option value="EUR">EUR</option>
+                  <option value="GBP">GBP</option>
+                  <option value="INR">INR</option>
+                  <option value="Other">Other</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Local amount</span>
+                <input id="intlTravelLocalAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" required />
+              </label>
+              <label class="field">
+                <span>INR amount</span>
+                <input id="intlTravelInrAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" required />
+              </label>
+              <label class="field">
+                <span>Payment method</span>
+                <select id="intlTravelPaymentMethod" required>
+                  <option value="" selected disabled>Select payment method</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Credit Card">Credit Card</option>
+                  <option value="Debit Card">Debit Card</option>
+                  <option value="Bank Account">Bank Account</option>
+                  <option value="Voucher">Voucher</option>
+                  <option value="Other">Other</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Payment source <small>(optional)</small></span>
+                <div class="intl-travel-payment-source-controls">
+                  <input id="intlTravelPaymentSource" type="text" placeholder="Type a source or choose a card" autocomplete="off" />
+                  <select id="intlTravelPaymentSourceCardSelect" aria-label="Choose a credit card payment source">
+                    <option value="">Select CC card</option>
+                  </select>
+                </div>
+              </label>
+              <label class="field">
+                <span>Expense type</span>
+                <select id="intlTravelExpenseType" required>
+                  <option value="" selected disabled>Select expense type</option>
+                  <option value="Personal">Personal</option>
+                  <option value="Shared">Shared</option>
+                  <option value="Office">Office</option>
+                  <option value="Friends">Friends</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Travel phase</span>
+                <select id="intlTravelPhase" required>
+                  <option value="" selected disabled>Select travel phase</option>
+                  <option value="On-trip">On-trip</option>
+                  <option value="Pre-trip booking">Pre-trip booking</option>
+                  <option value="Refund / Adjustment">Refund / Adjustment</option>
+                </select>
+              </label>
+              <label class="field" id="intlTravelRefundMethodField" style="display:none;">
+                <span>Refund received by</span>
+                <select id="intlTravelRefundMethod">
+                  <option value="">Select refund method</option>
+                  <option value="Bank">Bank</option>
+                  <option value="Credit Card">Credit Card</option>
+                  <option value="Cash">Cash</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Markup / FX fee (INR) <small>(optional)</small></span>
+                <input id="intlTravelMarkupFee" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+              </label>
+              <label class="field intl-travel-notes-field">
+                <span>Notes <small>(optional)</small></span>
+                <textarea id="intlTravelNotes" rows="3" placeholder="Receipt reference, sharing details, or comments"></textarea>
+              </label>
+            </div>
+
+            <div class="intl-travel-form-actions">
+              <button class="primary-button" type="submit" id="saveIntlTravelExpenseBtn">Save expense</button>
+              <button class="ghost-button" type="button" id="clearIntlTravelExpenseBtn">Clear</button>
+            </div>
+          </form>
+
+          <section id="intlTravelDetailView" class="intl-travel-detail-view" style="display:none;" aria-label="Trip expense details">
+            <div class="intl-travel-detail-heading">
+              <div>
+                <button class="ghost-button intl-travel-back-button" type="button" id="backToIntlTravelHomeBtn">&#8592; Back to Intl Travel Expenses</button>
+                <p class="eyebrow">Trip details</p>
+                <h3 id="intlTravelDetailTitle">Trip expenses</h3>
+                <div id="intlTravelDetailSummary" class="intl-travel-detail-summary"></div>
+              </div>
+              <div class="intl-travel-detail-actions">
+                <button class="icon-button subtle" type="button" id="intlTravelTripNotesBtn" title="Trip notes" aria-label="Trip notes">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8.4 8.4 0 0 1-3.2-.6L4 20l1.6-3.6A7.3 7.3 0 0 1 4.5 12 7.5 7.5 0 0 1 12 4.5a7.5 7.5 0 0 1 8 7Z" /></svg>
+                </button>
+                <button class="ghost-button" type="button" id="addIntlTravelConversionBtn">Enter converted currency</button>
+                <button class="primary-button" type="button" id="addIntlTravelDetailExpenseBtn">Add expense</button>
+              </div>
+            </div>
+            <div class="intl-travel-filter-bar" aria-label="Trip expense filters">
+              <label class="field compact-field">
+                <span>Filter by type</span>
+                <select id="intlTravelTypeFilter">
+                  <option value="all">All types</option>
+                </select>
+              </label>
+              <label class="field compact-field">
+                <span>Filter by category</span>
+                <select id="intlTravelCategoryFilter">
+                  <option value="all">All categories</option>
+                </select>
+              </label>
+              <label class="field compact-field">
+                <span>Filter by payment</span>
+                <select id="intlTravelPaymentFilter">
+                  <option value="all">All payments</option>
+                </select>
+              </label>
+            </div>
+            <form id="intlTravelTripNotesForm" class="intl-travel-trip-notes-editor" style="display:none;" autocomplete="off">
+              <div class="intl-travel-editor-heading">
+                <div>
+                  <p class="eyebrow">Trip notes</p>
+                  <h3>Notes for this trip</h3>
+                </div>
+                <button class="ghost-button" type="button" id="cancelIntlTravelTripNotesBtn">Cancel</button>
+              </div>
+              <label class="field">
+                <span>Notes <small>(optional)</small></span>
+                <textarea id="intlTravelTripNotesInput" rows="4" placeholder="Add shared notes for this destination"></textarea>
+              </label>
+              <div class="intl-travel-form-actions">
+                <button class="primary-button" type="submit" id="saveIntlTravelTripNotesBtn">Save notes</button>
+              </div>
+            </form>
+            <form id="intlTravelConversionForm" class="intl-travel-conversion-editor" style="display:none;" autocomplete="off">
+              <div class="intl-travel-editor-heading">
+                <div>
+                  <p class="eyebrow">Currency conversion</p>
+                  <h3 id="intlTravelConversionFormTitle">Enter converted currency</h3>
+                </div>
+                <button class="ghost-button" type="button" id="cancelIntlTravelConversionBtn">Cancel</button>
+              </div>
+              <div class="intl-travel-conversion-grid">
+                <label class="field">
+                  <span>Date <small>(optional)</small></span>
+                  <input id="intlTravelConversionDate" type="date" />
+                </label>
+                <label class="field">
+                  <span>Currency</span>
+                  <select id="intlTravelConversionCurrency" required>
+                    <option value="" selected disabled>Select currency</option>
+                    <option value="MYR">MYR</option>
+                    <option value="VND">VND</option>
+                    <option value="IDR">IDR</option>
+                    <option value="USD">USD</option>
+                    <option value="SGD">SGD</option>
+                    <option value="THB">THB</option>
+                    <option value="AED">AED</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                    <option value="INR">INR</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Amount in currency</span>
+                  <input id="intlTravelConversionLocalAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" required />
+                </label>
+                <label class="field">
+                  <span>Converted INR amount</span>
+                  <input id="intlTravelConversionInrAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" required />
+                </label>
+                <label class="field intl-travel-conversion-notes-field">
+                  <span>Notes <small>(optional)</small></span>
+                  <input id="intlTravelConversionNotes" type="text" placeholder="Cash exchange, bank conversion, etc." autocomplete="off" />
+                </label>
+              </div>
+              <div class="intl-travel-form-actions">
+                <button class="primary-button" type="submit" id="saveIntlTravelConversionBtn">Save conversion</button>
+              </div>
+            </form>
+            <div id="intlTravelCurrencySummary" class="intl-travel-currency-summary"></div>
+            <div id="intlTravelExpenseTable" class="cards-table intl-travel-expense-table"></div>
+          </section>
+        </section>
+      </main>
+
+      <main id="swipesView" style="display:none;">
+        <section class="portfolio-panel" aria-label="Swipes tracker">
+          <div class="panel-heading portfolio-heading">
+            <div>
+              <p class="eyebrow">Tracker</p>
+              <h2>Swipes</h2>
+            </div>
+          </div>
+
+          <div class="control-band" style="display: grid; gap: 14px;">
+            <input type="hidden" id="editingSwipeId">
+       <div style="width:100%;">    
+  <div style="width: 100%;">
+
+    <div style="
+      margin-bottom:12px;
+      font-size:1rem;
+      font-weight:800;
+      color:#67e8f9;
+      letter-spacing:0.05em;
+      text-transform:uppercase;
+    ">
+      Add Swipe
+    </div>
+
+    <div class="swipe-form-container" style="display: flex; align-items: flex-end; gap: 12px; width: 100%; flex-wrap: wrap;">
+
+      <label class="field" style="flex: 1; min-width: 140px;">
+        <span>Category</span>
+        <select id="swipeCategorySelect" style="width:100%; height: 42px;">
+          <option value="" disabled selected>Select category</option>
+          <option value="business">Business</option>
+          <option value="personal">Personal</option>
+        </select>
+      </label>
+
+      <label class="field" style="flex: 2; min-width: 240px;">
+        <span>Card</span>
+        <select id="swipeCardSelect" style="width:100%; height: 42px;"></select>
+      </label>
+
+      <label class="field" style="flex: 1; min-width: 130px;">
+        <span>Amount</span>
+        <input id="swipeAmount"
+          type="number"
+          min="0"
+          step="0.01"
+          inputmode="decimal"
+          placeholder="50000"
+          style="width:100%; height: 42px;" />
+      </label>
+
+      <label class="field" style="flex: 1; min-width: 140px;">
+        <span>Full Swipe / EMI</span>
+        <select id="swipeTypeSelect" style="width:100%; height: 42px;">
+          <option value="" disabled selected>Select swipe type</option>
+          <option value="F">Full Swipe</option>
+          <option value="E">EMI</option>
+        </select>
+      </label>
+
+      <label class="field" style="flex: 1; min-width: 140px;">
+        <span>Financial year</span>
+        <select id="swipeFySelect" style="width:100%; height: 42px;">
+          <option value="" disabled selected>Select financial year</option>
+          <option value="FY 24-25">FY 24-25</option>
+          <option value="FY 25-26">FY 25-26</option>
+          <option value="FY 26-27">FY 26-27</option>
+          <option value="FY 27-28">FY 27-28</option>
+          <option value="FY 28-29">FY 28-29</option>
+          <option value="FY 29-30">FY 29-30</option>
+        </select>
+      </label>
+
+      <label class="field" style="flex: 2; min-width: 200px;">
+        <span>Spent for</span>
+        <input id="swipeSpentFor"
+          type="text"
+          placeholder="e.g. Laptop, Rent"
+          style="width:100%; height: 42px;"
+          autocomplete="off" />
+      </label>
+
+      <div style="display: flex; gap: 8px; width: 100%; justify-content: flex-end;">
+        <button class="primary-button"
+          type="button"
+          id="addSwipeBtn"
+          style="height: 42px; white-space: nowrap; padding: 0 20px;">
+          Add
+        </button>
+        <button class="ghost-button" type="button" id="cancelSwipeBtn" style="height: 42px; border: 1px solid rgba(248, 250, 252, 0.2); padding: 0 15px;" onclick="document.getElementById('swipeCardSelect').selectedIndex=0; document.getElementById('swipeAmount').value=''; document.getElementById('swipeTypeSelect').selectedIndex=0; document.getElementById('swipeFySelect').selectedIndex=0;">Cancel</button>
+      </div>
+    </div>
+  </div>
+          </div>
+        </div>
+
+        <div id="swipeProgressPlaceholder" class="swipe-progress-slot"></div>
+
+          <div class="control-band" style="display:flex; align-items:flex-end; justify-content:flex-start; gap:16px; flex-wrap:wrap; margin-top:18px;">
+            <label class="field compact-field">
+              <span>View FY</span>
+              <select id="swipeFyFilter">
+                <option value="all">All FY</option>
+                <option value="FY 24-25">FY 24-25</option>
+                <option value="FY 25-26">FY 25-26</option>
+                <option value="FY 26-27">FY 26-27</option>
+                <option value="FY 27-28">FY 27-28</option>
+                <option value="FY 28-29">FY 28-29</option>
+                <option value="FY 29-30">FY 29-30</option>
+              </select>
+            </label>
+            <label class="field compact-field">
+              <span>Category</span>
+              <select id="swipeCategoryFilter">
+                <option value="all">All</option>
+                <option value="business">Business</option>
+                <option value="personal">Personal</option>
+              </select>
+            </label>
+             <label class="field compact-field">
+               <span>Card</span>
+               <select id="swipeCardFilter">
+                 <option value="all">All Cards</option>
+               </select>
+             </label>
+             <label class="field compact-field">
+               <span>Swipe type</span>
+               <select id="swipeTypeFilter">
+                 <option value="all">All Types</option>
+                 <option value="F">Full Swipe</option>
+                 <option value="E">EMI</option>
+               </select>
+             </label>
+             <label class="field compact-field" style="flex: 1; min-width: 100px; max-width: 300px;">
+               <span>Search swipes</span>
+               <input id="swipeSearchInput" type="search" placeholder="Search card, issuer, amount, note" autocomplete="off" style="width:100%; height:42px;" />
+             </label>
+            <strong id="swipeFilteredTotal" style="margin-left: auto;">Total: <span class="currency-prefix">₹</span>0</strong>
+          </div>
+
+          <div class="cards-table" id="swipesTable" style="margin-top: 18px;">
+            <div class="table-header">
+              <div class="col-main">Amount / Type</div>
+              <div class="col-issuer">Card</div>
+              <div class="col-type">F/E</div>
+              <div class="col-actions"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <main id="rpSpendsView" style="display:none;">
+        <section class="portfolio-panel" aria-label="RP spends tracker">
+          <div class="panel-heading portfolio-heading">
+            <div>
+              <p class="eyebrow">Points Control</p>
+              <h2>Reward Points</h2>
+            </div>
+            <button class="primary-button" type="button" id="toggleRpEntryBtn">+ Add redemption</button>
+          </div>
+
+          <section class="widget-render-summary rp-render-summary" aria-label="Reward points summary">
+            <div><span>Total Redeemed</span><strong id="rpRenderRedeemed">0 pts</strong><small>Realised reward activity</small></div>
+            <div><span>Total Unredeemed</span><strong id="rpRenderUnredeemed">0 pts</strong><small>Includes remaining welcome benefits</small></div>
+            <div class="widget-render-orbit" aria-hidden="true"><span></span></div>
+          </section>
+
+          <div class="rp-spend-toolbar rp-spend-toolbar-visible">
+            <label class="field compact-field rp-spend-search">
+              <span>Search RP spends</span>
+              <input id="rpSpendSearchInput" type="search" placeholder="Search product, brand, card, points, value" autocomplete="off" />
+            </label>
+            <label class="field compact-field rp-spend-filter" for="rpSpendUnredeemedOnly">
+              <span>Filter RP spends</span>
+              <select id="rpSpendUnredeemedOnly">
+                <option value="all">All RP spends</option>
+                <option value="unredeemed">Unredeemed points only</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="control-band" style="display: grid; gap: 16px;">
+            <input id="editingRpSpendId" type="hidden" />
+            <input id="editingRpPurchaseId" type="hidden" />
+            <input id="rpRedeemedPoints" type="hidden" />
+            <input id="rpOriginatingCardId" type="hidden" />
+            <input id="rpPartnerTransferRatio" type="hidden" />
+
+            <div class="rp-spend-form">
+              <label class="field">
+                <span>Card / Voucher Platform</span>
+                <select id="rpCardSelect"></select>
+              </label>
+
+              <label class="field">
+                <span>Points</span>
+                <input id="rpPoints" type="number" min="0" step="0.01" inputmode="decimal" placeholder="6000" />
+              </label>
+
+              <label class="field">
+                <span>Points Value</span>
+                <input id="rpPointsValue" type="number" min="0" step="0.01" inputmode="decimal" placeholder="1500" />
+              </label>
+
+              <label class="field">
+                <span>Redemption Charges</span>
+                <input id="rpRedemptionCharges" type="number" min="0" step="0.01" inputmode="decimal" placeholder="116" />
+              </label>
+
+              <label class="field">
+                <span>Amount Paid By Card</span>
+                <input id="rpCardPaid" type="number" min="0" step="0.01" inputmode="decimal" placeholder="218.25" />
+              </label>
+
+              <label class="field">
+                <span>Amount Paid By Voucher</span>
+                <input id="rpVoucherPaid" type="number" min="0" step="0.01" inputmode="decimal" placeholder="1278" />
+              </label>
+
+              <label class="field">
+                <span>Purchased From / Brand</span>
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <input id="rpPurchasedFrom" type="text" placeholder="Tata Cliq Luxury" autocomplete="off" style="flex:1;" />
+                  <button type="button" class="ghost-button" id="rpPartnerTransferBtn" style="display:none; min-height:42px; padding:0 12px; white-space:nowrap;">Partner details</button>
+                </div>
+              </label>
+
+              <label class="field">
+                <span>Product / Service</span>
+                <input id="rpProductName" type="text" placeholder="CK Belt" autocomplete="off" />
+              </label>
+
+              <label class="field">
+                <span>Product / Service Value</span>
+                <input id="rpProductValue" type="number" min="0" step="0.01" inputmode="decimal" placeholder="3779" />
+              </label>
+
+              <label class="field">
+          <span>Neucoins/Points/Cashback Received <small>(optional)</small></span>
+                <input id="rpPointsReceived" type="number" min="0" step="0.01" inputmode="decimal" placeholder="488.95" />
+              </label>
+
+              <div class="field rp-paid-value-field">
+                <span>Paid Value</span>
+                <div class="rp-paid-value-row">
+                  <input id="rpPaidValue" type="text" value="INR 0" readonly />
+                  <label class="rp-unredeemed-points-toggle" for="rpUnredeemedPoints">
+                    <input id="rpUnredeemedPoints" type="checkbox" />
+                    <span>Unredeemed Points</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="rp-spend-actions">
+              <button class="primary-button" type="button" id="saveRpSpendBtn">Add RP Spend</button>
+              <button class="ghost-button" type="button" id="clearRpSpendBtn">Clear</button>
+            </div>
+          </div>
+
+          <div class="cards-table rp-spend-table" id="rpSpendsTable" style="margin-top: 18px;"></div>
+        </section>
+      </main>
+
+      <main id="pprView" style="display:none; width: 100%; height: 100vh; flex-direction: column;">
+        <section class="portfolio-panel" style="display: flex; flex-direction: column; width: 100%; height: 100%; max-width: 100%; padding: 24px;" aria-label="Partner Program Rewards">
+          <div class="panel-heading portfolio-heading">
+            <div>
+              <p class="eyebrow">Transfer Destinations</p>
+              <h2>Partner Program Rewards</h2>
+            </div>
+            <button class="primary-button" type="button" id="addPprManualPointsBtn">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              Add partner points
+            </button>
+          </div>
+
+          <section class="widget-render-summary ppr-render-summary" aria-label="Partner rewards summary">
+            <div><span>Partner Programs</span><strong id="pprRenderPrograms">0</strong></div>
+            <div><span>Redeemed Points</span><strong id="pprRenderRedeemed">0 pts</strong></div>
+            <div><span>Unredeemed Points</span><strong id="pprRenderUnredeemed">0 pts</strong></div>
+          </section>
+
+          <div class="recovery-panel ppr-panel" style="display: flex; flex-direction: column; flex: 1; width: 100%; max-width: 100%; padding: 24px; gap: 20px; overflow-y: auto;">
+            <div class="recovery-copy">
+              <p id="pprWidgetHint">Hotel and airline partner points entered through RP Spends.</p>
+            </div>
+            <div id="pprWidgetList" class="ppr-widget-list" style="display: grid; gap: 20px; grid-template-columns: 1fr; flex: 1 1 auto; width: 100%; max-width: none; align-self: stretch;"></div>
+          </div>
+        </section>
+      </main>
+
+      <!-- Partner Redeemed Value Modal -->
+    <div id="pprValueModal" class="details-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:20000; align-items:center; justify-content:center; padding:20px;">
+      <div style="background:#0f172a; border:1px solid rgba(148,163,184,0.2); border-radius:12px; padding:32px; max-width:400px; width:100%; color:#cbd5e1;">
+        <h3 id="pprValueModalTitle" style="margin:0 0 8px 0; color:#f1f5f9; font-size:1.25rem;">Enter Redeemed Value</h3>
+        <p id="pprValueModalPartner" style="margin:0 0 20px 0; color:#94a3b8; font-size:0.9rem;"></p>
+
+          <label id="pprRedemptionBatchField" class="field" style="display:none; margin-bottom:20px;">
+            <span>Redemption to change</span>
+            <select id="pprRedemptionBatchSelect"></select>
+          </label>
+          
+          <label class="field" style="margin-bottom: 20px;">
+            <span>Points to Redeem</span>
+            <input id="pprRedeemPointsInput" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="e.g. 1000" style="width: 100%; padding: 8px 12px; border: 1px solid rgba(148,163,184,0.3); border-radius: 6px; background: rgba(30,41,59,0.5); color: #f1f5f9; font-size: 1rem;" />
+          </label>
+          <label class="field" style="margin-bottom: 20px;">
+            <span>Redeemed Value (₹)</span>
+            <input id="pprValueInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="e.g. 2000" style="width: 100%; padding: 8px 12px; border: 1px solid rgba(148,163,184,0.3); border-radius: 6px; background: rgba(30,41,59,0.5); color: #f1f5f9; font-size: 1rem;" />
+          </label>
+
+          <div id="pprRedemptionPreview" class="ppr-redemption-preview" style="display:none;"></div>
+          
+          <div style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button id="pprValueModalCancelBtn" class="ghost-button" type="button" style="padding: 8px 16px;">Cancel</button>
+            <button id="pprValueModalDeleteBtn" class="danger-button" type="button" style="display:none; padding:8px 16px;">Delete & Restore</button>
+            <button id="pprValueModalSaveBtn" class="primary-button" type="button" style="padding: 8px 16px;">Save & Distribute</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual Partner Points Modal -->
+      <div id="pprManualModal" class="details-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:20002; align-items:center; justify-content:center; padding:20px;">
+        <div class="ppr-manual-dialog" style="background:#0f172a; border:1px solid rgba(148,163,184,0.2); border-radius:12px; padding:28px; max-width:460px; width:100%; color:#cbd5e1;">
+          <h3 id="pprManualModalTitle" style="margin:0 0 20px 0; color:#f1f5f9; font-size:1.25rem;">Add Partner Points</h3>
+          <div class="ppr-manual-form">
+            <label class="field">
+              <span>Partner</span>
+              <select id="pprManualPartnerSelect"></select>
+            </label>
+            <label class="field">
+              <span>Points</span>
+              <input id="pprManualPointsInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="e.g. 2000" />
+            </label>
+            <label class="field">
+              <span>Monetary value (optional)</span>
+              <input id="pprManualValueInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="e.g. 2000" />
+            </label>
+            <label class="field">
+              <span>Date (optional)</span>
+              <input id="pprManualDateInput" type="date" />
+            </label>
+            <label class="field ppr-manual-notes-field">
+              <span>Notes (optional)</span>
+              <textarea id="pprManualNotesInput" rows="3" placeholder="How these points were earned"></textarea>
+            </label>
+          </div>
+          <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:20px;">
+            <button id="pprManualCancelBtn" class="ghost-button" type="button" style="padding: 8px 16px;">Cancel</button>
+            <button id="pprManualSaveBtn" class="primary-button" type="button" style="padding: 8px 16px;">Add points</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Partner Details Modal -->
+      <div id="pprDetailsModal" class="details-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:20001; align-items:center; justify-content:center; padding:20px;">
+        <div style="background:#0f172a; border:1px solid rgba(148,163,184,0.2); border-radius:12px; padding:24px; max-width:760px; width:min(100%, 760px); color:#cbd5e1; max-height: calc(100vh - 40px); overflow:auto;">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px;">
+            <div>
+              <h3 id="pprDetailsModalTitle" style="margin:0 0 6px 0; color:#f1f5f9; font-size:1.25rem;">Partner Details</h3>
+              <p id="pprDetailsModalSubtitle" style="margin:0; color:#94a3b8; font-size:0.9rem;"></p>
+            </div>
+            <button id="pprDetailsModalCloseBtn" class="ghost-button" type="button" style="padding:8px 16px;">Close</button>
+          </div>
+          <div id="pprDetailsModalBody"></div>
+        </div>
+      </div>
+
+      <main id="interestIncomeView" style="display:none;">
+        <section class="portfolio-panel income-ledger-panel" aria-label="Interest and additional income">
+          <div class="panel-heading portfolio-heading income-ledger-heading">
+            <div>
+              <p class="eyebrow">Income ledger</p>
+              <h2>Interest &amp; Additional Income</h2>
+              <p class="panel-subtitle">Calendar-year interest, miscellaneous income and lifetime spends in one view.</p>
+            </div>
+          </div>
+
+          <section class="widget-render-summary income-render-summary" aria-label="Interest and income summary">
+            <div><span>Total Interest</span><strong id="incomeRenderInterest">INR 0</strong></div>
+            <div><span>Miscellaneous Income</span><strong id="incomeRenderMisc">INR 0</strong></div>
+            <div><span>Total Spends</span><strong id="incomeRenderSpends">INR 0</strong></div>
+            <div><span>Available Balance</span><strong id="incomeRenderNet">INR 0</strong></div>
+          </section>
+
+          <section class="income-entry-card" aria-labelledby="incomeEntryTitle">
+            <div class="income-entry-card-heading">
+              <div>
+                <p class="eyebrow">Data entry</p>
+                <h3 id="incomeEntryTitle">Add a ledger entry</h3>
+              </div>
+              <span id="incomeEditingBadge" class="income-editing-badge" hidden>Editing entry</span>
+            </div>
+            <form id="incomeEntryForm" autocomplete="off">
+              <input id="incomeEditingId" type="hidden" />
+              <div class="income-entry-grid">
+                <label class="field">
+                  <span>Entry type</span>
+                  <select id="incomeEntryType">
+                    <option value="interest">Interest</option>
+                    <option value="misc">Miscellaneous income</option>
+                    <option value="spend">Spend / deduction</option>
+                  </select>
+                </label>
+
+                <label class="field income-interest-field">
+                  <span>Bank</span>
+                  <select id="incomeBankSelect"></select>
+                </label>
+
+                <label class="field income-interest-field" id="incomeNewBankField" hidden>
+                  <span>New bank name</span>
+                  <input id="incomeNewBankName" type="text" maxlength="80" placeholder="Enter a unique bank name" />
+                </label>
+
+                <label class="field income-interest-field">
+                  <span>Interest frequency</span>
+                  <select id="incomeFrequency">
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                  </select>
+                </label>
+
+                <label class="field income-interest-field">
+                  <span>Calendar year</span>
+                  <input id="incomeYear" type="number" min="2000" max="2100" step="1" inputmode="numeric" />
+                </label>
+
+                <label class="field income-interest-field">
+                  <span>Quarter</span>
+                  <select id="incomeQuarter">
+                    <option value="Q1">Q1</option>
+                    <option value="Q2">Q2</option>
+                    <option value="Q3">Q3</option>
+                    <option value="Q4">Q4</option>
+                  </select>
+                </label>
+
+                <label class="field income-misc-field" hidden>
+                  <span>Income source</span>
+                  <input id="incomeMiscSource" type="text" maxlength="100" placeholder="e.g., FD sweep or excess cash" />
+                </label>
+
+                <label class="field income-spend-field" hidden>
+                  <span>Deduction from</span>
+                  <select id="incomeSpendScope">
+                    <option value="overall">Overall amount</option>
+                    <option value="bank">Specific bank</option>
+                  </select>
+                </label>
+
+                <label class="field income-spend-field" id="incomeSpendBankField" hidden>
+                  <span>Bank</span>
+                  <select id="incomeSpendBank"></select>
+                </label>
+
+                <label class="field">
+                  <span>Amount (INR)</span>
+                  <input id="incomeAmount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00" />
+                </label>
+
+                <label class="field income-description-field">
+                  <span>Description</span>
+                  <input id="incomeDescription" type="text" maxlength="140" placeholder="Optional description" />
+                </label>
+
+                <label class="field income-notes-field">
+                  <span>Notes</span>
+                  <textarea id="incomeNotes" rows="2" maxlength="500" placeholder="Optional notes"></textarea>
+                </label>
+              </div>
+              <div class="income-entry-actions">
+                <button class="ghost-button" type="button" id="clearIncomeEntryBtn">Clear</button>
+                <button class="primary-button" type="submit" id="saveIncomeEntryBtn">Add Entry</button>
+              </div>
+            </form>
+          </section>
+
+          <div id="incomeLedgerBlocks" class="income-ledger-blocks" aria-live="polite"></div>
+        </section>
+      </main>
+
+      <main id="loungeView" style="display:none;">
+        <section class="portfolio-panel" aria-label="Lounge benefits">
+          <div class="panel-heading portfolio-heading">
+            <div>
+              <p class="eyebrow">Benefits</p>
+              <h2>Airport Lounge / Other Benefits</h2>
+            </div>
+            <div class="lounge-heading-actions">
+              <button class="primary-button" type="button" id="toggleLoungeEntryBtn">+ Add Visit</button>
+              <button class="primary-button" type="button" id="addLoungeLimitBtn">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                Add Card Lounge Limit
+              </button>
+              <button class="ghost-button" type="button" id="viewLoungeLimitsBtn">
+                View All Card Limits
+              </button>
+            </div>
+          </div>
+
+          <section class="widget-render-summary lounge-render-summary" aria-label="Lounge benefits summary">
+            <div><span>Total Benefit Value</span><strong id="loungeRenderValue">INR 0</strong><small id="loungeRenderUsage">0 visits</small></div>
+            <div><span>International</span><strong id="loungeRenderInternational">0 visits</strong></div>
+            <div><span>Domestic</span><strong id="loungeRenderDomestic">0 visits</strong></div>
+          </section>
+
+          <div class="control-band" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; align-items: start;">
+            <div>
+              <input id="editingLoungeVisitId" type="hidden" />
+              <div class="form-grid">
+                <label class="field">
+                  <span>Card</span>
+                  <select id="loungeCardSelect"></select>
+                </label>
+                <label class="field">
+                  <span>Benefit Type</span>
+                  <select id="loungeTypeSelect" onchange="this.setAttribute('value', this.value)">
+                    <option value="" selected disabled>Select Type</option>
+                    <optgroup label="Airport Lounge">
+                      <option value="Domestic">Domestic Lounge</option>
+                      <option value="International">International Lounge</option>
+                    </optgroup>
+                    <optgroup label="Golf">
+                      <option value="Domestic_Golf">Domestic Golf</option>
+                      <option value="International_Golf">International Golf</option>
+                    </optgroup>
+                    <optgroup label="Airport Services">
+                      <option value="Domestic_Restaurant">Domestic Restaurant</option>
+                      <option value="International_Restaurant">International Restaurant</option>
+                      <option value="Domestic_Spa">Domestic Spa</option>
+                      <option value="International_Spa">International Spa</option>
+                      <option value="Meet_Greet">Meet & Greet</option>
+                      <option value="Airport_Transfer">Airport Transfer</option>
+                    </optgroup>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Access Method</span>
+                  <select id="loungeAccessMethod">
+                    <option value="" selected disabled>Select Access Method</option>
+                    <option value="Credit Card">Credit Card</option>
+                    <option value="Priority Pass">Priority Pass</option>
+                    <option value="DreamFolks">DreamFolks</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>No. of members</span>
+                  <input id="loungeMembers" type="number" min="0" step="0.01" inputmode="numeric" placeholder="2" />
+                </label>
+                <label class="field">
+                  <span>Value per person</span>
+                  <input id="loungeVisitValue" type="number" min="0" step="0.01" inputmode="decimal" placeholder="1500" />
+                </label>
+                <label class="field">
+                  <span>Date</span>
+                  <input id="loungeVisitDate" type="date" />
+                </label>
+                <label class="field">
+                  <span>Airport/Golf Course</span>
+                  <input id="loungeAirport" type="text" placeholder="e.g., DEL, BOM, BLR" />
+                </label>
+              </div>
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top: 24px;">
+                <strong id="loungeCalculatedValue">Benefit: <span class="currency-prefix">₹</span>0</strong>
+                <div style="display:flex; gap:8px;">
+                  <button class="primary-button" type="button" id="saveLoungeVisitBtn">Add Visit</button>
+                  <button class="ghost-button" type="button" id="clearLoungeVisitBtn">Clear</button>
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 250px;">
+              <canvas id="loungeChartCanvas" style="max-width: 100%; max-height: 300px;"></canvas>
+              <div style="margin-top: 16px; width: 100%; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                <label class="field compact-field" style="min-width: 120px;">
+                  <span>Filter Card</span>
+                  <select id="loungeCardFilter">
+                    <option value="all">All Cards</option>
+                  </select>
+                </label>
+                <label class="field compact-field" style="min-width: 120px;">
+                  <span>Filter Type</span>
+                  <select id="loungeTypeFilter">
+                    <option value="all">All Types</option>
+                    <option value="Domestic">Domestic Lounge</option>
+                    <option value="International">International Lounge</option>
+                    <option value="Domestic_Golf">Domestic Golf</option>
+                    <option value="International_Golf">International Golf</option>
+                    <option value="Domestic_Restaurant">Domestic Restaurant</option>
+                    <option value="International_Restaurant">International Restaurant</option>
+                    <option value="Domestic_Spa">Domestic Spa</option>
+                    <option value="International_Spa">International Spa</option>
+                    <option value="Meet_Greet">Meet & Greet</option>
+                    <option value="Airport_Transfer">Airport Transfer</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="cards-table" id="loungeTable" style="margin-top: 18px;"></div>
+        </section>
+      </main>
+
+      <main id="portfolioView" style="display:none;">
+        <section class="summary-grid" aria-label="Portfolio totals">
+          <article class="metric-card">
+            <div class="metric-label">Annual Fees</div>
+            <div class="metric-value" id="feeValue">0</div>
+            <div class="metric-hint" id="feeHint">Including taxes and add-ons</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label">Unredeemed</div>
+            <div class="metric-value" id="pointsValue" style="cursor: pointer;">0 pts</div>
+            <div class="metric-hint" id="pointsHint">Including welcome benefits</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label">Net Cash Benefits</div>
+            <div class="metric-value" id="benefitValue">0</div>
+            <div class="metric-hint" id="benefitHint">Benefits after card fees</div>
+          </article>
+          <article class="metric-card net-card" id="netMetric">
+            <div class="metric-label">Net P/L</div>
+            <div class="metric-value" id="netValue">0</div>
+            <div class="metric-hint" id="netHint">No cards added</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label">Recovery</div>
+            <div class="metric-value" id="coverageValue">0%</div>
+            <div class="metric-hint" id="coverageHint">No deficits yet</div>
+          </article>
+        </section>
+
+        <section class="control-band" style="display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap;">
+          <div class="control-group" style="display: flex; gap: 8px; margin-bottom: 0;">
+            <button class="primary-button" id="newCardBtn">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              New card
+            </button>
+          </div>
+
+          <div class="filter-group" style="display: flex; gap: 16px; flex-grow: 1; align-items: flex-end;">
+            <label class="field search-field">
+              <span>Search</span>
+              <input id="searchInput" type="search" placeholder="Card or issuer" autocomplete="off" />
+            </label>
+            <label class="field compact-field">
+              <span>Status</span>
+              <select id="statusFilter">
+                <option value="all">All</option>
+                <option value="profit">Profit</option>
+                <option value="loss">Loss</option>
+                <option value="breakeven">Break-even</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="workspace-grid">
+          <aside class="editor-panel" aria-label="Card editor">
+            <form id="cardForm">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Card Entry</p>
+                  <h2 id="formTitle">Add card</h2>
+                </div>
+                <button class="icon-button subtle" type="button" id="clearFormBtn" title="Clear form" aria-label="Clear form">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <input id="editingId" type="hidden" />
+
+              <div class="form-grid">
+                <input id="isClosed" type="hidden" value="false" />
+                <div class="field-row">
+                  <label class="field">
+                    <span>Card name</span>
+                    <input id="cardName" type="text" placeholder="HDFC Infinia" autocomplete="off" required />
+                  </label>
+                </div>
+                <div class="field-row">
+                  <label class="field">
+                    <span>Issuer bank</span>
+                    <select id="issuerName" autocomplete="off">
+                      <option value="">Select issuer bank</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="field-row" id="axisProgramField" hidden>
+                  <label class="field">
+                    <span>Axis card program</span>
+                    <select id="axisProgram" autocomplete="off">
+                      <option value="">Cashback (default)</option>
+                      <option value="Edge Rewards">Edge Rewards</option>
+                      <option value="Edge Miles">Edge Miles</option>
+                    </select>
+                  </label>
+                </div>
+<!-- Joining Fee + Taxes -->
+<div class="field-row" style="margin-bottom: 18px;">
+
+  <label class="field">
+    <span>Joining fee</span>
+    <input id="annualFee"
+      type="number"
+      min="0"
+      step="0.01"
+      inputmode="decimal"
+      placeholder="12500" />
+  </label>
+
+  <label class="field" style="margin-top: 14px;">
+  <span>Taxes</span>
+  <input id="taxFee"
+    type="number"
+    min="0"
+    step="0.01"
+    inputmode="decimal"
+    placeholder="2250" />
+</label>
+
+</div>
+
+<div class="field-row ltf-field-row">
+  <label class="ltf-checkbox" for="isLtf">
+    <input id="isLtf" type="checkbox" />
+    <span>LTF (Life Time Free)</span>
+  </label>
+</div>
+
+<!-- Member Since Row -->
+<div class="field-row" style="margin-bottom: 18px;">
+
+  <label class="field">
+    <span>Member since</span>
+    <input id="memberSince" type="month" />
+  </label>
+
+  <!-- Empty space on right -->
+  <div class="field"></div>
+
+</div>
+
+<!-- Previous Fee Row -->
+<div class="field-row" style="margin-bottom: 18px;">
+
+  <label class="field">
+    <span>Previous Yr fee month</span>
+    <input id="previousFeeDate" type="month" />
+  </label>
+
+  <label class="field" style="margin-top: 14px;">
+    <span>Previous fee (INR)</span>
+    <input id="prevYearFee"
+      type="number"
+      min="0"
+      step="0.01"
+      inputmode="decimal"
+      placeholder="Previous annual fee" />
+  </label>
+
+</div>
+
+<div id="previousFeeList" class="future-fee-list" style="margin-bottom: 18px;"></div>
+
+<!-- Annual Fee Row -->
+<div class="field-row">
+
+  <label class="field">
+    <span>Annual fee month</span>
+    <input id="futureFeeDate" type="month" />
+  </label>
+
+  <label class="field" style="margin-top: 14px;">
+    <span>Annual fee (INR)</span>
+    <input id="futureAnnualFee"
+      type="number"
+      min="0"
+      step="0.01"
+      inputmode="decimal"
+      placeholder="Future annual fee" />
+  </label>
+
+</div>
+
+<div id="futureFeeList" class="future-fee-list"></div>
+              </div>
+
+              <div class="benefit-editor">
+                <div class="section-title-row">
+                  <h3>Welcome Benefits / Cashback / Milestone Vouchers</h3>
+                  <button class="icon-button subtle" type="button" id="addBenefitBtn" title="Add benefit" aria-label="Add benefit">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                  </button>
+                </div>
+                <div class="benefit-list" id="benefitRows"></div>
+              </div>
+
+              <label class="field">
+                <span>Notes</span>
+                <textarea id="notes" rows="3" placeholder="Fee waiver rule, renewal decision, unused perks"></textarea>
+              </label>
+
+              <button class="primary-button full-width" type="submit">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+                Save card
+              </button>
+            </form>
+          </aside>
+
+          <section class="portfolio-panel" aria-label="Portfolio cards">
+            <div class="panel-heading portfolio-heading">
+              <div>
+                <h2 id="portfolioCount">0 Cards</h2>
+              </div>
+              <div class="sort-action" style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted);">
+                  <path d="M3 6h18M6 12h12m-9 6h6"></path>
+                </svg>
+                <select id="sortSelect">
+                  <option value="netDesc" selected>Biggest profit</option>
+                  <option value="netAsc">Biggest loss</option>
+                  <option value="feeDesc">Highest fee</option>
+                  <option value="benefitDesc">Highest benefits</option>
+                  <option value="pointsDesc">Most points</option>
+                  <option value="nameAsc">Name</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="recovery-panel">
+              <div class="recovery-copy">
+                <h3 id="recoveryTitle">Portfolio recovery</h3>
+                <p id="recoveryText">Add cards to see whether profitable cards cover high-fee cards.</p>
+              </div>
+              <div class="recovery-bar" aria-hidden="true">
+                <span id="recoveryBar"></span>
+              </div>
+            </div>
+
+            <div class="cards-table" id="cardsTable"></div>
+
+            <div class="category-panel">
+              <div class="section-title-row">
+                <h3>Benefit mix</h3>
+                <span id="categoryTotal">0</span>
+              </div>
+              <div id="categoryBars" class="category-bars"></div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <button class="scroll-top-button" type="button" id="scrollTopBtn" title="Scroll to top" aria-label="Scroll to top">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 19V5M5 12l7-7 7 7" />
+      </svg>
+    </button>
+
+    <!-- Points Breakdown Modal -->
+    <div id="pointsModal" class="details-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:20000; align-items:center; justify-content:center; padding:20px;">
+      <div class="details-dialog" style="background:#1e293b; width:100%; max-width:500px; border-radius:12px; border:1px solid #334155; overflow:hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);">
+        <div class="details-dialog-header" style="padding:20px; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center;">
+          <h3 style="margin:0; color:#f8fafc;">Points Breakdown</h3>
+          <button id="closePointsModal" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:24px;">&times;</button>
+        </div>
+        <div id="pointsModalContent" style="padding:20px; max-height:60vh; overflow-y:auto; color:#cbd5e1;">
+          <!-- Content populated by app.js -->
+        </div>
+        <div class="details-dialog-footer" style="padding:16px; background:#0f172a; text-align:right;">
+          <button id="closePointsModalFooter" type="button" style="padding:8px 16px; background:#334155; color:white; border:none; border-radius:6px; cursor:pointer;">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="redeemPointsModal" class="details-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:22010; align-items:center; justify-content:center; padding:20px;">
+      <div style="background:#0f172a; border:1px solid rgba(148,163,184,0.2); border-radius:12px; padding:32px; max-width:440px; width:100%; color:#cbd5e1;">
+        <h3 id="redeemPointsModalTitle" style="margin:0 0 8px 0; color:#f1f5f9; font-size:1.25rem;">Redeem Points</h3>
+        <p id="redeemPointsModalCard" style="margin:0 0 20px 0; color:#94a3b8; font-size:0.9rem;"></p>
+
+        <label class="field" style="margin-bottom: 18px;">
+          <span id="redeemPointsInputLabel">Points to Redeem</span>
+          <input id="redeemPointsInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="e.g. 500" style="width: 100%; padding: 8px 12px; border: 1px solid rgba(148,163,184,0.3); border-radius: 6px; background: rgba(30,41,59,0.5); color: #f1f5f9; font-size: 1rem;" />
+        </label>
+
+        <div id="redeemPointsError" style="display:none; margin: -6px 0 16px 0; color:#fca5a5; font-size:0.9rem;"></div>
+
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+          <button id="redeemPointsCancelBtn" class="ghost-button" type="button" style="padding: 8px 16px;">Cancel</button>
+          <button id="redeemPointsConfirmBtn" class="primary-button" type="button" style="padding: 8px 16px;">Redeem</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="rpConfirmModal" class="details-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:20000; align-items:center; justify-content:center; padding:20px;">
+      <div class="details-dialog" style="background:#1e293b; width:100%; max-width:500px; border-radius:12px; border:1px solid #334155; overflow:hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);">
+        <div class="details-dialog-header" style="padding:20px; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center;">
+          <h3 style="margin:0; color:#f8fafc;">RP Spend Confirmation</h3>
+        </div>
+        <div class="details-dialog-body" style="padding:20px; color:#cbd5e1;">
+          <p>Payment row saved successfully.</p>
+          <p>Click <strong>OK</strong> to enter another payment row for the same product, or <strong>Cancel</strong> to finish and clear the form.</p>
+        </div>
+        <div class="details-dialog-footer" style="padding:16px; background:#0f172a; display:flex; justify-content:flex-end; gap:12px;">
+          <button type="button" id="rpConfirmCancelBtn" class="ghost-button" style="padding:8px 16px; background:#334155; color:white; border:none; border-radius:6px; cursor:pointer;">Cancel</button>
+          <button type="button" id="rpConfirmOkBtn" class="primary-button" style="padding:8px 16px; background:#0f172a; color:white; border:none; border-radius:6px; cursor:pointer;">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="aiAssistModal" class="details-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:21000; align-items:center; justify-content:center; padding:20px;">
+      <div class="details-dialog ai-assist-dialog" style="background:#1e293b; width:100%; max-width:760px; border-radius:12px; border:1px solid #334155; overflow:hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);">
+        <div class="details-dialog-header" style="padding:20px; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center; gap:16px;">
+          <div>
+            <h3 id="aiAssistModalTitle" style="margin:0; color:#f8fafc;">AI Search</h3>
+            <p id="aiAssistModalSubtitle" style="margin:6px 0 0; color:#94a3b8; font-size:0.9rem;">Search results and command prompts appear here.</p>
+          </div>
+          <button type="button" id="aiAssistCloseBtn" class="ghost-button" style="padding:8px 12px; background:#334155; color:white; border:none; border-radius:6px; cursor:pointer;">Close</button>
+        </div>
+        <div id="aiAssistModalBody" class="details-dialog-body" style="padding:20px; color:#cbd5e1; max-height:68vh; overflow:auto;"></div>
+        <div id="aiAssistModalFooter" class="details-dialog-footer" style="padding:16px; background:#0f172a; display:flex; justify-content:flex-end; gap:12px;"></div>
+      </div>
+    </div>
+
+    <div id="loungeLimitEntryModal" class="details-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:22020; align-items:center; justify-content:center; padding:20px;">
+      <div class="details-dialog lounge-limit-entry-dialog" style="background:#1e293b; width:100%; max-width:700px; border-radius:12px; border:1px solid #334155; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+        <div class="details-dialog-header" style="padding:20px; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center; gap:16px;">
+          <div>
+            <h3 id="loungeLimitEntryTitle" style="margin:0; color:#f8fafc;">Add Card Lounge Limit</h3>
+            <p style="margin:6px 0 0; color:#94a3b8; font-size:0.9rem;">Enter limits manually. Usage columns are filled from Lounge Benefits visit records.</p>
+          </div>
+          <button id="closeLoungeLimitEntryBtn" class="ghost-button" type="button" style="padding:8px 12px;">Close</button>
+        </div>
+        <form id="loungeLimitForm">
+          <div class="details-dialog-body lounge-limit-form-body" style="padding:20px; color:#cbd5e1;">
+            <input id="editingLoungeLimitId" type="hidden" />
+            <div class="form-grid">
+              <label class="field lounge-limit-card-field">
+                <span>Card</span>
+                <select id="loungeLimitCardSelect" required></select>
+              </label>
+              <div class="lounge-limit-form-note">
+                <span>Access sources</span>
+                <p>Each save adds a new line for the selected card. Click a card in the popup when you want to edit its combined limits.</p>
+              </div>
+              <label class="field">
+                <span>Total Credit Card visit per year</span>
+                <textarea id="loungeLimitCreditTotal" rows="3" placeholder="e.g., 2/quarter, 8/year"></textarea>
+              </label>
+              <label class="field lounge-limit-wide-field">
+                <span>Total Priority Pass / Dreamfolks</span>
+                <textarea id="loungeLimitPriorityTotal" rows="3" placeholder="e.g., 1/quarter, 4/year via Priority Pass"></textarea>
+              </label>
+            </div>
+          </div>
+          <div class="details-dialog-footer" style="padding:16px; background:#0f172a; display:flex; justify-content:flex-end; gap:12px;">
+            <button type="button" id="clearLoungeLimitBtn" class="ghost-button">Clear</button>
+            <button type="submit" id="saveLoungeLimitBtn" class="primary-button">Save Lounge Limit</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="loungeLimitsModal" class="details-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:22010; align-items:center; justify-content:center; padding:20px;">
+      <div class="details-dialog lounge-limits-dialog" style="background:#1e293b; width:100%; max-width:1180px; border-radius:12px; border:1px solid #334155; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+        <div class="details-dialog-header" style="padding:20px; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center; gap:16px;">
+          <div>
+            <h3 style="margin:0; color:#f8fafc;">Card Lounge Limits</h3>
+            <p style="margin:6px 0 0; color:#94a3b8; font-size:0.9rem;">Manual information for every card in the portfolio. Click a card name or a limit value to edit the manual limits.</p>
+          </div>
+          <button id="closeLoungeLimitsBtn" class="ghost-button" type="button" style="padding:8px 12px;">Close</button>
+        </div>
+        <div id="loungeLimitsTable" class="lounge-limits-table-wrap" style="padding:20px; max-height:70vh; overflow:auto;"></div>
+      </div>
+    </div>
+
+    <div id="loungeBenefitNotesModal" class="details-modal" role="dialog" aria-modal="true" aria-labelledby="loungeBenefitNotesTitle" aria-describedby="loungeBenefitNotesSubtitle" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:22030; align-items:center; justify-content:center; padding:20px;">
+      <div class="details-dialog lounge-benefit-notes-dialog" style="background:#1e293b; width:100%; max-width:560px; border-radius:12px; border:1px solid #334155; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+        <div class="details-dialog-header" style="padding:20px; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:flex-start; gap:16px;">
+          <div>
+            <h3 id="loungeBenefitNotesTitle" style="margin:0; color:#f8fafc;">Benefit Notes</h3>
+            <p id="loungeBenefitNotesSubtitle" style="margin:6px 0 0; color:#94a3b8; font-size:0.9rem;"></p>
+          </div>
+          <button id="closeLoungeBenefitNotesBtn" class="ghost-button" type="button" style="padding:8px 12px;">Close</button>
+        </div>
+        <form id="loungeBenefitNotesForm">
+          <input id="loungeBenefitNotesId" type="hidden" />
+          <div class="details-dialog-body" style="padding:20px; color:#cbd5e1;">
+            <label class="field">
+              <span>Notes</span>
+              <textarea id="loungeBenefitNotesInput" rows="7" maxlength="2000" placeholder="Add notes for this benefit record"></textarea>
+            </label>
+          </div>
+          <div class="details-dialog-footer" style="padding:16px; background:#0f172a; display:flex; justify-content:flex-end; gap:12px;">
+            <button type="button" id="cancelLoungeBenefitNotesBtn" class="ghost-button">Cancel</button>
+            <button type="submit" id="saveLoungeBenefitNotesBtn" class="primary-button">Save Notes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="widgetActivityModal" class="details-modal widget-activity-modal" role="dialog" aria-modal="true" aria-labelledby="widgetActivityTitle" style="display:none;">
+      <div class="widget-activity-dialog">
+        <header class="widget-activity-header">
+          <div>
+            <p class="eyebrow">Activity history</p>
+            <h3 id="widgetActivityTitle">Recent Updates</h3>
+            <p id="widgetActivitySubtitle">Latest 20 changes recorded in this widget.</p>
+          </div>
+          <button class="icon-button subtle widget-activity-close" type="button" id="closeWidgetActivityBtn" title="Close" aria-label="Close recent updates">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          </button>
+        </header>
+        <div id="widgetActivityList" class="widget-activity-list"></div>
+        <footer class="widget-activity-footer">
+          <span>Newest updates appear first</span>
+          <button class="ghost-button" type="button" id="closeWidgetActivityFooterBtn">Close</button>
+        </footer>
+      </div>
+    </div>
+
+  </body>
+</html>
