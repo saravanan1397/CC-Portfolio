@@ -461,7 +461,17 @@ spentForBtn:document.getElementById("spentForBtn"),
     rpOriginatingCardId: document.getElementById("rpOriginatingCardId"),
     rpPartnerTransferRatio: document.getElementById("rpPartnerTransferRatio"),
     rpCardSelect: document.getElementById("rpCardSelect"),
+    rpPointsField: document.getElementById("rpPointsField"),
+    rpPointsLabel: document.getElementById("rpPointsLabel"),
     rpPoints: document.getElementById("rpPoints"),
+    rpPointAllocationPanel: document.getElementById("rpPointAllocationPanel"),
+    rpPointAllocationCard: document.getElementById("rpPointAllocationCard"),
+    rpPointAllocationTotal: document.getElementById("rpPointAllocationTotal"),
+    rpWelcomePointsAvailable: document.getElementById("rpWelcomePointsAvailable"),
+    rpEarnedPointsAvailable: document.getElementById("rpEarnedPointsAvailable"),
+    rpUseWelcomePoints: document.getElementById("rpUseWelcomePoints"),
+    rpWelcomePointsToRedeem: document.getElementById("rpWelcomePointsToRedeem"),
+    rpEarnedPointsToRedeem: document.getElementById("rpEarnedPointsToRedeem"),
     rpPointsValue: document.getElementById("rpPointsValue"),
     rpRedemptionCharges: document.getElementById("rpRedemptionCharges"),
     rpCardPaid: document.getElementById("rpCardPaid"),
@@ -818,12 +828,21 @@ document.addEventListener("keydown", (e) => {
     input?.addEventListener("input", updateRpPaidValue);
   });
   els.rpPoints?.addEventListener("input", populatePartnerProgramReceivedPoints);
+  els.rpUseWelcomePoints?.addEventListener("change", handleRpWelcomeChoiceChange);
+  [els.rpWelcomePointsToRedeem, els.rpEarnedPointsToRedeem].forEach((input) => {
+    input?.addEventListener("input", syncRpPointAllocationTotal);
+  });
+  els.rpUnredeemedPoints?.addEventListener("change", () => {
+    updateRpPointAllocationPanel({ resetValues: true });
+  });
   els.rpCardSelect?.addEventListener("change", handleRpCardSelectChange);
   els.rpPartnerTransferBtn?.addEventListener("click", async () => {
     const result = await showPartnerProgramTransferPrompt({
       partnerName: els.rpPurchasedFrom?.value.trim() || "",
       ratio: els.rpPartnerTransferRatio?.value || "",
       originatingCardId: els.rpOriginatingCardId?.value || "",
+      welcomeRedeemedPoints: els.rpWelcomePointsToRedeem?.value || 0,
+      earnedRedeemedPoints: els.rpEarnedPointsToRedeem?.value || 0,
     });
 
     if (!result) return;
@@ -841,6 +860,11 @@ document.addEventListener("keydown", (e) => {
     if (els.rpOriginatingCardId) {
       els.rpOriginatingCardId.value = result.originatingCardId || "";
     }
+    setRpPointAllocationValues({
+      cardId: result.originatingCardId,
+      welcomePoints: result.welcomeRedeemedPoints,
+      earnedPoints: result.earnedRedeemedPoints,
+    });
     populatePartnerProgramReceivedPoints();
     updateRpPointsReceivedFieldState();
     updatePartnerTransferDetailsButton();
@@ -861,6 +885,7 @@ document.addEventListener("keydown", (e) => {
   els.rpConfirmCancelBtn?.addEventListener("click", () => handleRpSpendConfirm(false));
   els.rpSpendsTable?.addEventListener("click", handleRpSpendAction);
   updateRpPointsReceivedFieldState();
+  updateRpPointAllocationPanel();
   els.loungeMembers?.addEventListener("input", updateLoungeCalculatedValue);
   els.loungeVisitValue?.addEventListener("input", updateLoungeCalculatedValue);
   els.saveLoungeVisitBtn?.addEventListener("click", saveLoungeVisitFromForm);
@@ -1207,7 +1232,10 @@ function getActivityCardNormalUnredeemedPoints(snapshot, cardId) {
     : manualSources.reduce((sum, benefit) => {
         const originalPoints = toNumber(benefit.originalPoints);
         if (originalPoints > 0) return sum + originalPoints;
-        const historicalRedemptions = redemptions.reduce((total, spend) => total + getRpSpendRedemptionAmount(spend), 0);
+        const historicalRedemptions = redemptions.reduce(
+          (total, spend) => total + getRpSpendEarnedPointDebitForBaseline(spend),
+          0
+        );
         return sum + toNumber(benefit.amount) + historicalRedemptions;
       }, 0);
   const welcomeSources = (card.benefits || [])
@@ -1217,20 +1245,25 @@ function getActivityCardNormalUnredeemedPoints(snapshot, cardId) {
   let normalRedeemedPoints = 0;
 
   redemptions.forEach((spend) => {
-    let remaining = getRpSpendRedemptionAmount(spend);
+    const redemptionPoints = getRpSpendRedemptionAmount(spend);
+    const explicitAllocation = getExplicitRpPointAllocation(spend, redemptionPoints);
+    let remainingWelcome = explicitAllocation ? explicitAllocation.welcomePoints : redemptionPoints;
     const redemptionAt = new Date(getRpSpendRedemptionTimestamp(spend) || 0).getTime();
     welcomeSources.forEach((benefit) => {
-      if (remaining <= 0) return;
+      if (remainingWelcome <= 0) return;
       const addedAt = benefit.addedAt ? new Date(benefit.addedAt).getTime() : 0;
       if (addedAt > 0 && redemptionAt < addedAt) return;
       const redeemed = welcomeRedeemedBySource.get(benefit.id) || 0;
       const available = Math.max(0, getWelcomeBenefitPoints(benefit) - redeemed);
-      const used = Math.min(remaining, available);
+      const used = Math.min(remainingWelcome, available);
       if (used <= 0) return;
       welcomeRedeemedBySource.set(benefit.id, redeemed + used);
-      remaining -= used;
+      remainingWelcome -= used;
     });
-    const normalUsed = Math.min(remaining, Math.max(0, normalPoints - normalRedeemedPoints));
+    const normalRequested = explicitAllocation
+      ? explicitAllocation.earnedPoints
+      : remainingWelcome;
+    const normalUsed = Math.min(normalRequested, Math.max(0, normalPoints - normalRedeemedPoints));
     normalRedeemedPoints += normalUsed;
   });
 
@@ -1759,6 +1792,14 @@ function normalizeRpSpend(spend) {
   const cardPaid = toNumber(spend.cardPaid);
   const voucherPaid = toNumber(spend.voucherPaid);
   const productValue = toNumber(spend.productValue);
+  const pointAllocationExplicit = spend.pointAllocationExplicit === true
+    || spend.pointAllocationMode === "explicit-v1";
+  const welcomeRedeemedPoints = pointAllocationExplicit
+    ? Math.max(0, toNumber(spend.welcomeRedeemedPoints))
+    : 0;
+  const earnedRedeemedPoints = pointAllocationExplicit
+    ? Math.max(0, toNumber(spend.earnedRedeemedPoints ?? spend.normalRedeemedPoints))
+    : 0;
   const hasPointsReceivedField = Object.prototype.hasOwnProperty.call(spend, "pointsReceived")
     || Object.prototype.hasOwnProperty.call(spend, "neucoinsPointsReceived");
   const normalizedPointsReceived = toNumber(spend.pointsReceived ?? spend.neucoinsPointsReceived);
@@ -1820,6 +1861,10 @@ function normalizeRpSpend(spend) {
     cardId: spend.cardId || "",
     points: normalizedPoints,
     redeemedPoints: normalizedRedeemedPoints,
+    pointAllocationExplicit,
+    pointAllocationMode: pointAllocationExplicit ? "explicit-v1" : "legacy-welcome-first",
+    welcomeRedeemedPoints,
+    earnedRedeemedPoints,
     unredeemedPointsRecord: isExplicitUnredeemedRecord,
     unredeemedBalanceInitialized: spend.unredeemedBalanceInitialized === true,
     redemptionModel: "split-v2",
@@ -2020,7 +2065,7 @@ function getCardNormalPointsBaseline(card) {
     // deducting them.
     const currentAmount = toNumber(benefit.amount);
     const historicalRedemptions = getCardRedemptionRows(card.id)
-      .reduce((points, rpSpend) => points + getRpSpendRedemptionAmount(rpSpend), 0);
+      .reduce((points, rpSpend) => points + getRpSpendEarnedPointDebitForBaseline(rpSpend), 0);
     return sum + currentAmount + historicalRedemptions;
   }, 0);
 }
@@ -2038,7 +2083,7 @@ function ensureManualPointsBaselines() {
     if (!needsBaseline) return card;
 
     const redemptionPoints = getCardRedemptionRows(card.id)
-      .reduce((sum, rpSpend) => sum + getRpSpendRedemptionAmount(rpSpend), 0);
+      .reduce((sum, rpSpend) => sum + getRpSpendEarnedPointDebitForBaseline(rpSpend), 0);
     let changed = false;
     const benefits = cardBenefits.map((benefit) => {
       if (
@@ -2100,6 +2145,33 @@ function getRpSpendRedemptionTimestamp(rpSpend) {
   return latestPprRedemption?.createdAt || rpSpend?.redeemedAt || rpSpend?.createdAt || "";
 }
 
+function hasExplicitRpPointAllocation(rpSpend) {
+  return rpSpend?.pointAllocationExplicit === true
+    || rpSpend?.pointAllocationMode === "explicit-v1";
+}
+
+function getExplicitRpPointAllocation(rpSpend, redemptionPoints = getRpSpendRedemptionAmount(rpSpend)) {
+  const totalPoints = Math.max(0, toNumber(redemptionPoints));
+  if (!hasExplicitRpPointAllocation(rpSpend)) return null;
+
+  const welcomePoints = Math.min(
+    totalPoints,
+    Math.max(0, toNumber(rpSpend.welcomeRedeemedPoints))
+  );
+  const earnedPoints = Math.min(
+    Math.max(0, totalPoints - welcomePoints),
+    Math.max(0, toNumber(rpSpend.earnedRedeemedPoints ?? rpSpend.normalRedeemedPoints))
+  );
+
+  return { welcomePoints, earnedPoints };
+}
+
+function getRpSpendEarnedPointDebitForBaseline(rpSpend) {
+  const redemptionPoints = getRpSpendRedemptionAmount(rpSpend);
+  const explicitAllocation = getExplicitRpPointAllocation(rpSpend, redemptionPoints);
+  return explicitAllocation ? explicitAllocation.earnedPoints : redemptionPoints;
+}
+
 function getCardPointAllocation(card) {
   const cardId = card?.id || "";
   const cache = getRenderCacheMap("pointAllocations");
@@ -2122,15 +2194,19 @@ function getCardPointAllocation(card) {
   let normalRedeemedPoints = 0;
   let welcomeRedeemedValue = 0;
   let normalRedeemedValue = 0;
+  const redemptionAllocations = {};
 
   rows.forEach((rpSpend) => {
     const redemptionPoints = getRpSpendRedemptionAmount(rpSpend);
     const redemptionValue = toNumber(rpSpend.pointsValue);
+    const explicitAllocation = getExplicitRpPointAllocation(rpSpend, redemptionPoints);
     let welcomePart = 0;
-    let remainingRedemptionPoints = redemptionPoints;
+    let remainingWelcomePoints = explicitAllocation
+      ? explicitAllocation.welcomePoints
+      : redemptionPoints;
 
     welcomeSources.forEach((benefit) => {
-      if (remainingRedemptionPoints <= 0) return;
+      if (remainingWelcomePoints <= 0) return;
 
       const addedAt = benefit.addedAt ? new Date(benefit.addedAt).getTime() : 0;
       // Use the time points were actually redeemed. A partner contribution can
@@ -2142,18 +2218,28 @@ function getCardPointAllocation(card) {
       const sourcePoints = getWelcomeBenefitPoints(benefit);
       const sourceRedeemedPoints = welcomeRedeemedBySource.get(benefit.id) || 0;
       const availableSourcePoints = Math.max(0, sourcePoints - sourceRedeemedPoints);
-      const sourcePart = Math.min(remainingRedemptionPoints, availableSourcePoints);
+      const sourcePart = Math.min(remainingWelcomePoints, availableSourcePoints);
       if (sourcePart <= 0) return;
 
       welcomeRedeemedBySource.set(benefit.id, sourceRedeemedPoints + sourcePart);
       welcomePart += sourcePart;
-      remainingRedemptionPoints -= sourcePart;
+      remainingWelcomePoints -= sourcePart;
     });
 
+    const requestedNormalPoints = explicitAllocation
+      ? explicitAllocation.earnedPoints
+      : Math.max(0, redemptionPoints - welcomePart);
     const normalPart = Math.min(
-      remainingRedemptionPoints,
+      requestedNormalPoints,
       Math.max(0, normalPoints - normalRedeemedPoints)
     );
+
+    redemptionAllocations[rpSpend.id] = {
+      welcomePoints: welcomePart,
+      earnedPoints: normalPart,
+      totalPoints: welcomePart + normalPart,
+      explicit: Boolean(explicitAllocation),
+    };
 
     welcomeRedeemedPoints += welcomePart;
     normalRedeemedPoints += normalPart;
@@ -2181,6 +2267,7 @@ function getCardPointAllocation(card) {
     normalRedeemedPoints,
     normalRedeemedValue,
     normalRemainingPoints,
+    redemptionAllocations,
     redeemedPoints: welcomeRedeemedPoints + normalRedeemedPoints,
     redeemedValue: welcomeRedeemedValue + normalRedeemedValue,
     totalUnredeemedPoints: welcomeRemainingPoints + normalRemainingPoints,
@@ -2376,7 +2463,7 @@ function syncRpRedeemedBenefitsFromSpends() {
         type: "Points Redeemed",
         valueType: "cash",
         label: hasPointSources && allocation.welcomePoints > 0
-          ? "Normal Points Redeemed"
+          ? "Earned Points Redeemed"
           : "Points Redeemed",
         amount: normalRedeemedValue,
         pointsAmount: normalRedeemedPoints,
@@ -6673,6 +6760,139 @@ function renderCardSelect(select) {
   }
 }
 
+function getEditingRpSpend() {
+  const editingId = String(els.editingRpSpendId?.value || "").trim();
+  return editingId ? state.rpSpends.find((item) => item.id === editingId) || null : null;
+}
+
+function getRpPointSourceCard(cardId = "") {
+  const explicitCardId = String(cardId || "").trim();
+  if (explicitCardId) return getCardById(explicitCardId);
+
+  const selectedCardId = String(els.rpCardSelect?.value || "").trim();
+  if (selectedCardId === partnerProgramPlatformValue) {
+    return getCardById(String(els.rpOriginatingCardId?.value || "").trim());
+  }
+  if (selectedCardId === "Neucoins") {
+    return getCardById(String(els.rpCardSelect?.dataset.neucoinsSourceCardId || "").trim());
+  }
+  return getCardById(selectedCardId);
+}
+
+function getRpSpendCardAllocation(rpSpend, card) {
+  if (!rpSpend || !card || getRpSpendRedeemedSourceCardId(rpSpend) !== card.id) {
+    return { welcomePoints: 0, earnedPoints: 0, totalPoints: 0 };
+  }
+
+  const cardAllocation = getCardPointAllocation(card);
+  const rowAllocation = cardAllocation.redemptionAllocations?.[rpSpend.id];
+  if (rowAllocation) return rowAllocation;
+
+  const explicitAllocation = getExplicitRpPointAllocation(rpSpend);
+  if (explicitAllocation) {
+    return {
+      welcomePoints: explicitAllocation.welcomePoints,
+      earnedPoints: explicitAllocation.earnedPoints,
+      totalPoints: explicitAllocation.welcomePoints + explicitAllocation.earnedPoints,
+    };
+  }
+
+  return { welcomePoints: 0, earnedPoints: 0, totalPoints: 0 };
+}
+
+function getRpPointSourceAvailability(card, rpSpend = getEditingRpSpend()) {
+  if (!card) return { welcomePoints: 0, earnedPoints: 0, totalPoints: 0 };
+
+  const allocation = getCardPointAllocation(card);
+  const priorAllocation = getRpSpendCardAllocation(rpSpend, card);
+  const welcomePoints = allocation.welcomeRemainingPoints + priorAllocation.welcomePoints;
+  const earnedPoints = allocation.normalRemainingPoints + priorAllocation.earnedPoints;
+  return {
+    welcomePoints,
+    earnedPoints,
+    totalPoints: welcomePoints + earnedPoints,
+  };
+}
+
+function getRpPointAllocationFormValues() {
+  const useWelcome = els.rpUseWelcomePoints?.value === "yes";
+  const welcomePoints = useWelcome ? Math.max(0, toNumber(els.rpWelcomePointsToRedeem?.value)) : 0;
+  const earnedPoints = Math.max(0, toNumber(els.rpEarnedPointsToRedeem?.value));
+  return {
+    welcomePoints,
+    earnedPoints,
+    totalPoints: welcomePoints + earnedPoints,
+  };
+}
+
+function syncRpPointAllocationTotal() {
+  if (els.rpPointAllocationPanel?.dataset.active !== "true") return;
+  const values = getRpPointAllocationFormValues();
+  if (els.rpPoints) els.rpPoints.value = values.totalPoints > 0 ? String(values.totalPoints) : "";
+  if (els.rpRedeemedPoints) els.rpRedeemedPoints.value = values.totalPoints > 0 ? String(values.totalPoints) : "";
+  if (els.rpPointAllocationTotal) els.rpPointAllocationTotal.textContent = formatPoints(values.totalPoints);
+  populatePartnerProgramReceivedPoints();
+  refreshFieldState(els.rpPoints);
+}
+
+function handleRpWelcomeChoiceChange() {
+  const useWelcome = els.rpUseWelcomePoints?.value === "yes";
+  if (els.rpWelcomePointsToRedeem) {
+    els.rpWelcomePointsToRedeem.disabled = !useWelcome;
+    if (!useWelcome) els.rpWelcomePointsToRedeem.value = "0";
+  }
+  syncRpPointAllocationTotal();
+}
+
+function updateRpPointAllocationPanel({ resetValues = false, cardId = "" } = {}) {
+  const card = getRpPointSourceCard(cardId);
+  const keepUnredeemed = Boolean(els.rpUnredeemedPoints?.checked);
+  const shouldShow = Boolean(card && !keepUnredeemed);
+
+  if (els.rpPointAllocationPanel) {
+    els.rpPointAllocationPanel.hidden = !shouldShow;
+    els.rpPointAllocationPanel.dataset.active = shouldShow ? "true" : "false";
+  }
+  if (els.rpPointsLabel) {
+    els.rpPointsLabel.textContent = shouldShow ? "Total Points (calculated)" : "Points";
+  }
+  if (els.rpPoints) {
+    els.rpPoints.readOnly = shouldShow;
+    els.rpPoints.setAttribute("aria-readonly", shouldShow ? "true" : "false");
+  }
+
+  if (!shouldShow) {
+    if (resetValues) {
+      if (els.rpUseWelcomePoints) els.rpUseWelcomePoints.value = "no";
+      if (els.rpWelcomePointsToRedeem) els.rpWelcomePointsToRedeem.value = "0";
+      if (els.rpEarnedPointsToRedeem) els.rpEarnedPointsToRedeem.value = "0";
+    }
+    return;
+  }
+
+  const availability = getRpPointSourceAvailability(card);
+  if (els.rpPointAllocationCard) els.rpPointAllocationCard.textContent = formatCardName(card);
+  if (els.rpWelcomePointsAvailable) els.rpWelcomePointsAvailable.textContent = formatPoints(availability.welcomePoints);
+  if (els.rpEarnedPointsAvailable) els.rpEarnedPointsAvailable.textContent = formatPoints(availability.earnedPoints);
+  if (els.rpWelcomePointsToRedeem) els.rpWelcomePointsToRedeem.max = String(availability.welcomePoints);
+  if (els.rpEarnedPointsToRedeem) els.rpEarnedPointsToRedeem.max = String(availability.earnedPoints);
+
+  if (resetValues) {
+    if (els.rpUseWelcomePoints) els.rpUseWelcomePoints.value = "no";
+    if (els.rpWelcomePointsToRedeem) els.rpWelcomePointsToRedeem.value = "0";
+    if (els.rpEarnedPointsToRedeem) els.rpEarnedPointsToRedeem.value = "0";
+  }
+  handleRpWelcomeChoiceChange();
+}
+
+function setRpPointAllocationValues({ cardId = "", welcomePoints = 0, earnedPoints = 0 } = {}) {
+  updateRpPointAllocationPanel({ cardId });
+  if (els.rpUseWelcomePoints) els.rpUseWelcomePoints.value = toNumber(welcomePoints) > 0 ? "yes" : "no";
+  if (els.rpWelcomePointsToRedeem) els.rpWelcomePointsToRedeem.value = String(Math.max(0, toNumber(welcomePoints)));
+  if (els.rpEarnedPointsToRedeem) els.rpEarnedPointsToRedeem.value = String(Math.max(0, toNumber(earnedPoints)));
+  handleRpWelcomeChoiceChange();
+}
+
 async function handleRpCardSelectChange(event) {
   const select = event?.target;
   if (!select) return;
@@ -6682,6 +6902,8 @@ async function handleRpCardSelectChange(event) {
       partnerName: els.rpPurchasedFrom?.value.trim() || "",
       ratio: els.rpPartnerTransferRatio?.value || "",
       originatingCardId: els.rpOriginatingCardId?.value || "",
+      welcomeRedeemedPoints: 0,
+      earnedRedeemedPoints: 0,
     });
 
     if (!result) {
@@ -6696,6 +6918,7 @@ async function handleRpCardSelectChange(event) {
       if (els.rpOriginatingCardId) {
         els.rpOriginatingCardId.value = "";
       }
+      updateRpPointAllocationPanel({ resetValues: true });
       updateRpPointsReceivedFieldState();
       refreshAllFieldStates();
       return;
@@ -6711,6 +6934,11 @@ async function handleRpCardSelectChange(event) {
     if (els.rpOriginatingCardId) {
       els.rpOriginatingCardId.value = result.originatingCardId || "";
     }
+    setRpPointAllocationValues({
+      cardId: result.originatingCardId,
+      welcomePoints: result.welcomeRedeemedPoints,
+      earnedPoints: result.earnedRedeemedPoints,
+    });
     populatePartnerProgramReceivedPoints();
     updateRpPointsReceivedFieldState();
     updatePartnerTransferDetailsButton();
@@ -6726,11 +6954,13 @@ async function handleRpCardSelectChange(event) {
     if (!selectedSourceCardId) {
       select.value = "";
       delete select.dataset.neucoinsSourceCardId;
+      updateRpPointAllocationPanel({ resetValues: true });
       refreshAllFieldStates();
       return;
     }
 
     select.dataset.neucoinsSourceCardId = selectedSourceCardId;
+    updateRpPointAllocationPanel({ resetValues: true, cardId: selectedSourceCardId });
     updateRpPointsReceivedFieldState();
     updatePartnerTransferDetailsButton();
     refreshAllFieldStates();
@@ -6746,6 +6976,7 @@ async function handleRpCardSelectChange(event) {
   }
   delete select.dataset.neucoinsSourceCardId;
 
+  updateRpPointAllocationPanel({ resetValues: true });
   updateRpPointsReceivedFieldState();
   updatePartnerTransferDetailsButton();
   refreshAllFieldStates();
@@ -6914,6 +7145,13 @@ function showPartnerProgramTransferPrompt(initial = {}) {
     const ratioId = "partnerProgramPromptRatio";
     const infoId = "partnerProgramPromptInfo";
     const errorId = "partnerProgramPromptError";
+    const allocationId = "partnerProgramPromptAllocation";
+    const useWelcomeId = "partnerProgramPromptUseWelcome";
+    const welcomeAvailableId = "partnerProgramPromptWelcomeAvailable";
+    const earnedAvailableId = "partnerProgramPromptEarnedAvailable";
+    const welcomePointsId = "partnerProgramPromptWelcomePoints";
+    const earnedPointsId = "partnerProgramPromptEarnedPoints";
+    const allocationTotalId = "partnerProgramPromptAllocationTotal";
     const existingPartnerNames = getPprExistingPartnerNames();
     const initialPartnerName = String(initial.partnerName || "").trim();
     const matchedExistingPartner = existingPartnerNames.find(
@@ -6960,6 +7198,39 @@ function showPartnerProgramTransferPrompt(initial = {}) {
             </select>
           </label>
           <div id="${infoId}" style="display:none; padding:14px; border:1px solid rgba(96,165,250,0.22); border-radius:10px; background:rgba(15,23,42,0.78); gap:6px;"></div>
+          <section id="${allocationId}" class="rp-point-allocation-panel rp-point-allocation-panel--prompt" hidden>
+            <div class="rp-point-allocation-heading">
+              <div>
+                <span>Choose the points being transferred</span>
+                <strong>Welcome Benefits or Earned Points</strong>
+              </div>
+              <div class="rp-point-allocation-total">
+                <span>Total being redeemed</span>
+                <strong id="${allocationTotalId}">0 pts</strong>
+              </div>
+            </div>
+            <div class="rp-point-balance-grid">
+              <div><span>Welcome Benefits available</span><strong id="${welcomeAvailableId}">0 pts</strong></div>
+              <div><span>Earned Points available</span><strong id="${earnedAvailableId}">0 pts</strong><small>Includes manually entered card points</small></div>
+            </div>
+            <div class="rp-point-source-grid">
+              <label class="field">
+                <span>Redeem Welcome Benefit points?</span>
+                <select id="${useWelcomeId}">
+                  <option value="no">No — use Earned Points only</option>
+                  <option value="yes">Yes — include Welcome Benefits</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Welcome Benefit points to redeem</span>
+                <input id="${welcomePointsId}" type="number" min="0" step="0.01" inputmode="decimal" value="0" disabled />
+              </label>
+              <label class="field">
+                <span>Earned Points to redeem</span>
+                <input id="${earnedPointsId}" type="number" min="0" step="0.01" inputmode="decimal" value="0" />
+              </label>
+            </div>
+          </section>
           <div id="${errorId}" class="ai-result-meta" style="display:none; color:#fca5a5;"></div>
         </div>
       `,
@@ -6977,13 +7248,20 @@ function showPartnerProgramTransferPrompt(initial = {}) {
     const originatingCardSelect = document.getElementById(originatingCardId);
     const infoEl = document.getElementById(infoId);
     const errorEl = document.getElementById(errorId);
+    const allocationEl = document.getElementById(allocationId);
+    const useWelcomeSelect = document.getElementById(useWelcomeId);
+    const welcomeAvailableEl = document.getElementById(welcomeAvailableId);
+    const earnedAvailableEl = document.getElementById(earnedAvailableId);
+    const welcomePointsInput = document.getElementById(welcomePointsId);
+    const earnedPointsInput = document.getElementById(earnedPointsId);
+    const allocationTotalEl = document.getElementById(allocationTotalId);
     const cancelBtn = document.getElementById("partnerProgramPromptCancelBtn");
     const removeBtn = document.getElementById("partnerProgramPromptRemoveBtn");
     const redeemBtn = document.getElementById("partnerProgramPromptRedeemBtn");
     const confirmBtn = document.getElementById("partnerProgramPromptConfirmBtn");
 
-    // Redemptions are held in the form until Update RP Spend is clicked.
-    const pendingRedemptionsByCard = {};
+    // Source allocations are held in the form until Add/Update RP Spend is clicked.
+    let lastAllocationCardId = "";
     const getSelectedPartnerName = () => (
       String(existingPartnerSelect?.value || "").trim()
       || String(partnerNameInput?.value || "").trim()
@@ -6995,15 +7273,91 @@ function showPartnerProgramTransferPrompt(initial = {}) {
       partnerNameInput.setAttribute("aria-disabled", hasExistingPartner ? "true" : "false");
       if (!hasExistingPartner) partnerNameInput.focus();
     };
-    const refreshInfo = () => {
+    const getPromptAllocation = () => {
+      const welcomePoints = useWelcomeSelect?.value === "yes"
+        ? Math.max(0, toNumber(welcomePointsInput?.value))
+        : 0;
+      const earnedPoints = Math.max(0, toNumber(earnedPointsInput?.value));
+      return { welcomePoints, earnedPoints, totalPoints: welcomePoints + earnedPoints };
+    };
+    const syncPromptAllocation = () => {
+      const allocation = getPromptAllocation();
+      if (allocationTotalEl) allocationTotalEl.textContent = formatPoints(allocation.totalPoints);
+      if (welcomePointsInput) {
+        const useWelcome = useWelcomeSelect?.value === "yes";
+        welcomePointsInput.disabled = !useWelcome;
+        if (!useWelcome && toNumber(welcomePointsInput.value) !== 0) welcomePointsInput.value = "0";
+      }
+    };
+    const refreshInfo = ({ resetAllocation = false } = {}) => {
       updatePartnerProgramOriginInfo(originatingCardSelect, infoEl);
+      const sourceCardId = String(originatingCardSelect?.value || "").trim();
+      const sourceCard = getCardById(sourceCardId);
+      if (allocationEl) allocationEl.hidden = !sourceCard;
+      if (!sourceCard) {
+        lastAllocationCardId = "";
+        return;
+      }
+
+      const availability = getRpPointSourceAvailability(sourceCard);
+      if (welcomeAvailableEl) welcomeAvailableEl.textContent = formatPoints(availability.welcomePoints);
+      if (earnedAvailableEl) earnedAvailableEl.textContent = formatPoints(availability.earnedPoints);
+      if (welcomePointsInput) welcomePointsInput.max = String(availability.welcomePoints);
+      if (earnedPointsInput) earnedPointsInput.max = String(availability.earnedPoints);
+
+      const cardChanged = Boolean(lastAllocationCardId && lastAllocationCardId !== sourceCardId);
+      if (resetAllocation || cardChanged) {
+        if (useWelcomeSelect) useWelcomeSelect.value = "no";
+        if (welcomePointsInput) welcomePointsInput.value = "0";
+        if (earnedPointsInput) earnedPointsInput.value = "0";
+      } else if (!lastAllocationCardId) {
+        const initialWelcome = Math.max(0, toNumber(initial.welcomeRedeemedPoints));
+        const initialEarned = Math.max(0, toNumber(initial.earnedRedeemedPoints));
+        if (useWelcomeSelect) useWelcomeSelect.value = initialWelcome > 0 ? "yes" : "no";
+        if (welcomePointsInput) welcomePointsInput.value = String(initialWelcome);
+        if (earnedPointsInput) earnedPointsInput.value = String(initialEarned);
+      }
+      lastAllocationCardId = sourceCardId;
+      syncPromptAllocation();
     };
 
     existingPartnerSelect?.addEventListener("change", syncPartnerNameFields);
 
     cancelBtn?.addEventListener("click", () => resolveAiModal(null));
+    const validatePromptAllocation = ({ requirePoints = false } = {}) => {
+      const sourceCard = getCardById(String(originatingCardSelect?.value || "").trim());
+      const allocation = getPromptAllocation();
+      if (!sourceCard) {
+        if (requirePoints || allocation.totalPoints > 0) {
+          showToast("Select an originating card first.");
+          originatingCardSelect?.focus();
+          return null;
+        }
+        return allocation;
+      }
+
+      const availability = getRpPointSourceAvailability(sourceCard);
+      if (requirePoints && allocation.totalPoints <= 0) {
+        showToast("Enter Welcome Benefit points or Earned Points to redeem.");
+        earnedPointsInput?.focus();
+        return null;
+      }
+      if (allocation.welcomePoints > availability.welcomePoints) {
+        showToast(`Only ${formatPoints(availability.welcomePoints)} Welcome Benefit points are available.`);
+        welcomePointsInput?.focus();
+        return null;
+      }
+      if (allocation.earnedPoints > availability.earnedPoints) {
+        showToast(`Only ${formatPoints(availability.earnedPoints)} Earned Points are available.`);
+        earnedPointsInput?.focus();
+        return null;
+      }
+      return allocation;
+    };
+
     removeBtn?.addEventListener("click", async () => {
-      const currentPoints = toNumber(els.rpPoints?.value);
+      const currentAllocation = getPromptAllocation();
+      const currentPoints = currentAllocation.totalPoints;
       if (currentPoints <= 0) {
         showToast("There are no partner points to remove.");
         return;
@@ -7019,91 +7373,27 @@ function showPartnerProgramTransferPrompt(initial = {}) {
 
       if (removePoints == null) return;
 
-      const updatedTotalPoints = Math.max(0, currentPoints - removePoints);
-      const currentRedeemedPoints = toNumber(els.rpRedeemedPoints?.value);
-      if (els.rpPoints) els.rpPoints.value = String(updatedTotalPoints);
-      if (els.rpRedeemedPoints) {
-        els.rpRedeemedPoints.value = String(Math.max(0, currentRedeemedPoints - removePoints));
-      }
-
-      // Keep an intentionally blank received-points field blank. When a value
-      // exists, adjust it by the same transfer ratio as the removed points.
-      const currentReceivedText = String(els.rpPointsReceived?.value || "").trim();
-      const partnerRatio = parsePartnerTransferRatio(ratioInput?.value || els.rpPartnerTransferRatio?.value || "");
-      if (els.rpPointsReceived && currentReceivedText && partnerRatio) {
-        const updatedReceived = Math.max(
-          0,
-          toNumber(currentReceivedText) - computePartnerTransferPoints(removePoints, partnerRatio)
-        );
-        els.rpPointsReceived.value = updatedReceived > 0 ? String(updatedReceived) : "";
-      }
-
-      pendingRedemptionsByCard[String(originatingCardSelect?.value || "").trim()] = Math.max(
-        0,
-        toNumber(pendingRedemptionsByCard[String(originatingCardSelect?.value || "").trim()]) - removePoints
-      );
+      let remainingToRemove = removePoints;
+      const nextEarnedPoints = Math.max(0, currentAllocation.earnedPoints - remainingToRemove);
+      remainingToRemove = Math.max(0, remainingToRemove - currentAllocation.earnedPoints);
+      const nextWelcomePoints = Math.max(0, currentAllocation.welcomePoints - remainingToRemove);
+      if (earnedPointsInput) earnedPointsInput.value = String(nextEarnedPoints);
+      if (welcomePointsInput) welcomePointsInput.value = String(nextWelcomePoints);
+      if (useWelcomeSelect) useWelcomeSelect.value = nextWelcomePoints > 0 ? "yes" : "no";
+      syncPromptAllocation();
       showToast(`Removed ${formatPoints(removePoints)} from this partner redemption.`);
     });
-    redeemBtn?.addEventListener("click", async () => {
+    redeemBtn?.addEventListener("click", () => {
       const sourceCardId = String(originatingCardSelect?.value || "").trim();
       const sourceCard = getCardById(sourceCardId);
-
       if (!sourceCard) {
         showToast("Select an originating card first.");
         originatingCardSelect?.focus();
         return;
       }
-
-      const alreadyPendingPoints = toNumber(pendingRedemptionsByCard[sourceCardId]);
-      const editingId = String(els.editingRpSpendId?.value || "").trim();
-      const editingRow = editingId ? state.rpSpends.find((item) => item.id === editingId) : null;
-      const priorEditingRedemption = editingRow
-        && getRpSpendRedeemedSourceCardId(editingRow) === sourceCardId
-        ? getRpSpendRedemptionAmount(editingRow)
-        : 0;
-      // When editing an existing RP spend, add that row's old redemption back
-      // before validating the replacement amount. Other saved redemptions and
-      // redemptions already entered in this popup remain part of the limit.
-      const availablePoints = Math.max(
-        0,
-        getCardUnredeemedPoints(sourceCard)
-        + priorEditingRedemption
-        - alreadyPendingPoints
-      );
-      if (availablePoints <= 0) {
-        showToast("No unredeemed points available for that card.");
-        return;
-      }
-
-      const redeemPoints = await showRedeemPointsPrompt({
-        card: sourceCard,
-        availablePoints,
-      });
-
-      if (redeemPoints == null) return;
-      const totalPoints = toNumber(els.rpPoints?.value);
-      const currentRedeemedPoints = toNumber(els.rpRedeemedPoints?.value);
-      const updatedTotalPoints = totalPoints + redeemPoints;
-      const totalRedeemedPoints = currentRedeemedPoints + redeemPoints;
-
-      if (els.rpPoints) {
-        els.rpPoints.value = String(updatedTotalPoints);
-      }
-      if (els.rpRedeemedPoints) {
-        els.rpRedeemedPoints.value = String(totalRedeemedPoints);
-      }
-      pendingRedemptionsByCard[sourceCardId] = alreadyPendingPoints + redeemPoints;
-
-      const partnerRatio = parsePartnerTransferRatio(ratioInput?.value || els.rpPartnerTransferRatio?.value || "");
-      const currentPointsReceived = toNumber(els.rpPointsReceived?.value || editingRow?.pointsReceived || 0);
-      const updatedPointsReceived = partnerRatio
-        ? currentPointsReceived + computePartnerTransferPoints(redeemPoints, partnerRatio)
-        : currentPointsReceived;
-      if (els.rpPointsReceived && partnerRatio) {
-        els.rpPointsReceived.value = String(updatedPointsReceived);
-      }
-
-      showToast(`Redeemed ${formatPoints(redeemPoints)} from ${formatCardShortName(sourceCard)}. Remaining: ${formatPoints(availablePoints - redeemPoints)}.`);
+      const allocation = validatePromptAllocation({ requirePoints: true });
+      if (!allocation) return;
+      showToast(`${formatPoints(allocation.totalPoints)} selected from ${formatCardShortName(sourceCard)}.`);
     });
     confirmBtn?.addEventListener("click", () => {
       const partnerName = getSelectedPartnerName();
@@ -7142,10 +7432,15 @@ function showPartnerProgramTransferPrompt(initial = {}) {
         return;
       }
 
+      const pointAllocation = validatePromptAllocation();
+      if (!pointAllocation) return;
+
       resolveAiModal({
         partnerName,
         ratio,
         originatingCardId: String(originatingCardSelect?.value || "").trim(),
+        welcomeRedeemedPoints: pointAllocation.welcomePoints,
+        earnedRedeemedPoints: pointAllocation.earnedPoints,
       });
     });
 
@@ -7163,7 +7458,10 @@ function showPartnerProgramTransferPrompt(initial = {}) {
       }
     });
 
-    originatingCardSelect?.addEventListener("change", refreshInfo);
+    useWelcomeSelect?.addEventListener("change", syncPromptAllocation);
+    welcomePointsInput?.addEventListener("input", syncPromptAllocation);
+    earnedPointsInput?.addEventListener("input", syncPromptAllocation);
+    originatingCardSelect?.addEventListener("change", () => refreshInfo({ resetAllocation: true }));
     refreshInfo();
     if (matchedExistingPartner) {
       ratioInput?.focus();
@@ -7241,9 +7539,9 @@ function getRpSpendRedemptionAmount(rpSpend) {
   const totalPoints = getRpSpendTotalPoints(rpSpend);
   if (totalPoints <= 0) return 0;
 
-  // Point redemption is independent of monetary value. In particular, a
-  // redemption with pointsValue === 0 must still consume points and be
-  // allocated to Welcome Benefits Redeemed before normal points are used.
+  // Point redemption is independent of monetary value. A redemption with
+  // pointsValue === 0 still consumes points. New rows retain their explicit
+  // Welcome/Earned split; historical rows continue to use Welcome-first.
   const redeemedPoints = toNumber(rpSpend.redeemedPoints);
   if (redeemedPoints > 0) {
     return Math.min(totalPoints, redeemedPoints);
@@ -8318,6 +8616,16 @@ async function saveRpSpendFromForm(event) {
     : (isCardProductSpend || isNeucoinsRedemption) && !keepPointsUnredeemed
       ? (isNeucoinsRedemption ? neucoinsSourceCardId : selectedCardId)
       : "";
+  const pointAllocationActive = Boolean(
+    redeemedSourceCardId
+    && !isUnredeemedRecord
+    && els.rpPointAllocationPanel?.dataset.active === "true"
+  );
+  const selectedPointAllocation = pointAllocationActive
+    ? getRpPointAllocationFormValues()
+    : { welcomePoints: 0, earnedPoints: 0, totalPoints: 0 };
+  const pointAllocationSourceCard = redeemedSourceCardId ? getCardById(redeemedSourceCardId) : null;
+  const priorPointAllocation = getRpSpendCardAllocation(existingSpend, pointAllocationSourceCard);
 
   const redeemedPointsForSpend = isPartnerProgram
     ? partnerRedeemedPointsForSpend
@@ -8345,7 +8653,12 @@ async function saveRpSpendFromForm(event) {
       : enteredPoints
     : els.rpPoints?.value;
   const priorSavedRedeemedPoints = toNumber(existingSpend?.redeemedPoints);
-  const redemptionPointsChanged = redeemedPointsForSpend !== priorSavedRedeemedPoints;
+  const pointAllocationChanged = pointAllocationActive && (
+    selectedPointAllocation.welcomePoints !== priorPointAllocation.welcomePoints
+    || selectedPointAllocation.earnedPoints !== priorPointAllocation.earnedPoints
+  );
+  const redemptionPointsChanged = redeemedPointsForSpend !== priorSavedRedeemedPoints
+    || pointAllocationChanged;
   const redeemedAt = redeemedPointsForSpend > 0
     ? redemptionPointsChanged
       ? new Date().toISOString()
@@ -8358,6 +8671,10 @@ async function saveRpSpendFromForm(event) {
     cardId,
     points: storedPoints,
     redeemedPoints: redeemedPointsForSpend,
+    pointAllocationExplicit: pointAllocationActive,
+    pointAllocationMode: pointAllocationActive ? "explicit-v1" : existingSpend?.pointAllocationMode,
+    welcomeRedeemedPoints: pointAllocationActive ? selectedPointAllocation.welcomePoints : 0,
+    earnedRedeemedPoints: pointAllocationActive ? selectedPointAllocation.earnedPoints : 0,
     unredeemedPointsRecord: isUnredeemedRecord,
     unredeemedBalanceInitialized: isUnredeemedRecord
       || existingSpend?.unredeemedBalanceInitialized === true,
@@ -8411,7 +8728,7 @@ async function saveRpSpendFromForm(event) {
   const redemptionAmount = redeemedSourceCardId
     ? getRpSpendRedemptionAmount(rpSpend)
     : 0;
-  const redemptionSourceCard = redeemedSourceCardId ? getCardById(redeemedSourceCardId) : null;
+  const redemptionSourceCard = pointAllocationSourceCard;
   const priorRedemptionAmount = existingSpend
     && redeemedSourceCardId
     && getRpSpendRedeemedSourceCardId(existingSpend) === redeemedSourceCardId
@@ -8427,6 +8744,24 @@ async function saveRpSpendFromForm(event) {
     if (!redemptionSourceCard) {
       showToast("Select a valid originating card for this redemption.");
       return;
+    }
+
+    if (pointAllocationActive) {
+      const availableBySource = getRpPointSourceAvailability(redemptionSourceCard, existingSpend);
+      if (selectedPointAllocation.totalPoints !== redemptionAmount) {
+        showToast("Welcome Benefit points and Earned Points must equal Total Points.");
+        return;
+      }
+      if (selectedPointAllocation.welcomePoints > availableBySource.welcomePoints) {
+        showToast(`Only ${formatPoints(availableBySource.welcomePoints)} Welcome Benefit points are available.`);
+        els.rpWelcomePointsToRedeem?.focus();
+        return;
+      }
+      if (selectedPointAllocation.earnedPoints > availableBySource.earnedPoints) {
+        showToast(`Only ${formatPoints(availableBySource.earnedPoints)} Earned Points are available.`);
+        els.rpEarnedPointsToRedeem?.focus();
+        return;
+      }
     }
 
     const currentUnredeemed = getCardUnredeemedPoints(redemptionSourceCard);
@@ -8514,6 +8849,10 @@ function resetRpSpendForm() {
   if (els.rpPartnerTransferRatio) {
     els.rpPartnerTransferRatio.value = "";
   }
+  if (els.rpUseWelcomePoints) els.rpUseWelcomePoints.value = "no";
+  if (els.rpWelcomePointsToRedeem) els.rpWelcomePointsToRedeem.value = "0";
+  if (els.rpEarnedPointsToRedeem) els.rpEarnedPointsToRedeem.value = "0";
+  updateRpPointAllocationPanel({ resetValues: true });
   updateRpPointsReceivedFieldState();
   updatePartnerTransferDetailsButton();
 
@@ -8563,12 +8902,16 @@ function clearRpPaymentFields() {
   ].forEach((input) => {
     if (input) input.value = "";
   });
+  if (els.rpUseWelcomePoints) els.rpUseWelcomePoints.value = "no";
+  if (els.rpWelcomePointsToRedeem) els.rpWelcomePointsToRedeem.value = "0";
+  if (els.rpEarnedPointsToRedeem) els.rpEarnedPointsToRedeem.value = "0";
 
   if (els.rpUnredeemedPoints) els.rpUnredeemedPoints.checked = false;
 
   if (els.rpCardSelect) els.rpCardSelect.selectedIndex = 0;
   delete els.rpCardSelect?.dataset.neucoinsSourceCardId;
   if (els.rpOriginatingCardId) els.rpOriginatingCardId.value = "";
+  updateRpPointAllocationPanel({ resetValues: true });
   updateRpPointsReceivedFieldState();
   updatePartnerTransferDetailsButton();
   updateRpPaidValue();
@@ -8759,6 +9102,18 @@ function populateRpSpendForm(rpSpend) {
   }
   if (els.rpPartnerTransferRatio) {
     els.rpPartnerTransferRatio.value = rpSpend.partnerTransferRatio || "";
+  }
+  const sourceCardId = getRpSpendRedeemedSourceCardId(rpSpend);
+  const sourceCard = getCardById(sourceCardId);
+  if (sourceCard && !isUnredeemedPointsRecord(rpSpend)) {
+    const pointAllocation = getRpSpendCardAllocation(rpSpend, sourceCard);
+    setRpPointAllocationValues({
+      cardId: sourceCardId,
+      welcomePoints: pointAllocation.welcomePoints,
+      earnedPoints: pointAllocation.earnedPoints,
+    });
+  } else {
+    updateRpPointAllocationPanel({ resetValues: true });
   }
   if (els.rpProductName) els.rpProductName.value = rpSpend.productName || "";
   if (els.rpProductValue) els.rpProductValue.value = rpSpend.productValue || "";

@@ -1162,10 +1162,51 @@
                 <select id="rpCardSelect"></select>
               </label>
 
-              <label class="field">
-                <span>Points</span>
+              <label class="field" id="rpPointsField">
+                <span id="rpPointsLabel">Points</span>
                 <input id="rpPoints" type="number" min="0" step="0.01" inputmode="decimal" placeholder="6000" />
               </label>
+
+              <section id="rpPointAllocationPanel" class="rp-point-allocation-panel" hidden aria-label="Point redemption source">
+                <div class="rp-point-allocation-heading">
+                  <div>
+                    <span>Point balances</span>
+                    <strong id="rpPointAllocationCard">Selected card</strong>
+                  </div>
+                  <div class="rp-point-allocation-total">
+                    <span>Total being redeemed</span>
+                    <strong id="rpPointAllocationTotal">0 pts</strong>
+                  </div>
+                </div>
+                <div class="rp-point-balance-grid">
+                  <div>
+                    <span>Welcome Benefits available</span>
+                    <strong id="rpWelcomePointsAvailable">0 pts</strong>
+                  </div>
+                  <div>
+                    <span>Earned Points available</span>
+                    <strong id="rpEarnedPointsAvailable">0 pts</strong>
+                    <small>Includes manually entered card points</small>
+                  </div>
+                </div>
+                <div class="rp-point-source-grid">
+                  <label class="field">
+                    <span>Redeem Welcome Benefit points?</span>
+                    <select id="rpUseWelcomePoints">
+                      <option value="no">No — use Earned Points only</option>
+                      <option value="yes">Yes — include Welcome Benefits</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>Welcome Benefit points to redeem</span>
+                    <input id="rpWelcomePointsToRedeem" type="number" min="0" step="0.01" inputmode="decimal" value="0" disabled />
+                  </label>
+                  <label class="field">
+                    <span>Earned Points to redeem</span>
+                    <input id="rpEarnedPointsToRedeem" type="number" min="0" step="0.01" inputmode="decimal" value="0" />
+                  </label>
+                </div>
+              </section>
 
               <label class="field">
                 <span>Points Value</span>
