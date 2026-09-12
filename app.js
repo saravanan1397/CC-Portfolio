@@ -330,6 +330,7 @@ function cacheElements() {
     pprPartnerTransferDestinationInput: document.getElementById("pprPartnerTransferDestinationInput"),
     pprPartnerTransferRatioInput: document.getElementById("pprPartnerTransferRatioInput"),
     pprPartnerTransferPointsInput: document.getElementById("pprPartnerTransferPointsInput"),
+    pprPartnerTransferBonusInput: document.getElementById("pprPartnerTransferBonusInput"),
     pprPartnerTransferValueInput: document.getElementById("pprPartnerTransferValueInput"),
     pprPartnerTransferPreview: document.getElementById("pprPartnerTransferPreview"),
     pprPartnerTransferCloseBtn: document.getElementById("pprPartnerTransferCloseBtn"),
@@ -749,6 +750,7 @@ document.addEventListener("keydown", (e) => {
     els.pprPartnerTransferDestinationInput,
     els.pprPartnerTransferRatioInput,
     els.pprPartnerTransferPointsInput,
+    els.pprPartnerTransferBonusInput,
     els.pprPartnerTransferValueInput,
   ].forEach((input) => {
     input?.addEventListener("input", renderPprPartnerTransferPreview);
@@ -1443,10 +1445,13 @@ function collectWidgetActivityChanges(before, after) {
   compareActivityRecords(before.pprPartnerTransfers, after.pprPartnerTransfers, (action, previous, current) => {
     const transfer = current || previous || {};
     const verb = getActivityActionVerb(action);
+    const bonusCopy = toNumber(transfer.bonusPoints) > 0
+      ? ` including ${formatPoints(transfer.bonusPoints)} bonus`
+      : "";
     push(
       "ppr",
       action,
-      `${verb} partner transfer ${transfer.sourcePartnerName || "Partner A"} → ${transfer.destinationPartnerName || "Partner B"}: ${formatPoints(transfer.sourcePoints)} → ${formatPoints(transfer.destinationPoints)}.`
+      `${verb} partner transfer ${transfer.sourcePartnerName || "Partner A"} → ${transfer.destinationPartnerName || "Partner B"}: ${formatPoints(transfer.sourcePoints)} → ${formatPoints(transfer.destinationPoints)}${bonusCopy}.`
     );
   });
 
@@ -1546,10 +1551,13 @@ function buildInitialActivityLog() {
   });
 
   state.pprPartnerTransfers.forEach((transfer) => {
+    const bonusCopy = toNumber(transfer.bonusPoints) > 0
+      ? ` including ${formatPoints(transfer.bonusPoints)} bonus`
+      : "";
     push(
       "ppr",
       "added",
-      `Added partner transfer ${transfer.sourcePartnerName} → ${transfer.destinationPartnerName}: ${formatPoints(transfer.sourcePoints)} → ${formatPoints(transfer.destinationPoints)}.`,
+      `Added partner transfer ${transfer.sourcePartnerName} → ${transfer.destinationPartnerName}: ${formatPoints(transfer.sourcePoints)} → ${formatPoints(transfer.destinationPoints)}${bonusCopy}.`,
       transfer.createdAt
     );
   });
@@ -2026,9 +2034,11 @@ function normalizePprPartnerTransfer(transfer = {}) {
   const ratioFrom = Math.max(1, Math.trunc(toNumber(transfer.ratioFrom ?? transfer.fromRatio ?? 1)));
   const ratioTo = Math.max(1, Math.trunc(toNumber(transfer.ratioTo ?? transfer.toRatio ?? 1)));
   const sourcePoints = Math.max(0, toNumber(transfer.sourcePoints));
+  const bonusPoints = Math.max(0, Math.trunc(toNumber(transfer.bonusPoints ?? transfer.transferBonusPoints)));
   const destinationPoints = Math.max(
     0,
-    toNumber(transfer.destinationPoints) || (sourcePoints > 0 ? (sourcePoints / ratioFrom) * ratioTo : 0)
+    toNumber(transfer.destinationPoints)
+      || (sourcePoints > 0 ? (sourcePoints / ratioFrom) * ratioTo + bonusPoints : bonusPoints)
   );
   const monetaryValue = Math.max(0, toNumber(transfer.monetaryValue ?? transfer.value));
   const redeemedPoints = Math.min(
@@ -2042,6 +2052,7 @@ function normalizePprPartnerTransfer(transfer = {}) {
     ratioFrom,
     ratioTo,
     sourcePoints,
+    bonusPoints,
     destinationPoints,
     monetaryValue,
     redeemedPoints,
@@ -12478,9 +12489,10 @@ function getPprExistingPartnerNames() {
   return Array.from(names.values()).sort((a, b) => a.localeCompare(b));
 }
 
-function getPprPartnerTransferPlan(sourcePartnerName, sourcePoints, ratioFrom, ratioTo) {
+function getPprPartnerTransferPlan(sourcePartnerName, sourcePoints, ratioFrom, ratioTo, bonusPoints = 0) {
   const normalizedSource = normalizePprPartnerName(sourcePartnerName);
   const requestedPoints = Math.max(0, toNumber(sourcePoints));
+  const transferBonusPoints = Math.max(0, Math.trunc(toNumber(bonusPoints)));
   const cardBacked = [];
   const manualBacked = [];
   const directCardBuckets = new Map();
@@ -12577,11 +12589,13 @@ function getPprPartnerTransferPlan(sourcePartnerName, sourcePoints, ratioFrom, r
     remaining -= points;
   });
 
-  const destinationPoints = (requestedPoints / ratioFrom) * ratioTo;
+  const convertedPoints = (requestedPoints / ratioFrom) * ratioTo;
+  const destinationPoints = convertedPoints + transferBonusPoints;
+  const destinationScale = requestedPoints > 0 ? destinationPoints / requestedPoints : 0;
   const rootLineages = selectedRootLineages.map((lineage) => normalizePprRootLineage({
     ...lineage,
     id: createId(),
-    partnerPoints: lineage.partnerPoints * (ratioTo / ratioFrom),
+    partnerPoints: lineage.partnerPoints * destinationScale,
   }));
   const allocatedDestinationPoints = rootLineages.reduce((sum, lineage) => sum + lineage.partnerPoints, 0);
   if (rootLineages.length && Math.abs(allocatedDestinationPoints - destinationPoints) > 0.000001) {
@@ -12590,6 +12604,8 @@ function getPprPartnerTransferPlan(sourcePartnerName, sourcePoints, ratioFrom, r
 
   return {
     sourcePoints: requestedPoints,
+    convertedPoints,
+    bonusPoints: transferBonusPoints,
     destinationPoints,
     sourceAllocations,
     rootLineages,
@@ -12646,9 +12662,11 @@ function renderPprPartnerTransferPreview() {
   ).trim();
   const ratio = getPprPartnerTransferFormRatio();
   const sourcePoints = Math.max(0, toNumber(els.pprPartnerTransferPointsInput?.value));
-  const destinationPoints = ratio && sourcePoints > 0
+  const bonusPoints = Math.max(0, toNumber(els.pprPartnerTransferBonusInput?.value));
+  const convertedPoints = ratio && sourcePoints > 0
     ? (sourcePoints / ratio.ratioFrom) * ratio.ratioTo
     : 0;
+  const destinationPoints = convertedPoints + bonusPoints;
   const monetaryValue = Math.max(0, toNumber(els.pprPartnerTransferValueInput?.value));
   const multipleWarning = ratio && sourcePoints > 0 && sourcePoints % ratio.ratioFrom !== 0
     ? `<span class="ppr-transfer-preview-error">Enter ${escapeHtml(sourcePartnerName || "Partner A")} points in multiples of ${ratio.ratioFrom}.</span>`
@@ -12663,6 +12681,7 @@ function renderPprPartnerTransferPreview() {
       <span>${escapeHtml(destinationPartnerName || "Partner B")}</span>
       <strong>${escapeHtml(formatPoints(Number.isInteger(destinationPoints) ? destinationPoints : 0))}</strong>
     </div>
+    ${bonusPoints > 0 ? `<small>${escapeHtml(formatPoints(convertedPoints))} from ratio + ${escapeHtml(formatPoints(bonusPoints))} bonus</small>` : ""}
     <small>${monetaryValue > 0 ? `${escapeHtml(formatMoney(monetaryValue))} · Redeemed` : "INR 0 · Unredeemed"}</small>
     ${multipleWarning}
   `;
@@ -12695,7 +12714,9 @@ function openPprPartnerTransferModal(sourcePartnerName, transfer = null) {
   }
   if (els.pprPartnerTransferPointsInput) {
     els.pprPartnerTransferPointsInput.value = existing ? String(existing.sourcePoints) : "";
-    els.pprPartnerTransferPointsInput.max = String(availablePoints);
+  }
+  if (els.pprPartnerTransferBonusInput) {
+    els.pprPartnerTransferBonusInput.value = existing?.bonusPoints > 0 ? String(existing.bonusPoints) : "";
   }
   if (els.pprPartnerTransferValueInput) {
     els.pprPartnerTransferValueInput.value = existing?.monetaryValue > 0 ? String(existing.monetaryValue) : "";
@@ -12729,6 +12750,8 @@ function savePprPartnerTransfer() {
   ).trim();
   const ratio = getPprPartnerTransferFormRatio();
   const sourcePoints = toNumber(els.pprPartnerTransferPointsInput?.value);
+  const bonusRaw = String(els.pprPartnerTransferBonusInput?.value || "").trim();
+  const bonusPoints = bonusRaw ? Number(bonusRaw) : 0;
   const monetaryValue = toNumber(els.pprPartnerTransferValueInput?.value);
   const existing = pprPartnerTransferEditingId ? getPprPartnerTransferById(pprPartnerTransferEditingId) : null;
 
@@ -12760,6 +12783,11 @@ function savePprPartnerTransfer() {
     els.pprPartnerTransferPointsInput?.focus();
     return;
   }
+  if (!Number.isInteger(bonusPoints) || bonusPoints < 0) {
+    showToast("Enter bonus points as a non-negative whole number, or leave the field blank.");
+    els.pprPartnerTransferBonusInput?.focus();
+    return;
+  }
   if (monetaryValue < 0) {
     showToast("Monetary value cannot be negative.");
     return;
@@ -12784,7 +12812,8 @@ function savePprPartnerTransfer() {
     sourcePartnerName,
     sourcePoints,
     ratio.ratioFrom,
-    ratio.ratioTo
+    ratio.ratioTo,
+    bonusPoints
   );
   if (plan.error) {
     state.pprPartnerTransfers = snapshot;
@@ -12806,6 +12835,7 @@ function savePprPartnerTransfer() {
     ratioFrom: ratio.ratioFrom,
     ratioTo: ratio.ratioTo,
     sourcePoints,
+    bonusPoints: plan.bonusPoints,
     destinationPoints: plan.destinationPoints,
     monetaryValue,
     redeemedPoints: monetaryValue > 0 ? plan.destinationPoints : 0,
@@ -12829,7 +12859,8 @@ function savePprPartnerTransfer() {
   saveState();
   render();
   closePprPartnerTransferModal();
-  showToast(`${formatPoints(sourcePoints)} transferred from ${sourcePartnerName} to ${destinationPartnerName} as ${formatPoints(plan.destinationPoints)}.`);
+  const bonusCopy = plan.bonusPoints > 0 ? `, including ${formatPoints(plan.bonusPoints)} bonus` : "";
+  showToast(`${formatPoints(sourcePoints)} transferred from ${sourcePartnerName} to ${destinationPartnerName} as ${formatPoints(plan.destinationPoints)}${bonusCopy}.`);
 }
 
 function deleteEditingPprPartnerTransfer() {
@@ -14265,7 +14296,7 @@ function showPprPartnerDetails(partnerName, scope = "all") {
           : "";
         const transferDetails = group.isTransfer
           ? `
-              <div class="ppr-detail-meta">Ratio ${group.transfer.ratioFrom}:${group.transfer.ratioTo} · ${escapeHtml(formatPoints(group.transfer.sourcePoints))} source points</div>
+              <div class="ppr-detail-meta">Ratio ${group.transfer.ratioFrom}:${group.transfer.ratioTo} · ${escapeHtml(formatPoints(group.transfer.sourcePoints))} source points${group.transfer.bonusPoints > 0 ? ` · ${escapeHtml(formatPoints(group.transfer.bonusPoints))} bonus` : ""}</div>
               <div class="ppr-detail-trace-list">${group.traces.map((trace) => `<span>${escapeHtml(trace)}</span>`).join("")}</div>
             `
           : "";
@@ -14681,10 +14712,10 @@ function formatCardBenefitsHtml(card) {
   }
 
   const welcomeRedeemedLine = hasWelcomePoints ? `
-    <span class="benefit-line benefit-line-derived${allocation.welcomeRedeemedPoints > 0 ? " benefit-line-redeemed" : ""}">
-      <span class="benefit-line-name" style="font-style: italic;">Welcome Benefits Redeemed</span>
+    <span class="benefit-line benefit-line-derived welcome-benefit-redeemed-line${allocation.welcomeRedeemedPoints > 0 ? " benefit-line-redeemed" : ""}">
+      <span class="benefit-line-name" style="font-style: italic;">${escapeHtml(formatPoints(allocation.welcomeRedeemedPoints))}</span>
       <span class="benefit-line-meta" style="background: rgba(16, 185, 129, 0.12); padding: 2px 8px; border-radius: 12px; font-style: italic;">Welcome Benefit (Points) | Redeemed</span>
-      <span class="benefit-line-value">${formatMixedValueHtml(allocation.welcomeRedeemedValue, allocation.welcomeRedeemedPoints, true)}</span>
+      <strong>${escapeHtml(formatMoney(allocation.welcomeRedeemedValue))}</strong>
     </span>
   ` : "";
 

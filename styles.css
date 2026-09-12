@@ -2531,7 +2531,16 @@ body[data-view]:not([data-view="dashboard"]) #app#app#app .app-shell > .topbar .
 }
 
 .ppr-transfer-value-field {
-  grid-column: 1 / -1;
+  grid-column: auto;
+}
+
+.ppr-partner-transfer-form .ppr-transfer-ratio-field input,
+.ppr-partner-transfer-form .ppr-transfer-points-field input,
+.ppr-partner-transfer-form .ppr-transfer-bonus-field input {
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  box-sizing: border-box;
 }
 
 .ppr-partner-transfer-preview {

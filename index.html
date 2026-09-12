@@ -12,7 +12,7 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <meta name="theme-color" content="#080d14" />
-    <link rel="stylesheet" href="styles.css?v=20260912-mobile-widgets-v8" />
+    <link rel="stylesheet" href="styles.css?v=20260912-partner-bonus-v9" />
     <title>Credit Card Portfolio P/L</title>
     <style>
       /* Remove cursor overrides - let browser handle it naturally */
@@ -291,7 +291,6 @@
     appId: "1:459587513450:web:b93829e8cb1d57f4516e13"
   };
 
-
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const auth = getAuth(app);
@@ -343,7 +342,7 @@
   };
 </script>
 
-    <script defer src="app.js?v=20260912-mobile-widgets-v8"></script>
+    <script defer src="app.js?v=20260912-welcome-redeemed-v10"></script>
   </head>
 
 
@@ -1397,14 +1396,19 @@
               <span>New destination partner</span>
               <input id="pprPartnerTransferDestinationInput" type="text" placeholder="e.g. Airline X" autocomplete="off" />
             </label>
-            <label class="field">
+            <label class="field ppr-transfer-ratio-field">
               <span>Transfer ratio</span>
               <input id="pprPartnerTransferRatioInput" type="text" placeholder="e.g. 5:1" inputmode="numeric" autocomplete="off" />
               <small>Partner A points : Partner B points</small>
             </label>
-            <label class="field">
+            <label class="field ppr-transfer-points-field">
               <span>Partner A points to transfer</span>
-              <input id="pprPartnerTransferPointsInput" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 10000" />
+              <input id="pprPartnerTransferPointsInput" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 10000" autocomplete="off" />
+            </label>
+            <label class="field ppr-transfer-bonus-field">
+              <span>Bonus points (optional)</span>
+              <input id="pprPartnerTransferBonusInput" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 2000" autocomplete="off" />
+              <small>Added to Partner B after applying the transfer ratio.</small>
             </label>
             <label class="field ppr-transfer-value-field">
               <span>Monetary value (optional)</span>
