@@ -86,6 +86,7 @@ const state = {
   swipes: [],
   rpSpends: [],
   pprManualPoints: [],
+  pprPartnerTransfers: [],
   loungeVisits: [],
   loungeCardLimits: [],
   intlTravelTrips: [],
@@ -126,6 +127,7 @@ let intlTravelFormOpen = false;
 let intlTravelDraggingExpenseId = "";
 let intlTravelExpensesAllExpanded = false;
 let pprManualEditingId = "";
+let pprPartnerTransferEditingId = "";
 let activitySnapshot = null;
 const INITIAL_VISIBLE_INTL_TRAVEL_RECORDS = 10;
 
@@ -320,6 +322,20 @@ function cacheElements() {
     pprManualDateInput: document.getElementById("pprManualDateInput"),
     pprManualCancelBtn: document.getElementById("pprManualCancelBtn"),
     pprManualSaveBtn: document.getElementById("pprManualSaveBtn"),
+    pprPartnerTransferModal: document.getElementById("pprPartnerTransferModal"),
+    pprPartnerTransferTitle: document.getElementById("pprPartnerTransferTitle"),
+    pprPartnerTransferSource: document.getElementById("pprPartnerTransferSource"),
+    pprPartnerTransferAvailable: document.getElementById("pprPartnerTransferAvailable"),
+    pprPartnerTransferDestinationSelect: document.getElementById("pprPartnerTransferDestinationSelect"),
+    pprPartnerTransferDestinationInput: document.getElementById("pprPartnerTransferDestinationInput"),
+    pprPartnerTransferRatioInput: document.getElementById("pprPartnerTransferRatioInput"),
+    pprPartnerTransferPointsInput: document.getElementById("pprPartnerTransferPointsInput"),
+    pprPartnerTransferValueInput: document.getElementById("pprPartnerTransferValueInput"),
+    pprPartnerTransferPreview: document.getElementById("pprPartnerTransferPreview"),
+    pprPartnerTransferCloseBtn: document.getElementById("pprPartnerTransferCloseBtn"),
+    pprPartnerTransferCancelBtn: document.getElementById("pprPartnerTransferCancelBtn"),
+    pprPartnerTransferDeleteBtn: document.getElementById("pprPartnerTransferDeleteBtn"),
+    pprPartnerTransferSaveBtn: document.getElementById("pprPartnerTransferSaveBtn"),
     redeemPointsModal: document.getElementById("redeemPointsModal"),
     redeemPointsModalTitle: document.getElementById("redeemPointsModalTitle"),
     redeemPointsModalCard: document.getElementById("redeemPointsModalCard"),
@@ -721,6 +737,28 @@ document.addEventListener("keydown", (e) => {
       closePprManualPointsModal();
     }
   });
+  els.pprPartnerTransferCloseBtn?.addEventListener("click", closePprPartnerTransferModal);
+  els.pprPartnerTransferCancelBtn?.addEventListener("click", closePprPartnerTransferModal);
+  els.pprPartnerTransferSaveBtn?.addEventListener("click", savePprPartnerTransfer);
+  els.pprPartnerTransferDeleteBtn?.addEventListener("click", deleteEditingPprPartnerTransfer);
+  els.pprPartnerTransferModal?.addEventListener("click", (event) => {
+    if (event.target === els.pprPartnerTransferModal) closePprPartnerTransferModal();
+  });
+  els.pprPartnerTransferDestinationSelect?.addEventListener("change", handlePprTransferDestinationSelection);
+  [
+    els.pprPartnerTransferDestinationInput,
+    els.pprPartnerTransferRatioInput,
+    els.pprPartnerTransferPointsInput,
+    els.pprPartnerTransferValueInput,
+  ].forEach((input) => {
+    input?.addEventListener("input", renderPprPartnerTransferPreview);
+    input?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        savePprPartnerTransfer();
+      }
+    });
+  });
   [els.pprManualPointsInput, els.pprManualValueInput, els.pprManualDateInput].forEach((input) => {
     input?.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
@@ -1059,6 +1097,7 @@ async function loadState() {
       state.swipes = (data.swipes || []).map(normalizeSwipe);
       state.rpSpends = (data.rpSpends || []).map(normalizeRpSpend);
       state.pprManualPoints = (data.pprManualPoints || data.manualPprPoints || []).map(normalizePprManualPoint);
+      state.pprPartnerTransfers = (data.pprPartnerTransfers || []).map(normalizePprPartnerTransfer);
       state.loungeVisits = (data.loungeVisits || []).map(normalizeLoungeVisit);
       state.loungeCardLimits = (data.loungeCardLimits || data.loungeLimits || []).map(normalizeLoungeCardLimit);
       state.intlTravelTrips = (data.intlTravelTrips || data.intlTrips || []).map(normalizeIntlTravelTrip);
@@ -1115,6 +1154,7 @@ async function saveState(options = {}) {
     swipes: state.swipes,
     rpSpends: state.rpSpends,
     pprManualPoints: state.pprManualPoints,
+    pprPartnerTransfers: state.pprPartnerTransfers,
     loungeVisits: state.loungeVisits,
     loungeCardLimits: state.loungeCardLimits,
     intlTravelTrips: state.intlTravelTrips,
@@ -1160,6 +1200,7 @@ function createActivitySnapshot() {
     swipes: state.swipes,
     rpSpends: state.rpSpends,
     pprManualPoints: state.pprManualPoints,
+    pprPartnerTransfers: state.pprPartnerTransfers,
     loungeVisits: state.loungeVisits,
     loungeCardLimits: state.loungeCardLimits,
     intlTravelTrips: state.intlTravelTrips,
@@ -1370,7 +1411,12 @@ function collectWidgetActivityChanges(before, after) {
   compareActivityRecords(before.rpSpends, after.rpSpends, (action, previous, current) => {
     const spend = current || previous || {};
     const description = getActivityRpSpendDescription(action, previous, current, after, before);
-    push("rpSpends", action, description);
+    // Hotel/airline transfers belong to Partner Program Rewards. Keep their
+    // source rows in rpSpends for allocation and restoration, but do not
+    // surface them in the Reward Points widget activity.
+    if (shouldDisplayRpSpendInRewardPoints(spend)) {
+      push("rpSpends", action, description);
+    }
 
     const sourceCardId = spend.originatingCardId || spend.neucoinsSourceCardId || spend.cardId;
     if (sourceCardId && state.cards.some((card) => card.id === sourceCardId)) {
@@ -1392,6 +1438,16 @@ function collectWidgetActivityChanges(before, after) {
       ? getActivityPartnerBalanceMessage(action, partnerName, before, after)
       : `${getActivityActionVerb(action)} manual partner-point details for ${partnerName}.`;
     push("ppr", action, message);
+  });
+
+  compareActivityRecords(before.pprPartnerTransfers, after.pprPartnerTransfers, (action, previous, current) => {
+    const transfer = current || previous || {};
+    const verb = getActivityActionVerb(action);
+    push(
+      "ppr",
+      action,
+      `${verb} partner transfer ${transfer.sourcePartnerName || "Partner A"} → ${transfer.destinationPartnerName || "Partner B"}: ${formatPoints(transfer.sourcePoints)} → ${formatPoints(transfer.destinationPoints)}.`
+    );
   });
 
   compareActivityRecords(before.loungeVisits, after.loungeVisits, (action, previous, current) => {
@@ -1472,7 +1528,9 @@ function buildInitialActivityLog() {
 
   state.rpSpends.forEach((spend) => {
     const description = getActivityRpSpendDescription("added", null, spend, snapshot);
-    push("rpSpends", "added", description, spend.redeemedAt || spend.createdAt);
+    if (shouldDisplayRpSpendInRewardPoints(spend)) {
+      push("rpSpends", "added", description, spend.redeemedAt || spend.createdAt);
+    }
     const sourceCardId = spend.originatingCardId || spend.neucoinsSourceCardId || spend.cardId;
     if (sourceCardId && state.cards.some((card) => card.id === sourceCardId)) {
       push("portfolio", "added", description, spend.redeemedAt || spend.createdAt);
@@ -1485,6 +1543,15 @@ function buildInitialActivityLog() {
 
   state.pprManualPoints.forEach((entry) => {
     push("ppr", "added", `Added ${formatPoints(entry.points)} of manual points for ${entry.partnerName || "partner program"}.`, entry.createdAt || entry.date);
+  });
+
+  state.pprPartnerTransfers.forEach((transfer) => {
+    push(
+      "ppr",
+      "added",
+      `Added partner transfer ${transfer.sourcePartnerName} → ${transfer.destinationPartnerName}: ${formatPoints(transfer.sourcePoints)} → ${formatPoints(transfer.destinationPoints)}.`,
+      transfer.createdAt
+    );
   });
 
   state.loungeVisits.forEach((visit) => {
@@ -1546,6 +1613,12 @@ function renderWidgetActivityList(view = state.currentView) {
   const meta = widgetActivityMeta[normalizedView];
   const activities = state.activityLog
     .filter((entry) => entry.widget === normalizedView)
+    // Older saved activity entries predate the PPR-only display rule. Hide
+    // those transfer entries without mutating or losing the audit data.
+    .filter((entry) => !(
+      normalizedView === "rpSpends"
+      && /\btransferred from\b/i.test(String(entry.message || ""))
+    ))
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
     .slice(0, 20);
 
@@ -1908,6 +1981,87 @@ function normalizePprManualPoint(entry = {}) {
   };
 }
 
+function normalizePprTransferSourceAllocation(allocation = {}) {
+  const type = ["card", "manual", "transfer"].includes(allocation.type)
+    ? allocation.type
+    : "manual";
+  return {
+    id: String(allocation.id || createId()),
+    type,
+    sourceId: String(allocation.sourceId || allocation.spendId || allocation.entryId || allocation.transferId || ""),
+    points: Math.max(0, toNumber(allocation.points)),
+  };
+}
+
+function normalizePprRootLineage(lineage = {}) {
+  const rootType = lineage.rootType === "card" ? "card" : "manual";
+  return {
+    id: String(lineage.id || createId()),
+    rootType,
+    rootId: String(lineage.rootId || lineage.spendId || lineage.entryId || ""),
+    rootPoints: Math.max(0, toNumber(lineage.rootPoints)),
+    partnerPoints: Math.max(0, toNumber(lineage.partnerPoints)),
+    path: Array.isArray(lineage.path)
+      ? lineage.path.map((item) => String(item || "").trim()).filter(Boolean)
+      : [],
+  };
+}
+
+function normalizePprTransferValueAllocation(allocation = {}) {
+  const rootType = allocation.rootType === "card" ? "card" : "manual";
+  return {
+    id: String(allocation.id || createId()),
+    redemptionId: String(allocation.redemptionId || allocation.batchId || ""),
+    rootType,
+    rootId: String(allocation.rootId || allocation.spendId || allocation.entryId || ""),
+    rootPoints: Math.max(0, toNumber(allocation.rootPoints)),
+    value: Math.max(0, toNumber(allocation.value)),
+    path: Array.isArray(allocation.path)
+      ? allocation.path.map((item) => String(item || "").trim()).filter(Boolean)
+      : [],
+  };
+}
+
+function normalizePprPartnerTransfer(transfer = {}) {
+  const ratioFrom = Math.max(1, Math.trunc(toNumber(transfer.ratioFrom ?? transfer.fromRatio ?? 1)));
+  const ratioTo = Math.max(1, Math.trunc(toNumber(transfer.ratioTo ?? transfer.toRatio ?? 1)));
+  const sourcePoints = Math.max(0, toNumber(transfer.sourcePoints));
+  const destinationPoints = Math.max(
+    0,
+    toNumber(transfer.destinationPoints) || (sourcePoints > 0 ? (sourcePoints / ratioFrom) * ratioTo : 0)
+  );
+  const monetaryValue = Math.max(0, toNumber(transfer.monetaryValue ?? transfer.value));
+  const redeemedPoints = Math.min(
+    destinationPoints,
+    Math.max(0, toNumber(transfer.redeemedPoints ?? (monetaryValue > 0 ? destinationPoints : 0)))
+  );
+  return {
+    id: String(transfer.id || createId()),
+    sourcePartnerName: String(transfer.sourcePartnerName || transfer.fromPartner || "").trim(),
+    destinationPartnerName: String(transfer.destinationPartnerName || transfer.toPartner || "").trim(),
+    ratioFrom,
+    ratioTo,
+    sourcePoints,
+    destinationPoints,
+    monetaryValue,
+    redeemedPoints,
+    sourceAllocations: Array.isArray(transfer.sourceAllocations)
+      ? transfer.sourceAllocations.map(normalizePprTransferSourceAllocation).filter((item) => item.sourceId && item.points > 0)
+      : [],
+    rootLineages: Array.isArray(transfer.rootLineages)
+      ? transfer.rootLineages.map(normalizePprRootLineage).filter((item) => item.rootId && item.partnerPoints > 0)
+      : [],
+    redemptions: Array.isArray(transfer.redemptions)
+      ? transfer.redemptions.map(normalizePprRedemptionAllocation)
+      : [],
+    valueAllocations: Array.isArray(transfer.valueAllocations)
+      ? transfer.valueAllocations.map(normalizePprTransferValueAllocation).filter((item) => item.rootId && item.value >= 0)
+      : [],
+    createdAt: transfer.createdAt || new Date().toISOString(),
+    updatedAt: transfer.updatedAt || transfer.createdAt || new Date().toISOString(),
+  };
+}
+
 function normalizePprRedemptionAllocation(allocation = {}) {
   const rawId = String(allocation.id || "").trim();
   const id = rawId || createId();
@@ -2198,7 +2352,7 @@ function getCardPointAllocation(card) {
 
   rows.forEach((rpSpend) => {
     const redemptionPoints = getRpSpendRedemptionAmount(rpSpend);
-    const redemptionValue = toNumber(rpSpend.pointsValue);
+    const redemptionValue = toNumber(rpSpend.pointsValue) + getPprDownstreamValueForRpSpend(rpSpend.id);
     const explicitAllocation = getExplicitRpPointAllocation(rpSpend, redemptionPoints);
     let welcomePart = 0;
     let remainingWelcomePoints = explicitAllocation
@@ -2424,7 +2578,9 @@ function syncRpRedeemedBenefitsFromSpends() {
     const redeemedValueRatio = isPartnerProgramRpSpend(rpSpend)
       ? 1
       : totalPoints > 0 ? redeemedPoints / totalPoints : 0;
-    cardTotals.redeemedValue += toNumber(rpSpend.pointsValue) * redeemedValueRatio;
+    cardTotals.redeemedValue += (
+      toNumber(rpSpend.pointsValue) + getPprDownstreamValueForRpSpend(rpSpend.id)
+    ) * redeemedValueRatio;
     totalsByCard[portfolioCardId] = cardTotals;
   });
 
@@ -8533,6 +8689,14 @@ async function saveRpSpendFromForm(event) {
     ? state.rpSpends.findIndex((item) => item.id === editingId)
     : -1;
   const existingSpend = existingIndex >= 0 ? state.rpSpends[existingIndex] : null;
+  if (
+    existingSpend
+    && isPartnerProgramRpSpend(existingSpend)
+    && getPprPartnerTransferIdsUsingSource("card", existingSpend.id).size
+  ) {
+    showToast("Edit or delete the downstream partner transfers in PPR first.");
+    return;
+  }
   const purchaseId = existingIndex >= 0
     ? state.rpSpends[existingIndex].purchaseId || state.rpSpends[existingIndex].id
     : els.editingRpPurchaseId?.value || createId();
@@ -9011,6 +9175,13 @@ function handleRpSpendAction(event) {
     }
 
     if (action === "delete") {
+      const dependentTransfers = isPartnerProgramRpSpend(rpSpend)
+        ? getPprPartnerTransferIdsUsingSource("card", rpSpend.id)
+        : new Set();
+      if (dependentTransfers.size && !window.confirm(
+        `This source feeds ${dependentTransfers.size} partner transfer${dependentTransfers.size === 1 ? "" : "s"}. Delete the source and restore the complete downstream chain?`
+      )) return;
+      if (dependentTransfers.size) removePprPartnerTransfersUsingSource("card", rpSpend.id);
       restoreRpSpendRedemption(rpSpend);
       state.rpSpends = state.rpSpends.filter((item) => item.id !== rpSpend.id);
       syncRpRedeemedBenefitsFromSpends();
@@ -9142,76 +9313,6 @@ function populateRpSpendForm(rpSpend) {
   refreshAllFieldStates();
 }
 
-function renderManualPartnerPointsInRpSpends(entries) {
-  if (!els.rpSpendsTable || !entries.length) return;
-
-  const section = document.createElement("section");
-  section.className = "rp-manual-partner-section";
-  section.innerHTML = `
-    <div class="rp-manual-partner-heading">
-      <div>
-        <span class="eyebrow">PARTNER POINTS</span>
-        <strong>Manual Partner Points</strong>
-      </div>
-      <span>${entries.length} ${entries.length === 1 ? "entry" : "entries"}</span>
-    </div>
-    <div class="table-head rp-manual-partner-table-head">
-      <span>Partner Details</span>
-      <span>Source</span>
-      <span>Points Added</span>
-      <span>Remaining</span>
-      <span>Redeemed</span>
-      <span>Date</span>
-      <span></span>
-    </div>
-    ${entries.map((entry) => {
-      const totalPoints = toNumber(entry.points);
-      const redeemedPoints = Math.min(totalPoints, toNumber(entry.redeemedPoints));
-      const remainingPoints = Math.max(0, totalPoints - redeemedPoints);
-      return `
-        <article class="card-row rp-spend-row rp-manual-partner-row">
-          <div class="card-name">
-            <strong>${escapeHtml(entry.partnerName)}</strong>
-            <span class="card-meta">${escapeHtml(entry.notes || "Partner-specific points")}</span>
-          </div>
-          <div class="money-cell">
-            <span class="cell-label">Source</span>
-            <strong>Manual</strong>
-          </div>
-          <div class="money-cell">
-            <span class="cell-label">Points Added</span>
-            <strong>${escapeHtml(formatPoints(totalPoints))}</strong>
-          </div>
-          <div class="money-cell">
-            <span class="cell-label">Remaining</span>
-            <strong>${escapeHtml(formatPoints(remainingPoints))}</strong>
-          </div>
-          <div class="money-cell">
-            <span class="cell-label">Redeemed</span>
-            <strong>${escapeHtml(formatPoints(redeemedPoints))}</strong>
-          </div>
-          <div class="money-cell">
-            <span class="cell-label">Date</span>
-            <strong>${escapeHtml(entry.date ? formatDateTime(entry.date) : "Not entered")}</strong>
-          </div>
-          <div class="money-cell rp-spend-actions-cell">
-            <span class="cell-label">Actions</span>
-            <div class="row-actions">
-              <button class="icon-button subtle" type="button" data-ppr-manual-action="edit" data-id="${escapeAttribute(entry.id)}" title="Edit manual partner points" aria-label="Edit manual partner points">
-                <svg viewBox="0 0 24 24" width="14"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
-              </button>
-              <button class="icon-button subtle" type="button" data-ppr-manual-action="delete" data-id="${escapeAttribute(entry.id)}" title="Delete manual partner points" aria-label="Delete manual partner points">
-                <svg viewBox="0 0 24 24" width="14"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg>
-              </button>
-            </div>
-          </div>
-        </article>
-      `;
-    }).join("")}
-  `;
-  els.rpSpendsTable.appendChild(section);
-}
-
 function renderRpSpends() {
   if (!els.rpSpendsTable) return;
 
@@ -9229,19 +9330,9 @@ function renderRpSpends() {
 
   const searchQuery = state.rpSpendSearch?.trim().toLowerCase() || "";
   const showUnredeemedOnly = Boolean(state.rpSpendUnredeemedOnly);
-  const filteredManualEntries = getPprManualPointEntries()
-    .filter((entry) => {
-      const remainingPoints = Math.max(0, toNumber(entry.points) - toNumber(entry.redeemedPoints));
-      if (showUnredeemedOnly && remainingPoints <= 0) return false;
-      if (!searchQuery) return true;
-      return [entry.partnerName, entry.notes, entry.date, entry.points, entry.redeemedPoints]
-        .join(" ")
-        .toLowerCase()
-        .includes(searchQuery);
-    })
-    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  const visibleRpSpends = state.rpSpends.filter(shouldDisplayRpSpendInRewardPoints);
 
-  if (!state.rpSpends.length && !filteredManualEntries.length) {
+  if (!visibleRpSpends.length) {
     els.rpSpendsTable.appendChild(
       createEmptyState("No RP spends logged", "Add reward-point purchases with card, voucher, and points value details.")
     );
@@ -9250,7 +9341,7 @@ function renderRpSpends() {
 
   // Group spends by purchaseId
   const groups = {};
-  state.rpSpends.forEach(spend => {
+  visibleRpSpends.forEach(spend => {
     const pid = spend.purchaseId || spend.id;
     if (!groups[pid]) {
       groups[pid] = {
@@ -9328,7 +9419,7 @@ function renderRpSpends() {
   });
 
   const totalGroups = filteredGroups.length;
-  if (!totalGroups && !filteredManualEntries.length) {
+  if (!totalGroups) {
     els.rpSpendsTable.appendChild(
       createEmptyState(
         searchQuery ? "No matching RP spends" : showUnredeemedOnly ? "No unredeemed RP spends" : "No RP spends logged",
@@ -9460,7 +9551,6 @@ function renderRpSpends() {
     removeLoadMoreIn(els.rpSpendsTable);
   }
 
-  renderManualPartnerPointsInRpSpends(filteredManualEntries);
 }
 
   function updateLoungeCalculatedValue() {
@@ -11699,6 +11789,7 @@ function exportPortfolio() {
     swipes: state.swipes,
     rpSpends: state.rpSpends,
     pprManualPoints: state.pprManualPoints,
+    pprPartnerTransfers: state.pprPartnerTransfers,
     loungeVisits: state.loungeVisits,
     loungeCardLimits: state.loungeCardLimits,
     intlTravelTrips: state.intlTravelTrips,
@@ -11739,6 +11830,7 @@ function importPortfolio(event) {
       state.swipes = (data.swipes || []).map(normalizeSwipe);
       state.rpSpends = (data.rpSpends || []).map(normalizeRpSpend);
       state.pprManualPoints = (data.pprManualPoints || data.manualPprPoints || []).map(normalizePprManualPoint);
+      state.pprPartnerTransfers = (data.pprPartnerTransfers || []).map(normalizePprPartnerTransfer);
       state.loungeVisits = (data.loungeVisits || []).map(normalizeLoungeVisit);
       state.loungeCardLimits = (data.loungeCardLimits || data.loungeLimits || []).map(normalizeLoungeCardLimit);
       state.intlTravelTrips = (data.intlTravelTrips || data.intlTrips || []).map(normalizeIntlTravelTrip);
@@ -11785,6 +11877,7 @@ function startRealtimeSync() {
       state.swipes = (data.swipes || []).map(normalizeSwipe);
       state.rpSpends = (data.rpSpends || []).map(normalizeRpSpend);
       state.pprManualPoints = (data.pprManualPoints || data.manualPprPoints || []).map(normalizePprManualPoint);
+      state.pprPartnerTransfers = (data.pprPartnerTransfers || []).map(normalizePprPartnerTransfer);
       state.loungeVisits = (data.loungeVisits || []).map(normalizeLoungeVisit);
       state.loungeCardLimits = (data.loungeCardLimits || data.loungeLimits || []).map(normalizeLoungeCardLimit);
       state.intlTravelTrips = (data.intlTravelTrips || data.intlTrips || []).map(normalizeIntlTravelTrip);
@@ -11967,11 +12060,15 @@ function getRpSpendDisplayPoints(rpSpend) {
 }
 
 function getRpSpendTotal() {
-  return state.rpSpends.reduce((sum, rpSpend) => sum + getRpSpendPaidValue(rpSpend), 0);
+  return state.rpSpends
+    .filter(shouldDisplayRpSpendInRewardPoints)
+    .reduce((sum, rpSpend) => sum + getRpSpendPaidValue(rpSpend), 0);
 }
 
 function getRpPointsUsedTotal() {
-  return state.rpSpends.reduce((sum, rpSpend) => sum + getRpSpendRedemptionAmount(rpSpend), 0);
+  return state.rpSpends
+    .filter(shouldDisplayRpSpendInRewardPoints)
+    .reduce((sum, rpSpend) => sum + getRpSpendRedemptionAmount(rpSpend), 0);
 }
 
 function getRpPointsUsageTotals() {
@@ -11984,6 +12081,8 @@ function getRpPointsUsageTotals() {
   };
 
   state.rpSpends.forEach((rpSpend) => {
+    if (!shouldDisplayRpSpendInRewardPoints(rpSpend)) return;
+
     if (isUnredeemedPointsRecord(rpSpend)) {
       // A source record attached to a portfolio card is already included in
       // that card's allocation. Keep standalone/platform records visible too.
@@ -12003,7 +12102,7 @@ function getRpPointsReceivedTotal() {
   // Sum pointsReceived per purchase group (one value per purchase),
   // so multiple payment rows don't multiply the same Neucoins.
   const groups = {};
-  state.rpSpends.forEach((spend) => {
+  state.rpSpends.filter(shouldDisplayRpSpendInRewardPoints).forEach((spend) => {
     const pid = spend.purchaseId || spend.id;
     const currentValue = toNumber(spend.pointsReceived || 0);
     if (!groups[pid] || (groups[pid] <= 0 && currentValue > 0)) {
@@ -12016,6 +12115,10 @@ function getRpPointsReceivedTotal() {
 
 function isPartnerProgramRpSpend(rpSpend) {
   return rpSpend?.cardId === partnerProgramPlatformValue;
+}
+
+function shouldDisplayRpSpendInRewardPoints(rpSpend) {
+  return !isPartnerProgramRpSpend(rpSpend);
 }
 
 function getPartnerProgramSourcePoints(rpSpend) {
@@ -12078,6 +12181,183 @@ function getPartnerProgramPurchaseEarnedPoints(items = []) {
   return partnerItems.reduce((sum, item) => sum + getPartnerProgramPoints(item), 0);
 }
 
+function getPprPartnerTransferEntries() {
+  return (state.pprPartnerTransfers || [])
+    .map(normalizePprPartnerTransfer)
+    .filter((transfer) => (
+      transfer.sourcePartnerName
+      && transfer.destinationPartnerName
+      && transfer.sourcePoints > 0
+      && transfer.destinationPoints > 0
+    ));
+}
+
+function getPprSourceTransferredPoints(type, sourceId, excludeTransferId = "") {
+  return getPprPartnerTransferEntries().reduce((sum, transfer) => {
+    if (transfer.id === excludeTransferId) return sum;
+    return sum + transfer.sourceAllocations
+      .filter((allocation) => allocation.type === type && allocation.sourceId === sourceId)
+      .reduce((allocationSum, allocation) => allocationSum + allocation.points, 0);
+  }, 0);
+}
+
+function getPprPartnerTransferSources(partnerName = "") {
+  const normalizedPartnerName = normalizePprPartnerName(partnerName);
+  return getPprPartnerTransferEntries()
+    .filter((transfer) => !normalizedPartnerName || normalizePprPartnerName(transfer.destinationPartnerName) === normalizedPartnerName)
+    .map((transfer) => {
+      const transferredPoints = getPprSourceTransferredPoints("transfer", transfer.id);
+      const redeemedPoints = Math.min(transfer.destinationPoints, transfer.redeemedPoints);
+      return {
+        type: "transfer",
+        transfer,
+        sourcePoints: transfer.destinationPoints,
+        redeemedPoints,
+        transferredPoints,
+        remainingPoints: Math.max(0, transfer.destinationPoints - redeemedPoints - transferredPoints),
+        createdAt: transfer.createdAt || "",
+      };
+    })
+    .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+}
+
+function slicePprRootLineages(lineages, offsetPoints, selectedPoints) {
+  let offset = Math.max(0, toNumber(offsetPoints));
+  let remaining = Math.max(0, toNumber(selectedPoints));
+  const selected = [];
+
+  (lineages || []).map(normalizePprRootLineage).forEach((lineage) => {
+    if (remaining <= 0) return;
+    const lineagePoints = Math.max(0, lineage.partnerPoints);
+    if (offset >= lineagePoints) {
+      offset -= lineagePoints;
+      return;
+    }
+
+    const available = lineagePoints - offset;
+    const points = Math.min(available, remaining);
+    const rootPoints = lineagePoints > 0
+      ? lineage.rootPoints * (points / lineagePoints)
+      : 0;
+    selected.push({
+      ...lineage,
+      id: createId(),
+      rootPoints,
+      partnerPoints: points,
+    });
+    remaining -= points;
+    offset = 0;
+  });
+
+  return selected;
+}
+
+function getPprTransferAvailableRootLineages(transfer) {
+  const normalized = normalizePprPartnerTransfer(transfer);
+  const consumedPoints = normalized.redeemedPoints + getPprSourceTransferredPoints("transfer", normalized.id);
+  const remainingPoints = Math.max(0, normalized.destinationPoints - consumedPoints);
+  return slicePprRootLineages(normalized.rootLineages, consumedPoints, remainingPoints);
+}
+
+function getPprRootSourceLabel(lineage) {
+  if (lineage.rootType === "card") {
+    const spend = state.rpSpends.find((item) => item.id === lineage.rootId);
+    const card = spend ? getCardById(getRpSpendRedeemedSourceCardId(spend)) : null;
+    return card ? formatCardName(card) : "Card contribution";
+  }
+  return "Manual partner points";
+}
+
+function getPprTransferTraceLabels(transfer) {
+  const traces = new Set();
+  normalizePprPartnerTransfer(transfer).rootLineages.forEach((lineage) => {
+    const path = lineage.path.length
+      ? lineage.path
+      : [getPprRootSourceLabel(lineage), transfer.sourcePartnerName, transfer.destinationPartnerName];
+    traces.add(path.join(" → "));
+  });
+  return Array.from(traces);
+}
+
+function buildPprRootValueAllocations(rootLineages, totalValue, redemptionId) {
+  const roundCurrency = (amount) => Math.round((toNumber(amount) + Number.EPSILON) * 100) / 100;
+  const lineages = (rootLineages || []).map(normalizePprRootLineage).filter((item) => item.rootPoints > 0);
+  const totalRootPoints = lineages.reduce((sum, item) => sum + item.rootPoints, 0);
+  if (totalRootPoints <= 0 || toNumber(totalValue) <= 0) return [];
+
+  let allocatedValue = 0;
+  return lineages.map((lineage, index) => {
+    const value = index === lineages.length - 1
+      ? roundCurrency(totalValue - allocatedValue)
+      : roundCurrency(totalValue * (lineage.rootPoints / totalRootPoints));
+    allocatedValue = roundCurrency(allocatedValue + value);
+    return normalizePprTransferValueAllocation({
+      id: createId(),
+      redemptionId,
+      rootType: lineage.rootType,
+      rootId: lineage.rootId,
+      rootPoints: lineage.rootPoints,
+      value,
+      path: lineage.path,
+    });
+  });
+}
+
+function getPprDownstreamValueForRpSpend(spendId) {
+  return getPprPartnerTransferEntries().reduce((sum, transfer) => (
+    sum + transfer.valueAllocations
+      .filter((allocation) => allocation.rootType === "card" && allocation.rootId === spendId)
+      .reduce((allocationSum, allocation) => allocationSum + allocation.value, 0)
+  ), 0);
+}
+
+function getPprTransferUpstreamPartnerNames(partnerName) {
+  const upstream = new Set();
+  const visit = (name) => {
+    const normalizedName = normalizePprPartnerName(name);
+    getPprPartnerTransferEntries().forEach((transfer) => {
+      if (normalizePprPartnerName(transfer.destinationPartnerName) !== normalizedName) return;
+      const sourceKey = normalizePprPartnerName(transfer.sourcePartnerName);
+      if (!sourceKey || upstream.has(sourceKey)) return;
+      upstream.add(sourceKey);
+      visit(transfer.sourcePartnerName);
+    });
+  };
+  visit(partnerName);
+  return upstream;
+}
+
+function getDependentPprPartnerTransferIds(transferId) {
+  const dependentIds = new Set();
+  const visit = (sourceId) => {
+    getPprPartnerTransferEntries().forEach((transfer) => {
+      if (dependentIds.has(transfer.id)) return;
+      if (!transfer.sourceAllocations.some((allocation) => allocation.type === "transfer" && allocation.sourceId === sourceId)) return;
+      dependentIds.add(transfer.id);
+      visit(transfer.id);
+    });
+  };
+  visit(transferId);
+  return dependentIds;
+}
+
+function getPprPartnerTransferIdsUsingSource(type, sourceId) {
+  const ids = new Set();
+  getPprPartnerTransferEntries().forEach((transfer) => {
+    if (!transfer.sourceAllocations.some((allocation) => allocation.type === type && allocation.sourceId === sourceId)) return;
+    ids.add(transfer.id);
+    getDependentPprPartnerTransferIds(transfer.id).forEach((id) => ids.add(id));
+  });
+  return ids;
+}
+
+function removePprPartnerTransfersUsingSource(type, sourceId) {
+  const ids = getPprPartnerTransferIdsUsingSource(type, sourceId);
+  if (!ids.size) return ids;
+  state.pprPartnerTransfers = (state.pprPartnerTransfers || []).filter((transfer) => !ids.has(transfer.id));
+  return ids;
+}
+
 function getPprCardContributionSources(partnerName = "") {
   const normalizedFilter = normalizePprPartnerName(partnerName);
   const sources = [];
@@ -12104,6 +12384,10 @@ function getPprCardContributionSources(partnerName = "") {
       : toNumber(spend.pointsValue) > 0
         ? sourcePoints
         : 0;
+    const transferredPoints = Math.min(
+      Math.max(0, sourcePoints - redeemedPoints),
+      getPprSourceTransferredPoints("card", spend.id)
+    );
 
     sources.push({
       purchaseId: spend.purchaseId || spend.id,
@@ -12112,7 +12396,8 @@ function getPprCardContributionSources(partnerName = "") {
       stateIndex,
       sourcePoints,
       redeemedPoints,
-      remainingPoints: Math.max(0, sourcePoints - redeemedPoints),
+      transferredPoints,
+      remainingPoints: Math.max(0, sourcePoints - redeemedPoints - transferredPoints),
       createdAt: spend.createdAt || "",
     });
   });
@@ -12133,10 +12418,12 @@ function getPprPurchaseGroups() {
       partnerPoints: 0,
       partnerValue: 0,
       partnerRedeemedPoints: 0,
+      partnerTransferredPoints: 0,
       latestDate: source.createdAt || "",
     };
     existing.partnerPoints += source.sourcePoints;
     existing.partnerRedeemedPoints += source.redeemedPoints;
+    existing.partnerTransferredPoints += source.transferredPoints;
     existing.partnerValue += toNumber(source.spend.pointsValue);
     if (new Date(source.createdAt || 0) > new Date(existing.latestDate || 0)) {
       existing.latestDate = source.createdAt || existing.latestDate;
@@ -12147,6 +12434,10 @@ function getPprPurchaseGroups() {
   return Array.from(groups.values()).map((group) => ({
     ...group,
     partnerRedeemedPoints: Math.min(group.partnerPoints, group.partnerRedeemedPoints),
+    partnerTransferredPoints: Math.min(
+      Math.max(0, group.partnerPoints - group.partnerRedeemedPoints),
+      group.partnerTransferredPoints
+    ),
   }));
 }
 
@@ -12177,7 +12468,387 @@ function getPprExistingPartnerNames() {
     const key = normalizePprPartnerName(partnerName);
     if (key && !names.has(key)) names.set(key, partnerName);
   });
+  getPprPartnerTransferEntries().forEach((transfer) => {
+    [transfer.sourcePartnerName, transfer.destinationPartnerName].forEach((partnerName) => {
+      const displayName = String(partnerName || "").trim();
+      const key = normalizePprPartnerName(displayName);
+      if (key && !names.has(key)) names.set(key, displayName);
+    });
+  });
   return Array.from(names.values()).sort((a, b) => a.localeCompare(b));
+}
+
+function getPprPartnerTransferPlan(sourcePartnerName, sourcePoints, ratioFrom, ratioTo) {
+  const normalizedSource = normalizePprPartnerName(sourcePartnerName);
+  const requestedPoints = Math.max(0, toNumber(sourcePoints));
+  const cardBacked = [];
+  const manualBacked = [];
+  const directCardBuckets = new Map();
+
+  getPprCardContributionSources(sourcePartnerName)
+    .filter((source) => source.remainingPoints > 0)
+    .forEach((source) => {
+      const card = getCardById(getRpSpendRedeemedSourceCardId(source.spend));
+      const cardId = getRpSpendRedeemedSourceCardId(source.spend) || source.spend.id;
+      const bucket = directCardBuckets.get(cardId) || [];
+      bucket.push({
+        type: "card",
+        sourceId: source.spend.id,
+        points: source.remainingPoints,
+        createdAt: source.createdAt,
+        rootLineages: [normalizePprRootLineage({
+          rootType: "card",
+          rootId: source.spend.id,
+          rootPoints: getPartnerProgramCardDebitPoints(source.spend, source.remainingPoints),
+          partnerPoints: source.remainingPoints,
+          path: [card ? formatCardName(card) : "Card contribution", sourcePartnerName],
+        })],
+      });
+      directCardBuckets.set(cardId, bucket);
+    });
+
+  directCardBuckets.forEach((bucket) => cardBacked.push(...bucket));
+
+  getPprPartnerTransferSources(sourcePartnerName)
+    .filter((source) => source.remainingPoints > 0)
+    .forEach((source) => {
+      const rootLineages = getPprTransferAvailableRootLineages(source.transfer);
+      const contribution = {
+        type: "transfer",
+        sourceId: source.transfer.id,
+        points: source.remainingPoints,
+        createdAt: source.createdAt,
+        rootLineages,
+      };
+      if (rootLineages.some((lineage) => lineage.rootType === "card")) cardBacked.push(contribution);
+      else manualBacked.push(contribution);
+    });
+
+  getPprManualPointEntries()
+    .filter((entry) => normalizePprPartnerName(entry.partnerName) === normalizedSource)
+    .forEach((entry) => {
+      const transferredPoints = getPprSourceTransferredPoints("manual", entry.id);
+      const remainingPoints = Math.max(0, toNumber(entry.points) - toNumber(entry.redeemedPoints) - transferredPoints);
+      if (remainingPoints <= 0) return;
+      manualBacked.push({
+        type: "manual",
+        sourceId: entry.id,
+        points: remainingPoints,
+        createdAt: entry.createdAt || "",
+        rootLineages: [normalizePprRootLineage({
+          rootType: "manual",
+          rootId: entry.id,
+          rootPoints: remainingPoints,
+          partnerPoints: remainingPoints,
+          path: ["Manual points", sourcePartnerName],
+        })],
+      });
+    });
+
+  const byDate = (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+  const contributions = [...cardBacked, ...manualBacked.sort(byDate)];
+  const totalAvailablePoints = contributions.reduce((sum, contribution) => sum + contribution.points, 0);
+  if (requestedPoints <= 0 || requestedPoints > totalAvailablePoints) {
+    return {
+      sourcePoints: 0,
+      destinationPoints: 0,
+      sourceAllocations: [],
+      rootLineages: [],
+      availablePoints: totalAvailablePoints,
+      error: requestedPoints > totalAvailablePoints
+        ? `Only ${formatPoints(totalAvailablePoints)} are available in ${sourcePartnerName}.`
+        : "Enter the Partner A points to transfer.",
+    };
+  }
+
+  let remaining = requestedPoints;
+  const sourceAllocations = [];
+  const selectedRootLineages = [];
+  contributions.forEach((contribution) => {
+    if (remaining <= 0) return;
+    const points = Math.min(contribution.points, remaining);
+    if (points <= 0) return;
+    sourceAllocations.push(normalizePprTransferSourceAllocation({
+      type: contribution.type,
+      sourceId: contribution.sourceId,
+      points,
+    }));
+    selectedRootLineages.push(...slicePprRootLineages(contribution.rootLineages, 0, points));
+    remaining -= points;
+  });
+
+  const destinationPoints = (requestedPoints / ratioFrom) * ratioTo;
+  const rootLineages = selectedRootLineages.map((lineage) => normalizePprRootLineage({
+    ...lineage,
+    id: createId(),
+    partnerPoints: lineage.partnerPoints * (ratioTo / ratioFrom),
+  }));
+  const allocatedDestinationPoints = rootLineages.reduce((sum, lineage) => sum + lineage.partnerPoints, 0);
+  if (rootLineages.length && Math.abs(allocatedDestinationPoints - destinationPoints) > 0.000001) {
+    rootLineages[rootLineages.length - 1].partnerPoints += destinationPoints - allocatedDestinationPoints;
+  }
+
+  return {
+    sourcePoints: requestedPoints,
+    destinationPoints,
+    sourceAllocations,
+    rootLineages,
+    availablePoints: totalAvailablePoints,
+  };
+}
+
+function getPprPartnerTransferById(transferId) {
+  return getPprPartnerTransferEntries().find((transfer) => transfer.id === transferId) || null;
+}
+
+function populatePprPartnerTransferDestinations(sourcePartnerName, selectedDestination = "") {
+  if (!els.pprPartnerTransferDestinationSelect) return;
+  const sourceKey = normalizePprPartnerName(sourcePartnerName);
+  const upstreamPartners = getPprTransferUpstreamPartnerNames(sourcePartnerName);
+  const options = getPprExistingPartnerNames().filter((partnerName) => {
+    const key = normalizePprPartnerName(partnerName);
+    return key && key !== sourceKey && !upstreamPartners.has(key);
+  });
+  const selectedKey = normalizePprPartnerName(selectedDestination);
+  const selectedExisting = options.find((partnerName) => normalizePprPartnerName(partnerName) === selectedKey) || "";
+  els.pprPartnerTransferDestinationSelect.innerHTML = [
+    '<option value="">Select</option>',
+    ...options.map((partnerName) => `<option value="${escapeAttribute(partnerName)}">${escapeHtml(partnerName)}</option>`),
+  ].join("");
+  els.pprPartnerTransferDestinationSelect.value = selectedExisting;
+}
+
+function handlePprTransferDestinationSelection() {
+  if (!els.pprPartnerTransferDestinationInput || !els.pprPartnerTransferDestinationSelect) return;
+  const selected = String(els.pprPartnerTransferDestinationSelect.value || "").trim();
+  els.pprPartnerTransferDestinationInput.disabled = Boolean(selected);
+  if (selected) els.pprPartnerTransferDestinationInput.value = "";
+  renderPprPartnerTransferPreview();
+}
+
+function getPprPartnerTransferFormRatio() {
+  const rawRatio = String(els.pprPartnerTransferRatioInput?.value || "").trim();
+  const match = rawRatio.match(/^(\d+)\s*:\s*(\d+)$/);
+  if (!match) return null;
+  const ratioFrom = Number(match[1]);
+  const ratioTo = Number(match[2]);
+  if (!Number.isInteger(ratioFrom) || !Number.isInteger(ratioTo) || ratioFrom <= 0 || ratioTo <= 0) return null;
+  return { ratioFrom, ratioTo };
+}
+
+function renderPprPartnerTransferPreview() {
+  if (!els.pprPartnerTransferPreview) return;
+  const sourcePartnerName = String(els.pprPartnerTransferSource?.dataset.partnerName || "").trim();
+  const destinationPartnerName = String(
+    els.pprPartnerTransferDestinationSelect?.value
+    || els.pprPartnerTransferDestinationInput?.value
+    || "Partner B"
+  ).trim();
+  const ratio = getPprPartnerTransferFormRatio();
+  const sourcePoints = Math.max(0, toNumber(els.pprPartnerTransferPointsInput?.value));
+  const destinationPoints = ratio && sourcePoints > 0
+    ? (sourcePoints / ratio.ratioFrom) * ratio.ratioTo
+    : 0;
+  const monetaryValue = Math.max(0, toNumber(els.pprPartnerTransferValueInput?.value));
+  const multipleWarning = ratio && sourcePoints > 0 && sourcePoints % ratio.ratioFrom !== 0
+    ? `<span class="ppr-transfer-preview-error">Enter ${escapeHtml(sourcePartnerName || "Partner A")} points in multiples of ${ratio.ratioFrom}.</span>`
+    : "";
+  els.pprPartnerTransferPreview.innerHTML = `
+    <div>
+      <span>${escapeHtml(sourcePartnerName || "Partner A")}</span>
+      <strong>${escapeHtml(formatPoints(sourcePoints))}</strong>
+    </div>
+    <span class="ppr-transfer-preview-arrow" aria-hidden="true">→</span>
+    <div>
+      <span>${escapeHtml(destinationPartnerName || "Partner B")}</span>
+      <strong>${escapeHtml(formatPoints(Number.isInteger(destinationPoints) ? destinationPoints : 0))}</strong>
+    </div>
+    <small>${monetaryValue > 0 ? `${escapeHtml(formatMoney(monetaryValue))} · Redeemed` : "INR 0 · Unredeemed"}</small>
+    ${multipleWarning}
+  `;
+}
+
+function openPprPartnerTransferModal(sourcePartnerName, transfer = null) {
+  const existing = transfer ? normalizePprPartnerTransfer(transfer) : null;
+  const sourceName = existing?.sourcePartnerName || String(sourcePartnerName || "").trim();
+  if (!sourceName || getPprPartnerUnredeemedPoints(sourceName) <= 0 && !existing) {
+    showToast("No unredeemed partner points are available to transfer.");
+    return;
+  }
+
+  pprPartnerTransferEditingId = existing?.id || "";
+  const availablePoints = getPprPartnerUnredeemedPoints(sourceName) + toNumber(existing?.sourcePoints);
+  if (els.pprPartnerTransferTitle) els.pprPartnerTransferTitle.textContent = existing ? "Edit partner transfer" : "Transfer partner points";
+  if (els.pprPartnerTransferSource) {
+    els.pprPartnerTransferSource.textContent = `From ${sourceName}`;
+    els.pprPartnerTransferSource.dataset.partnerName = sourceName;
+  }
+  if (els.pprPartnerTransferAvailable) els.pprPartnerTransferAvailable.textContent = formatPoints(availablePoints);
+  populatePprPartnerTransferDestinations(sourceName, existing?.destinationPartnerName || "");
+  const selectedExisting = String(els.pprPartnerTransferDestinationSelect?.value || "").trim();
+  if (els.pprPartnerTransferDestinationInput) {
+    els.pprPartnerTransferDestinationInput.value = selectedExisting ? "" : existing?.destinationPartnerName || "";
+    els.pprPartnerTransferDestinationInput.disabled = Boolean(selectedExisting);
+  }
+  if (els.pprPartnerTransferRatioInput) {
+    els.pprPartnerTransferRatioInput.value = existing ? `${existing.ratioFrom}:${existing.ratioTo}` : "";
+  }
+  if (els.pprPartnerTransferPointsInput) {
+    els.pprPartnerTransferPointsInput.value = existing ? String(existing.sourcePoints) : "";
+    els.pprPartnerTransferPointsInput.max = String(availablePoints);
+  }
+  if (els.pprPartnerTransferValueInput) {
+    els.pprPartnerTransferValueInput.value = existing?.monetaryValue > 0 ? String(existing.monetaryValue) : "";
+  }
+  if (els.pprPartnerTransferDeleteBtn) els.pprPartnerTransferDeleteBtn.style.display = existing ? "inline-flex" : "none";
+  if (els.pprPartnerTransferSaveBtn) els.pprPartnerTransferSaveBtn.textContent = existing ? "Save changes" : "Save transfer";
+  renderPprPartnerTransferPreview();
+  if (els.pprPartnerTransferModal) els.pprPartnerTransferModal.style.display = "flex";
+  (selectedExisting ? els.pprPartnerTransferRatioInput : els.pprPartnerTransferDestinationInput)?.focus();
+}
+
+function closePprPartnerTransferModal() {
+  if (els.pprPartnerTransferModal) els.pprPartnerTransferModal.style.display = "none";
+  if (els.pprPartnerTransferSource) delete els.pprPartnerTransferSource.dataset.partnerName;
+  pprPartnerTransferEditingId = "";
+}
+
+function removePprPartnerTransferTree(transferId) {
+  const idsToRemove = getDependentPprPartnerTransferIds(transferId);
+  idsToRemove.add(transferId);
+  state.pprPartnerTransfers = (state.pprPartnerTransfers || []).filter((transfer) => !idsToRemove.has(transfer.id));
+  return idsToRemove;
+}
+
+function savePprPartnerTransfer() {
+  const sourcePartnerName = String(els.pprPartnerTransferSource?.dataset.partnerName || "").trim();
+  const destinationPartnerName = String(
+    els.pprPartnerTransferDestinationSelect?.value
+    || els.pprPartnerTransferDestinationInput?.value
+    || ""
+  ).trim();
+  const ratio = getPprPartnerTransferFormRatio();
+  const sourcePoints = toNumber(els.pprPartnerTransferPointsInput?.value);
+  const monetaryValue = toNumber(els.pprPartnerTransferValueInput?.value);
+  const existing = pprPartnerTransferEditingId ? getPprPartnerTransferById(pprPartnerTransferEditingId) : null;
+
+  if (!destinationPartnerName) {
+    showToast("Select or enter Partner B.");
+    els.pprPartnerTransferDestinationInput?.focus();
+    return;
+  }
+  if (normalizePprPartnerName(destinationPartnerName) === normalizePprPartnerName(sourcePartnerName)) {
+    showToast("Partner A and Partner B must be different.");
+    return;
+  }
+  if (getPprTransferUpstreamPartnerNames(sourcePartnerName).has(normalizePprPartnerName(destinationPartnerName))) {
+    showToast("This transfer would create a circular partner chain.");
+    return;
+  }
+  if (!ratio) {
+    showToast("Enter a valid whole-number ratio such as 5:1.");
+    els.pprPartnerTransferRatioInput?.focus();
+    return;
+  }
+  if (!Number.isInteger(sourcePoints) || sourcePoints <= 0) {
+    showToast("Enter a whole number of Partner A points.");
+    els.pprPartnerTransferPointsInput?.focus();
+    return;
+  }
+  if (sourcePoints % ratio.ratioFrom !== 0) {
+    showToast(`Enter ${sourcePartnerName} points in multiples of ${ratio.ratioFrom}.`);
+    els.pprPartnerTransferPointsInput?.focus();
+    return;
+  }
+  if (monetaryValue < 0) {
+    showToast("Monetary value cannot be negative.");
+    return;
+  }
+  if (existing && getDependentPprPartnerTransferIds(existing.id).size) {
+    showToast("Edit or delete the downstream partner transfers first.");
+    return;
+  }
+  if (existing && (
+    existing.redemptions.some((redemption) => redemption.redemptionId !== existing.id)
+    || (existing.redeemedPoints > 0 && existing.redeemedPoints < existing.destinationPoints)
+  )) {
+    showToast("Edit or delete this partner's PPR redemption first, then change the transfer.");
+    return;
+  }
+
+  const snapshot = JSON.parse(JSON.stringify(state.pprPartnerTransfers || []));
+  if (existing) {
+    state.pprPartnerTransfers = (state.pprPartnerTransfers || []).filter((transfer) => transfer.id !== existing.id);
+  }
+  const plan = getPprPartnerTransferPlan(
+    sourcePartnerName,
+    sourcePoints,
+    ratio.ratioFrom,
+    ratio.ratioTo
+  );
+  if (plan.error) {
+    state.pprPartnerTransfers = snapshot;
+    showToast(plan.error);
+    return;
+  }
+
+  const transferId = existing?.id || createId();
+  const createdAt = existing?.createdAt || new Date().toISOString();
+  const redemptionId = monetaryValue > 0 ? transferId : "";
+  const rootLineages = plan.rootLineages.map((lineage) => normalizePprRootLineage({
+    ...lineage,
+    path: [...lineage.path, destinationPartnerName],
+  }));
+  const transfer = normalizePprPartnerTransfer({
+    id: transferId,
+    sourcePartnerName,
+    destinationPartnerName,
+    ratioFrom: ratio.ratioFrom,
+    ratioTo: ratio.ratioTo,
+    sourcePoints,
+    destinationPoints: plan.destinationPoints,
+    monetaryValue,
+    redeemedPoints: monetaryValue > 0 ? plan.destinationPoints : 0,
+    sourceAllocations: plan.sourceAllocations,
+    rootLineages,
+    redemptions: monetaryValue > 0 ? [{
+      id: `${redemptionId}-1`,
+      redemptionId,
+      points: plan.destinationPoints,
+      value: monetaryValue,
+      createdAt,
+    }] : [],
+    valueAllocations: monetaryValue > 0
+      ? buildPprRootValueAllocations(rootLineages, monetaryValue, redemptionId)
+      : [],
+    createdAt,
+    updatedAt: new Date().toISOString(),
+  });
+  state.pprPartnerTransfers = [...(state.pprPartnerTransfers || []), transfer];
+  syncRpRedeemedBenefitsFromSpends();
+  saveState();
+  render();
+  closePprPartnerTransferModal();
+  showToast(`${formatPoints(sourcePoints)} transferred from ${sourcePartnerName} to ${destinationPartnerName} as ${formatPoints(plan.destinationPoints)}.`);
+}
+
+function deleteEditingPprPartnerTransfer() {
+  deletePprPartnerTransferById(pprPartnerTransferEditingId);
+}
+
+function deletePprPartnerTransferById(transferId) {
+  const transfer = getPprPartnerTransferById(transferId);
+  if (!transfer) return;
+  const dependentCount = getDependentPprPartnerTransferIds(transfer.id).size;
+  const dependentCopy = dependentCount ? ` This also restores and removes ${dependentCount} downstream transfer${dependentCount === 1 ? "" : "s"}.` : "";
+  if (!window.confirm(`Delete this transfer and restore ${formatPoints(transfer.sourcePoints)} to ${transfer.sourcePartnerName}?${dependentCopy}`)) return;
+  const removedIds = removePprPartnerTransferTree(transfer.id);
+  syncRpRedeemedBenefitsFromSpends();
+  saveState();
+  render();
+  closePprPartnerTransferModal();
+  closePprDetailsModal();
+  showToast(`${removedIds.size} partner transfer${removedIds.size === 1 ? "" : "s"} removed and restored.`);
 }
 
 function getPprRedemptionBatchId(allocation = {}) {
@@ -12249,6 +12920,41 @@ function getPprRedemptionBatches(partnerName = "") {
       });
     });
 
+  getPprPartnerTransferSources(partnerName).forEach((source) => {
+    const transfer = source.transfer;
+    transfer.redemptions.forEach((history) => {
+      const { batch, allocation } = ensureBatch(history, transfer.destinationPartnerName);
+      const rootAllocations = transfer.valueAllocations
+        .filter((item) => item.redemptionId === allocation.redemptionId);
+      const totalRootPoints = rootAllocations.reduce((sum, item) => sum + item.rootPoints, 0);
+      batch.points += allocation.points;
+      batch.value += allocation.value;
+      if (rootAllocations.length && totalRootPoints > 0) {
+        rootAllocations.forEach((rootAllocation) => {
+          batch.allocations.push({
+            type: rootAllocation.rootType,
+            transferId: transfer.id,
+            allocationId: allocation.id,
+            points: allocation.points * (rootAllocation.rootPoints / totalRootPoints),
+            value: rootAllocation.value,
+            cardDebitPoints: rootAllocation.rootType === "card" ? rootAllocation.rootPoints : 0,
+            sourceLabel: rootAllocation.path.join(" → ") || getPprRootSourceLabel(rootAllocation),
+          });
+        });
+      } else {
+        batch.allocations.push({
+          type: "transfer",
+          transferId: transfer.id,
+          allocationId: allocation.id,
+          points: allocation.points,
+          value: allocation.value,
+          cardDebitPoints: totalRootPoints,
+          sourceLabel: getPprTransferTraceLabels(transfer).join("; ") || `${transfer.sourcePartnerName} → ${transfer.destinationPartnerName}`,
+        });
+      }
+    });
+  });
+
   return Array.from(batches.values())
     .map((batch) => ({
       ...batch,
@@ -12313,6 +13019,23 @@ function restorePprRedemptionBatch(partnerName, redemptionId) {
     };
   });
 
+  state.pprPartnerTransfers = (state.pprPartnerTransfers || []).map((rawTransfer) => {
+    const transfer = normalizePprPartnerTransfer(rawTransfer);
+    if (normalizePprPartnerName(transfer.destinationPartnerName) !== normalizePprPartnerName(partnerName)) return rawTransfer;
+    const removed = transfer.redemptions.filter((allocation) => allocation.redemptionId === redemptionId);
+    if (!removed.length) return rawTransfer;
+    const removedPoints = removed.reduce((sum, allocation) => sum + allocation.points, 0);
+    const removedValue = removed.reduce((sum, allocation) => sum + allocation.value, 0);
+    return normalizePprPartnerTransfer({
+      ...transfer,
+      redeemedPoints: Math.max(0, transfer.redeemedPoints - removedPoints),
+      monetaryValue: roundCurrency(Math.max(0, transfer.monetaryValue - removedValue)),
+      redemptions: transfer.redemptions.filter((allocation) => allocation.redemptionId !== redemptionId),
+      valueAllocations: transfer.valueAllocations.filter((allocation) => allocation.redemptionId !== redemptionId),
+      updatedAt: new Date().toISOString(),
+    });
+  });
+
   return {
     redeemedPoints: batch.points,
     redeemedValue: batch.value,
@@ -12352,6 +13075,8 @@ function getPprSummary() {
       manualUnredeemedPoints: 0,
       manualUnredeemedValue: 0,
       manualPurchases: 0,
+      transferPurchases: 0,
+      traces: [],
     };
     partnerMap.set(key, entry);
     return entry;
@@ -12363,7 +13088,11 @@ function getPprSummary() {
     const groupPoints = toNumber(group.partnerPoints);
     const groupValue = toNumber(group.partnerValue);
     const groupRedeemedPoints = Math.min(groupPoints, toNumber(group.partnerRedeemedPoints));
-    const groupUnredeemedPoints = Math.max(0, groupPoints - groupRedeemedPoints);
+    const groupTransferredPoints = Math.min(
+      Math.max(0, groupPoints - groupRedeemedPoints),
+      toNumber(group.partnerTransferredPoints)
+    );
+    const groupUnredeemedPoints = Math.max(0, groupPoints - groupRedeemedPoints - groupTransferredPoints);
     entry.points += groupPoints;
     entry.value += groupValue;
     entry.purchases += 1;
@@ -12389,7 +13118,11 @@ function getPprSummary() {
 
     const manualPoints = toNumber(manualEntry.points);
     const manualRedeemedPoints = Math.min(manualPoints, toNumber(manualEntry.redeemedPoints));
-    const manualUnredeemedPoints = Math.max(0, manualPoints - manualRedeemedPoints);
+    const manualTransferredPoints = Math.min(
+      Math.max(0, manualPoints - manualRedeemedPoints),
+      getPprSourceTransferredPoints("manual", manualEntry.id)
+    );
+    const manualUnredeemedPoints = Math.max(0, manualPoints - manualRedeemedPoints - manualTransferredPoints);
     const manualUnredeemedValue = manualPoints > 0
       ? toNumber(manualEntry.value) * (manualUnredeemedPoints / manualPoints)
       : toNumber(manualEntry.value);
@@ -12407,6 +13140,30 @@ function getPprSummary() {
     entry.manualUnredeemedPoints += manualUnredeemedPoints;
     entry.manualUnredeemedValue += manualUnredeemedValue;
     entry.manualPurchases += 1;
+  });
+
+  getPprPartnerTransferSources().forEach((source) => {
+    const transfer = source.transfer;
+    const entry = ensurePartnerEntry(transfer.destinationPartnerName);
+    const transferValue = toNumber(transfer.monetaryValue);
+    entry.points += transfer.destinationPoints;
+    entry.value += transferValue;
+    entry.purchases += 1;
+    entry.transferPurchases += 1;
+
+    if (source.redeemedPoints > 0) {
+      entry.redeemedPoints += source.redeemedPoints;
+      entry.redeemedValue += transferValue;
+      entry.redeemedPurchases += 1;
+    }
+    if (source.remainingPoints > 0) {
+      entry.unredeemedPoints += source.remainingPoints;
+      entry.unredeemedPurchases += 1;
+    }
+
+    getPprTransferTraceLabels(transfer).forEach((trace) => {
+      if (!entry.traces.includes(trace)) entry.traces.push(trace);
+    });
   });
 
   const partnerRows = Array.from(partnerMap.values()).sort((a, b) => b.points - a.points || a.partnerName.localeCompare(b.partnerName));
@@ -12435,7 +13192,7 @@ function getPprSummary() {
   return {
     totalPoints,
     lifetimePoints: partnerRows.reduce((sum, row) => sum + row.points, 0),
-    purchaseCount: purchaseGroups.length + manualEntries.length,
+    purchaseCount: purchaseGroups.length + manualEntries.length + getPprPartnerTransferEntries().length,
     partnerCount: partnerRows.length,
     partnerRows,
     redeemedRows,
@@ -12460,7 +13217,11 @@ function planPprRedemptionAllocations(contributions, requestedPoints, totalRedee
     if (remainingPoints <= 0) return;
     const points = Math.min(Math.max(0, toNumber(contribution.points)), remainingPoints);
     if (points <= 0) return;
-    allocations.push({ ...contribution, points });
+    const plannedAllocation = { ...contribution, points };
+    if (contribution.type === "transfer") {
+      plannedAllocation.rootLineages = slicePprRootLineages(contribution.rootLineages, 0, points);
+    }
+    allocations.push(plannedAllocation);
     remainingPoints -= points;
   });
 
@@ -12512,15 +13273,36 @@ function distributePartnerRedeemedValue(partnerName, totalRedeemedValue, scope =
     });
   });
 
+  const transferContributions = getPprPartnerTransferSources(partnerName)
+    .filter((source) => source.remainingPoints > 0)
+    .map((source) => ({
+      type: "transfer",
+      transfer: source.transfer,
+      points: source.remainingPoints,
+      rootLineages: getPprTransferAvailableRootLineages(source.transfer),
+    }));
+  transferContributions
+    .filter((source) => source.rootLineages.some((lineage) => lineage.rootType === "card"))
+    .forEach((source) => contributions.push(source));
+
   getPprManualPointEntries()
     .filter((entry) => normalizePprPartnerName(entry.partnerName) === normalizedPartnerName)
     .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0))
     .forEach((entry) => {
-      const availablePoints = Math.max(0, toNumber(entry.points) - toNumber(entry.redeemedPoints));
+      const availablePoints = Math.max(
+        0,
+        toNumber(entry.points)
+          - toNumber(entry.redeemedPoints)
+          - getPprSourceTransferredPoints("manual", entry.id)
+      );
       if (availablePoints > 0) {
         contributions.push({ type: "manual", entry, points: availablePoints });
       }
     });
+
+  transferContributions
+    .filter((source) => !source.rootLineages.some((lineage) => lineage.rootType === "card"))
+    .forEach((source) => contributions.push(source));
 
   const totalAvailablePoints = contributions.reduce((sum, contribution) => sum + contribution.points, 0);
   const requestedPoints = pointsToRedeem == null ? totalAvailablePoints : toNumber(pointsToRedeem);
@@ -12528,6 +13310,31 @@ function distributePartnerRedeemedValue(partnerName, totalRedeemedValue, scope =
   if (plan.redeemedPoints <= 0) {
     return { redeemedPoints: 0, redeemedValue: 0, allocations: [] };
   }
+
+  // Monetary value follows the original source points carried by each
+  // lineage, not the converted destination-point quantity. This keeps a
+  // 1,000 card-point contribution worth the same share after a 2:1 transfer
+  // produces only 500 destination points.
+  const roundCurrency = (amount) => Math.round((toNumber(amount) + Number.EPSILON) * 100) / 100;
+  const valueWeights = plan.allocations.map((allocation) => {
+    if (allocation.type === "card") {
+      return Math.max(0, getPartnerProgramCardDebitPoints(allocation.spend, allocation.points));
+    }
+    if (allocation.type === "transfer") {
+      return allocation.rootLineages.reduce((sum, lineage) => sum + Math.max(0, toNumber(lineage.rootPoints)), 0);
+    }
+    return Math.max(0, toNumber(allocation.points));
+  });
+  const totalValueWeight = valueWeights.reduce((sum, weight) => sum + weight, 0);
+  const effectiveTotalValueWeight = totalValueWeight > 0 ? totalValueWeight : plan.redeemedPoints;
+  let allocatedByRootValue = 0;
+  plan.allocations.forEach((allocation, index) => {
+    const value = index === plan.allocations.length - 1
+      ? roundCurrency(totalRedeemedValue - allocatedByRootValue)
+      : roundCurrency(totalRedeemedValue * ((valueWeights[index] || allocation.points) / effectiveTotalValueWeight));
+    allocation.value = value;
+    allocatedByRootValue = roundCurrency(allocatedByRootValue + value);
+  });
 
   // PPR redemptions are also card-point redemptions for card-originated
   // contributions. Validate the exact, ratio-adjusted debit before changing
@@ -12569,7 +13376,6 @@ function distributePartnerRedeemedValue(partnerName, totalRedeemedValue, scope =
     }
   }
 
-  const roundCurrency = (amount) => Math.round((toNumber(amount) + Number.EPSILON) * 100) / 100;
   const redemptionId = String(options.redemptionId || createId());
   const redeemedAt = options.createdAt || new Date().toISOString();
   const savedAllocations = [];
@@ -12595,6 +13401,29 @@ function distributePartnerRedeemedValue(partnerName, totalRedeemedValue, scope =
         historyEntry,
       ];
       savedAllocations.push({ type: "card", spendId: allocation.spend.id, ...historyEntry });
+      return;
+    }
+
+    if (allocation.type === "transfer") {
+      state.pprPartnerTransfers = (state.pprPartnerTransfers || []).map((rawTransfer) => {
+        if (rawTransfer.id !== allocation.transfer.id) return rawTransfer;
+        const transfer = normalizePprPartnerTransfer(rawTransfer);
+        return normalizePprPartnerTransfer({
+          ...transfer,
+          redeemedPoints: Math.min(
+            transfer.destinationPoints,
+            transfer.redeemedPoints + allocation.points
+          ),
+          monetaryValue: roundCurrency(transfer.monetaryValue + value),
+          redemptions: [...transfer.redemptions, historyEntry],
+          valueAllocations: [
+            ...transfer.valueAllocations,
+            ...buildPprRootValueAllocations(allocation.rootLineages, value, redemptionId),
+          ],
+          updatedAt: new Date().toISOString(),
+        });
+      });
+      savedAllocations.push({ type: "transfer", transferId: allocation.transfer.id, ...historyEntry });
       return;
     }
 
@@ -12725,6 +13554,7 @@ function updatePprRedemptionBatch(partnerName, redemptionId, nextPoints, nextVal
   const requestedValue = toNumber(nextValue);
   const rpSpendsSnapshot = JSON.parse(JSON.stringify(state.rpSpends));
   const manualPointsSnapshot = JSON.parse(JSON.stringify(state.pprManualPoints || []));
+  const partnerTransfersSnapshot = JSON.parse(JSON.stringify(state.pprPartnerTransfers || []));
   const restored = restorePprRedemptionBatch(partnerName, redemptionId);
   if (restored.error) return restored;
 
@@ -12744,6 +13574,7 @@ function updatePprRedemptionBatch(partnerName, redemptionId, nextPoints, nextVal
   if (result.error || result.redeemedPoints !== requestedPoints) {
     state.rpSpends = rpSpendsSnapshot;
     state.pprManualPoints = manualPointsSnapshot;
+    state.pprPartnerTransfers = partnerTransfersSnapshot;
     return {
       redeemedPoints: 0,
       redeemedValue: 0,
@@ -12788,7 +13619,7 @@ function renderPprRedemptionPreview(batch) {
       ${batch.allocations.map((allocation) => `
         <div class="ppr-redemption-preview-row">
           <span>${escapeHtml(allocation.sourceLabel)}</span>
-          <span>${escapeHtml(formatPoints(allocation.points))}${allocation.type === "card" && allocation.cardDebitPoints !== allocation.points ? ` <small>(${escapeHtml(formatPoints(allocation.cardDebitPoints))} card points)</small>` : ""}</span>
+          <span>${escapeHtml(formatPoints(allocation.points))}${allocation.type === "card" && Math.abs(allocation.cardDebitPoints - allocation.points) > 0.0001 ? ` <small>(${escapeHtml(formatPoints(allocation.cardDebitPoints))} original card points)</small>` : ""} · ${escapeHtml(formatMoney(allocation.value))}</span>
         </div>
       `).join("")}
     </div>
@@ -13033,8 +13864,12 @@ function savePprManualPoints() {
   }
 
   const alreadyRedeemedPoints = toNumber(existingEntry?.redeemedPoints);
-  if (isEditing && points < alreadyRedeemedPoints) {
-    showToast(`Points cannot be lower than the already redeemed ${formatPoints(alreadyRedeemedPoints)}.`);
+  const alreadyTransferredPoints = existingEntry
+    ? getPprSourceTransferredPoints("manual", existingEntry.id)
+    : 0;
+  const committedPoints = alreadyRedeemedPoints + alreadyTransferredPoints;
+  if (isEditing && points < committedPoints) {
+    showToast(`Points cannot be lower than the committed ${formatPoints(committedPoints)}.`);
     els.pprManualPointsInput?.focus();
     return;
   }
@@ -13129,11 +13964,7 @@ function renderPprWidget() {
   const renderPprTable = ({ rows, title, pointsHeader, valueHeader, statusLabel, statusColor, scope, emptyText }) => {
     const tableRows = rows.length
       ? rows.map((row) => {
-        const distributableValue = scope === "unredeemed"
-          ? toNumber(row.cardUnredeemedValue)
-          : scope === "redeemed"
-            ? toNumber(row.cardRedeemedValue) + toNumber(row.manualRedeemedValue)
-            : toNumber(row.value);
+        const distributableValue = toNumber(row.value);
         const addManualButton = scope === "unredeemed"
           ? `
               <button class="icon-button subtle ppr-add-manual-points" data-partner-name="${escapeAttribute(row.partnerName)}" title="Add manual partner points" aria-label="Add manual partner points" style="padding: 4px;">
@@ -13150,11 +13981,22 @@ function renderPprWidget() {
               </button>
             `
           : "";
+        const transferButton = scope === "unredeemed"
+          ? `
+              <button class="icon-button subtle ppr-transfer-points" data-partner-name="${escapeAttribute(row.partnerName)}" title="Transfer to another partner" aria-label="Transfer ${escapeAttribute(row.partnerName)} points to another partner" style="padding:4px;">
+                <svg viewBox="0 0 24 24" width="14" aria-hidden="true"><path d="M5 8h11M13 5l3 3-3 3M19 16H8M11 13l-3 3 3 3" /></svg>
+              </button>
+            `
+          : "";
+        const traceHtml = Array.isArray(row.traces) && row.traces.length
+          ? `<span class="ppr-row-trace">${row.traces.slice(0, 2).map((trace) => escapeHtml(trace)).join("<br>")}</span>`
+          : "";
         return `
         <article class="card-row ppr-partner-row" data-partner-name="${escapeAttribute(row.partnerName)}" data-ppr-scope="${escapeAttribute(scope)}" tabindex="0" role="button" aria-label="View details for ${escapeAttribute(row.partnerName)}" style="padding: 10px 12px; gap: 0; align-items: center; margin: 0;">
           <div class="card-name" style="flex: 1; padding: 0 6px;">
             <strong style="min-width:0; font-size: 0.95rem;">${escapeHtml(row.partnerName)}</strong>
             <span class="card-meta" style="display: block; margin-top: 3px; font-size: 0.85rem;">${escapeHtml(`${row.purchases} ${row.purchases === 1 ? "entry" : "entries"}`)}</span>
+            ${traceHtml}
           </div>
           <div class="money-cell" style="min-width: 112px; padding: 0 6px; text-align: center; flex-direction: row; gap: 6px;">
             <strong style="color: #10b981; font-size: 1rem;">${escapeHtml(formatPoints(row.points))}</strong>
@@ -13172,6 +14014,7 @@ function renderPprWidget() {
                 <span class="ppr-rupee-icon" aria-hidden="true">₹</span>
               </button>
               ${deleteRedemptionButton}
+              ${transferButton}
               ${addManualButton}
             </div>
           </div>
@@ -13299,11 +14142,42 @@ function getPprPartnerDetailGroups(partnerName, scope = "all") {
     })
     .filter(Boolean);
 
-  return [...Array.from(groups.values()), ...manualGroups]
+  const transferGroups = getPprPartnerTransferSources(displayPartnerName)
+    .map((source) => {
+      const transfer = source.transfer;
+      const points = scope === "redeemed"
+        ? source.redeemedPoints
+        : scope === "unredeemed"
+          ? source.remainingPoints
+          : transfer.destinationPoints;
+      if (points <= 0) return null;
+      return {
+        purchaseId: `transfer-${transfer.id}`,
+        productName: `${transfer.sourcePartnerName} → ${transfer.destinationPartnerName}`,
+        purchasedFrom: transfer.destinationPartnerName,
+        latestDate: transfer.updatedAt || transfer.createdAt || "",
+        points,
+        value: scope === "unredeemed" ? 0 : transfer.monetaryValue,
+        isTransfer: true,
+        transfer,
+        traces: getPprTransferTraceLabels(transfer),
+        items: [],
+      };
+    })
+    .filter(Boolean);
+
+  return [...Array.from(groups.values()), ...manualGroups, ...transferGroups]
     .sort((a, b) => new Date(b.latestDate || 0) - new Date(a.latestDate || 0));
 }
 
 function handlePprWidgetAction(event) {
+  const transferButton = event.target.closest(".ppr-transfer-points");
+  if (transferButton) {
+    event.stopPropagation();
+    openPprPartnerTransferModal(transferButton.dataset.partnerName || "");
+    return;
+  }
+
   const addManualButton = event.target.closest(".ppr-add-manual-points");
   if (addManualButton) {
     event.stopPropagation();
@@ -13378,21 +14252,32 @@ function showPprPartnerDetails(partnerName, scope = "all") {
       els.pprDetailsModalBody.innerHTML = detailGroups.map((group) => {
         const groupPoints = getDetailGroupPoints(group);
         const groupValue = getDetailGroupValue(group);
-        const groupCardLabels = group.isManual ? ["Manual entry"] : getGroupCardLabels(group);
+        const groupCardLabels = group.isManual
+          ? ["Manual entry"]
+          : group.isTransfer
+            ? ["Partner transfer"]
+            : getGroupCardLabels(group);
         const manualDate = group.isManual && group.manualEntry?.date
           ? `<div class="ppr-detail-meta">${escapeHtml(formatDateTime(group.manualEntry.date))}</div>`
           : "";
         const manualNotes = group.isManual && group.manualEntry?.notes
           ? `<div class="ppr-detail-meta">${escapeHtml(group.manualEntry.notes)}</div>`
           : "";
+        const transferDetails = group.isTransfer
+          ? `
+              <div class="ppr-detail-meta">Ratio ${group.transfer.ratioFrom}:${group.transfer.ratioTo} · ${escapeHtml(formatPoints(group.transfer.sourcePoints))} source points</div>
+              <div class="ppr-detail-trace-list">${group.traces.map((trace) => `<span>${escapeHtml(trace)}</span>`).join("")}</div>
+            `
+          : "";
         return `
           <article class="ppr-detail-card">
             <div class="ppr-detail-card-head">
               <div>
                 <strong>${escapeHtml(group.productName || "Reward spend")}</strong>
-                <div class="ppr-detail-meta">${group.isManual ? "Partner-specific points" : `Contributed by: ${escapeHtml(groupCardLabels.join(", "))}`}</div>
+                <div class="ppr-detail-meta">${group.isManual ? "Partner-specific points" : group.isTransfer ? "Transferred partner points" : `Contributed by: ${escapeHtml(groupCardLabels.join(", "))}`}</div>
                 ${manualDate}
                 ${manualNotes}
+                ${transferDetails}
               </div>
               <div class="ppr-detail-actions">
                 <div class="ppr-detail-badges">
@@ -13405,9 +14290,15 @@ function showPprPartnerDetails(partnerName, scope = "all") {
                     <svg viewBox="0 0 24 24" width="14"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg>
                   </button>
                 </div>` : ""}
+                ${group.isTransfer ? `<div class="ppr-detail-manual-actions">
+                  <button type="button" class="ghost-button" data-ppr-edit-transfer="${escapeAttribute(group.transfer.id)}">Edit</button>
+                  <button type="button" class="icon-button subtle" data-ppr-delete-transfer="${escapeAttribute(group.transfer.id)}" title="Delete partner transfer" aria-label="Delete partner transfer">
+                    <svg viewBox="0 0 24 24" width="14"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg>
+                  </button>
+                </div>` : ""}
               </div>
             </div>
-            ${group.isManual ? "" : `<div class="ppr-detail-items">
+            ${group.isManual || group.isTransfer ? "" : `<div class="ppr-detail-items">
               ${group.items.map((item) => `
                 <div class="ppr-detail-item">
                   <div>
@@ -13417,7 +14308,12 @@ function showPprPartnerDetails(partnerName, scope = "all") {
                       ${escapeHtml(formatPoints(item.pprDisplayPoints))} | ${escapeHtml(formatMoney(item.pprDisplayValue))} redeemed value
                     </div>
                   </div>
-                  <button type="button" class="ghost-button" data-ppr-open-rp="${escapeAttribute(item.id)}">Open RP spend</button>
+                  <div class="ppr-detail-manual-actions">
+                    <button type="button" class="ghost-button" data-ppr-open-rp="${escapeAttribute(item.id)}">Edit source transfer</button>
+                    <button type="button" class="icon-button subtle" data-ppr-delete-rp-source="${escapeAttribute(item.id)}" title="Delete source transfer" aria-label="Delete source transfer">
+                      <svg viewBox="0 0 24 24" width="14"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg>
+                    </button>
+                  </div>
                 </div>
               `).join("")}
             </div>`}
@@ -13431,12 +14327,53 @@ function showPprPartnerDetails(partnerName, scope = "all") {
 }
 
 function handlePprDetailsAction(event) {
+  const deleteRpSourceButton = event.target.closest("[data-ppr-delete-rp-source]");
+  if (deleteRpSourceButton) {
+    const rpSpend = state.rpSpends.find((item) => item.id === deleteRpSourceButton.dataset.pprDeleteRpSource);
+    if (!rpSpend || !isPartnerProgramRpSpend(rpSpend)) return;
+    const dependentTransfers = getPprPartnerTransferIdsUsingSource("card", rpSpend.id);
+    const dependentCopy = dependentTransfers.size
+      ? ` This also removes and restores ${dependentTransfers.size} downstream transfer${dependentTransfers.size === 1 ? "" : "s"}.`
+      : "";
+    if (!window.confirm(`Delete this card-to-partner transfer and restore its card points?${dependentCopy}`)) return;
+    if (dependentTransfers.size) removePprPartnerTransfersUsingSource("card", rpSpend.id);
+    state.rpSpends = state.rpSpends.filter((item) => item.id !== rpSpend.id);
+    syncRpRedeemedBenefitsFromSpends();
+    saveState();
+    closePprDetailsModal();
+    render();
+    showToast("Source transfer deleted and card points restored.");
+    return;
+  }
+
+  const editTransferButton = event.target.closest("[data-ppr-edit-transfer]");
+  if (editTransferButton) {
+    const transfer = getPprPartnerTransferById(editTransferButton.dataset.pprEditTransfer);
+    if (transfer) {
+      closePprDetailsModal();
+      openPprPartnerTransferModal(transfer.sourcePartnerName, transfer);
+    }
+    return;
+  }
+
+  const deleteTransferButton = event.target.closest("[data-ppr-delete-transfer]");
+  if (deleteTransferButton) {
+    deletePprPartnerTransferById(deleteTransferButton.dataset.pprDeleteTransfer);
+    return;
+  }
+
   const deleteManualButton = event.target.closest("[data-ppr-delete-manual]");
   if (deleteManualButton) {
     const entryId = deleteManualButton.dataset.pprDeleteManual;
     const entry = getPprManualPointEntries().find((item) => item.id === entryId);
-    if (!entry || !window.confirm(`Delete manual partner points for ${entry.partnerName}?`)) return;
+    if (!entry) return;
+    const dependentTransfers = getPprPartnerTransferIdsUsingSource("manual", entryId);
+    const dependentCopy = dependentTransfers.size
+      ? ` This also removes and restores ${dependentTransfers.size} downstream transfer${dependentTransfers.size === 1 ? "" : "s"}.`
+      : "";
+    if (!window.confirm(`Delete manual partner points for ${entry.partnerName}?${dependentCopy}`)) return;
 
+    if (dependentTransfers.size) removePprPartnerTransfersUsingSource("manual", entryId);
     state.pprManualPoints = (state.pprManualPoints || []).filter((item) => item.id !== entryId);
     saveState();
     closePprDetailsModal();
