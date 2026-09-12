@@ -7,12 +7,12 @@
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <meta name="theme-color" content="#080d14" />
-    <link rel="stylesheet" href="styles.css?v=20260904-bank-interest-v6" />
+    <link rel="stylesheet" href="styles.css?v=20260912-mobile-widgets-v8" />
     <title>Credit Card Portfolio P/L</title>
     <style>
       /* Remove cursor overrides - let browser handle it naturally */
@@ -291,6 +291,7 @@
     appId: "1:459587513450:web:b93829e8cb1d57f4516e13"
   };
 
+
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const auth = getAuth(app);
@@ -342,7 +343,7 @@
   };
 </script>
 
-    <script defer src="app.js?v=20260904-bank-interest-v6"></script>
+    <script defer src="app.js?v=20260912-mobile-widgets-v8"></script>
   </head>
 
 
@@ -1362,6 +1363,63 @@
           <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:20px;">
             <button id="pprManualCancelBtn" class="ghost-button" type="button" style="padding: 8px 16px;">Cancel</button>
             <button id="pprManualSaveBtn" class="primary-button" type="button" style="padding: 8px 16px;">Add points</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Partner-to-Partner Transfer Modal -->
+      <div id="pprPartnerTransferModal" class="details-modal ppr-partner-transfer-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.82); z-index:20004; align-items:center; justify-content:center; padding:20px;">
+        <div class="ppr-partner-transfer-dialog">
+          <div class="ppr-transfer-modal-heading">
+            <div>
+              <p class="eyebrow">Partner transfer</p>
+              <h3 id="pprPartnerTransferTitle">Transfer partner points</h3>
+              <p id="pprPartnerTransferSource"></p>
+            </div>
+            <button id="pprPartnerTransferCloseBtn" class="icon-button subtle" type="button" title="Close" aria-label="Close partner transfer">
+              <svg viewBox="0 0 24 24" width="16"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
+          </div>
+
+          <div class="ppr-transfer-balance-strip">
+            <span>Available unredeemed points</span>
+            <strong id="pprPartnerTransferAvailable">0 pts</strong>
+          </div>
+
+          <div class="ppr-partner-transfer-form">
+            <label class="field">
+              <span>Existing destination partner</span>
+              <select id="pprPartnerTransferDestinationSelect">
+                <option value="">Select</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>New destination partner</span>
+              <input id="pprPartnerTransferDestinationInput" type="text" placeholder="e.g. Airline X" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span>Transfer ratio</span>
+              <input id="pprPartnerTransferRatioInput" type="text" placeholder="e.g. 5:1" inputmode="numeric" autocomplete="off" />
+              <small>Partner A points : Partner B points</small>
+            </label>
+            <label class="field">
+              <span>Partner A points to transfer</span>
+              <input id="pprPartnerTransferPointsInput" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 10000" />
+            </label>
+            <label class="field ppr-transfer-value-field">
+              <span>Monetary value (optional)</span>
+              <input id="pprPartnerTransferValueInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="INR 0" />
+              <small>Blank or zero keeps Partner B points unredeemed.</small>
+            </label>
+          </div>
+
+          <div id="pprPartnerTransferPreview" class="ppr-partner-transfer-preview"></div>
+
+          <div class="ppr-transfer-modal-actions">
+            <button id="pprPartnerTransferDeleteBtn" class="danger-button" type="button" style="display:none;">Delete &amp; Restore</button>
+            <span></span>
+            <button id="pprPartnerTransferCancelBtn" class="ghost-button" type="button">Cancel</button>
+            <button id="pprPartnerTransferSaveBtn" class="primary-button" type="button">Save transfer</button>
           </div>
         </div>
       </div>

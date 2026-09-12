@@ -2463,6 +2463,207 @@ body[data-view]:not([data-view="dashboard"]) #app#app#app .app-shell > .topbar .
   }
 }
 
+/* Partner-to-partner transfer ledger */
+.ppr-partner-transfer-dialog {
+  width: min(100%, 720px);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  padding: 26px;
+  border: 1px solid rgba(74, 222, 203, 0.24);
+  border-radius: 18px;
+  color: #dbe7ee;
+  background: linear-gradient(145deg, rgba(10, 18, 25, 0.98), rgba(8, 13, 20, 0.99));
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.56);
+}
+
+.ppr-transfer-modal-heading,
+.ppr-transfer-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.ppr-transfer-modal-heading h3 {
+  margin: 3px 0 4px;
+  color: #f4f7fa;
+  font-size: 1.35rem;
+}
+
+.ppr-transfer-modal-heading p:last-child {
+  margin: 0;
+  color: #9db0bf;
+}
+
+.ppr-transfer-balance-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 20px 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(74, 222, 203, 0.18);
+  border-radius: 12px;
+  background: rgba(36, 211, 176, 0.055);
+}
+
+.ppr-transfer-balance-strip span {
+  color: #94a7b7;
+  font-size: 0.84rem;
+}
+
+.ppr-transfer-balance-strip strong {
+  color: #66e6bd;
+  font-size: 1.1rem;
+}
+
+.ppr-partner-transfer-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.ppr-partner-transfer-form .field small {
+  display: block;
+  margin-top: 6px;
+  color: #7f93a3;
+  font-size: 0.74rem;
+}
+
+.ppr-transfer-value-field {
+  grid-column: 1 / -1;
+}
+
+.ppr-partner-transfer-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 14px;
+  background: rgba(5, 10, 16, 0.72);
+}
+
+.ppr-partner-transfer-preview > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.ppr-partner-transfer-preview span {
+  color: #95a7b5;
+  font-size: 0.78rem;
+}
+
+.ppr-partner-transfer-preview strong {
+  overflow-wrap: anywhere;
+  color: #70e7bd;
+  font-size: 1.08rem;
+}
+
+.ppr-transfer-preview-arrow {
+  color: #efb34e !important;
+  font-size: 1.35rem !important;
+}
+
+.ppr-partner-transfer-preview > small {
+  grid-column: 1 / -1;
+  color: #a8b7c3;
+}
+
+.ppr-transfer-preview-error {
+  grid-column: 1 / -1;
+  color: #ff7289 !important;
+  font-weight: 700;
+}
+
+.ppr-transfer-modal-actions > span {
+  flex: 1;
+}
+
+.ppr-row-trace {
+  display: block;
+  margin-top: 5px;
+  color: #79cdbc;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+#pprView .ppr-table .table-head > span:last-child,
+#pprView .ppr-partner-row > .money-cell:last-child {
+  min-width: 126px !important;
+}
+
+#pprView .ppr-partner-row .row-actions {
+  flex-wrap: nowrap;
+}
+
+.ppr-detail-trace-list {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.ppr-detail-trace-list span {
+  color: #78d8c1;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 680px) {
+  .ppr-partner-transfer-modal {
+    padding: 10px !important;
+    align-items: flex-end !important;
+  }
+
+  .ppr-partner-transfer-dialog {
+    width: 100%;
+    max-height: calc(100vh - 20px);
+    padding: 18px;
+    border-radius: 16px 16px 8px 8px;
+  }
+
+  .ppr-partner-transfer-form {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .ppr-transfer-value-field {
+    grid-column: auto;
+  }
+
+  .ppr-partner-transfer-preview {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .ppr-transfer-preview-arrow {
+    transform: rotate(90deg);
+    justify-self: start;
+  }
+
+  .ppr-transfer-modal-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ppr-transfer-modal-actions > span {
+    display: none;
+  }
+
+  .ppr-transfer-modal-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .ppr-transfer-modal-actions .danger-button {
+    grid-column: 1 / -1;
+  }
+}
+
 /* Obsidian Black theme
    Visual-only layer: preserves all existing markup, data, and interaction rules. */
 :root {
@@ -16481,5 +16682,675 @@ body[data-view="intlTravel"] #intlTravelView {
   body[data-view="lounge"] #loungeView,
   body[data-view="intlTravel"] #intlTravelView {
     background-attachment: scroll !important;
+  }
+}
+
+/* Mobile responsiveness V8
+   Final small-screen contract for every opened widget. Keep this layer last so
+   desktop render rules and legacy inline widths cannot squeeze mobile fields. */
+@media (max-width: 760px) {
+  :root {
+    --mobile-page-gutter: 10px;
+    --mobile-control-height: 48px;
+    --mobile-nav-height: 74px;
+  }
+
+  html,
+  body {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: clip !important;
+  }
+
+  html body #app.app-shell {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow-x: clip !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .app-shell > main,
+  body[data-view="portfolio"] #portfolioView,
+  body[data-view="swipes"] #swipesView,
+  body[data-view="rpSpends"] #rpSpendsView,
+  body[data-view="ppr"] #pprView,
+  body[data-view="interestIncome"] #interestIncomeView,
+  body[data-view="lounge"] #loungeView,
+  body[data-view="intlTravel"] #intlTravelView {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: calc(100dvh - 60px) !important;
+    margin: 0 !important;
+    padding: 12px var(--mobile-page-gutter)
+      calc(var(--mobile-nav-height) + 24px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow-x: clip !important;
+    box-sizing: border-box !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .portfolio-panel,
+  body[data-view]:not([data-view="dashboard"]) .control-band,
+  body[data-view]:not([data-view="dashboard"]) .cards-table,
+  body[data-view]:not([data-view="dashboard"]) form,
+  body[data-view]:not([data-view="dashboard"]) fieldset {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .portfolio-panel {
+    padding: 14px 12px 18px !important;
+    overflow: visible !important;
+    border-radius: 16px !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .panel-heading,
+  body[data-view]:not([data-view="dashboard"]) .portfolio-heading,
+  body[data-view]:not([data-view="dashboard"]) .section-title-row,
+  #intlTravelView .intl-travel-section-heading,
+  #intlTravelView .intl-travel-editor-heading,
+  #intlTravelView .intl-travel-detail-heading,
+  #interestIncomeView .income-entry-card-heading {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    gap: 12px !important;
+    align-items: start !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .panel-heading > *,
+  body[data-view]:not([data-view="dashboard"]) .portfolio-heading > *,
+  body[data-view]:not([data-view="dashboard"]) .section-title-row > * {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) h2,
+  body[data-view]:not([data-view="dashboard"]) h3,
+  body[data-view]:not([data-view="dashboard"]) .panel-subtitle,
+  body[data-view]:not([data-view="dashboard"]) .eyebrow {
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .panel-heading h2,
+  body[data-view]:not([data-view="dashboard"]) .portfolio-heading h2 {
+    font-size: clamp(1.38rem, 7vw, 1.8rem) !important;
+    line-height: 1.12 !important;
+  }
+
+  /* The opened-widget menu scrolls by item instead of compressing labels. */
+  body[data-view]:not([data-view="dashboard"]) .widget-v2-sidebar {
+    display: flex !important;
+    position: fixed !important;
+    z-index: 14000 !important;
+    inset: auto 0 0 0 !important;
+    width: 100% !important;
+    height: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 5px 4px env(safe-area-inset-bottom, 0px) !important;
+    border: 0 !important;
+    border-top: 1px solid rgba(148, 163, 184, 0.2) !important;
+    background: rgba(3, 6, 9, 0.97) !important;
+    overflow: hidden !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .widget-v2-sidebar .widget-v2-brand,
+  body[data-view]:not([data-view="dashboard"]) .widget-v2-sidebar .widget-v2-owner {
+    display: none !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .widget-v2-sidebar .widget-v2-nav {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 3px !important;
+    gap: 2px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none !important;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .widget-v2-sidebar .widget-v2-nav::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  html body #app#app#app#app#app#app .widget-v2-sidebar .widget-v2-nav .widget-v2-nav-item,
+  html body #app#app#app#app#app#app .widget-v2-sidebar .widget-v2-nav .widget-v2-nav-item:hover:not(:disabled),
+  html body #app#app#app#app#app#app .widget-v2-sidebar .widget-v2-nav .widget-v2-nav-item:focus-visible {
+    flex: 0 0 72px !important;
+    width: 72px !important;
+    min-width: 72px !important;
+    max-width: 72px !important;
+    min-height: 62px !important;
+    padding: 5px 3px !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    scroll-snap-align: start;
+    text-align: center !important;
+  }
+
+  html body #app#app#app#app#app#app .widget-v2-sidebar .widget-v2-nav .widget-v2-nav-item span {
+    display: block !important;
+    width: 100% !important;
+    max-width: 68px !important;
+    overflow: visible !important;
+    font-size: 0.59rem !important;
+    line-height: 1.08 !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+    overflow-wrap: normal !important;
+    -webkit-line-clamp: unset !important;
+  }
+
+  /* Shared form contract. Inline flex and desktop grid declarations are reset. */
+  body[data-view]:not([data-view="dashboard"]) .control-band,
+  body[data-view]:not([data-view="dashboard"]) .form-grid,
+  body[data-view]:not([data-view="dashboard"]) .field-row,
+  body[data-view]:not([data-view="dashboard"]) .filter-group,
+  body[data-view]:not([data-view="dashboard"]) .control-group,
+  #swipesView .swipe-form-container,
+  #rpSpendsView .rp-spend-toolbar-visible,
+  #rpSpendsView .rp-spend-form,
+  #loungeView .control-band,
+  #loungeView .form-grid,
+  #intlTravelView .intl-travel-filter-bar,
+  #intlTravelView .intl-travel-form-grid,
+  #intlTravelView .intl-travel-conversion-grid,
+  #interestIncomeView .income-entry-grid,
+  #pprManualModal .ppr-manual-form,
+  #pprPartnerTransferModal .ppr-partner-transfer-form,
+  .lounge-limit-form-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    gap: 12px !important;
+    align-items: stretch !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .field-row > *,
+  #swipesView .swipe-form-container > *,
+  #rpSpendsView .rp-spend-form > *,
+  #loungeView .form-grid > *,
+  #intlTravelView .intl-travel-form-grid > *,
+  #intlTravelView .intl-travel-conversion-grid > *,
+  #interestIncomeView .income-entry-grid > *,
+  #pprPartnerTransferModal .ppr-partner-transfer-form > * {
+    grid-column: 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .field,
+  .details-modal .field,
+  .points-popup .field {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    gap: 7px !important;
+    align-content: start !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .field > span,
+  .details-modal .field > span,
+  .points-popup .field > span {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    font-size: 0.68rem !important;
+    line-height: 1.28 !important;
+    letter-spacing: 0.075em !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) input:not([type="checkbox"]):not([type="radio"]),
+  body[data-view]:not([data-view="dashboard"]) select,
+  body[data-view]:not([data-view="dashboard"]) textarea,
+  .details-modal input:not([type="checkbox"]):not([type="radio"]),
+  .details-modal select,
+  .details-modal textarea,
+  .points-popup input:not([type="checkbox"]):not([type="radio"]),
+  .points-popup select,
+  .points-popup textarea {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    font-size: 16px !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) input:not([type="checkbox"]):not([type="radio"]),
+  body[data-view]:not([data-view="dashboard"]) select,
+  .details-modal input:not([type="checkbox"]):not([type="radio"]),
+  .details-modal select {
+    min-height: var(--mobile-control-height) !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) textarea,
+  .details-modal textarea,
+  .points-popup textarea {
+    min-height: 88px !important;
+    resize: vertical;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) [hidden],
+  .details-modal [hidden] {
+    display: none !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .field:empty,
+  #portfolioView .field-row > .field:empty {
+    display: none !important;
+  }
+
+  /* Reward Points entry: every field gets a complete row on phones. */
+  #rpSpendsView .control-band {
+    padding: 14px !important;
+  }
+
+  #rpSpendsView .rp-spend-form {
+    grid-auto-flow: row !important;
+  }
+
+  #rpSpendsView .rp-spend-form > label.field > div,
+  #rpSpendsView .rp-paid-value-row,
+  #intlTravelView .intl-travel-payment-source-controls {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    gap: 9px !important;
+  }
+
+  #rpSpendsView .rp-spend-form > label.field > div > *,
+  #intlTravelView .intl-travel-payment-source-controls > * {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  #rpSpendsView .rp-paid-value-field {
+    grid-column: 1 !important;
+  }
+
+  #rpSpendsView .rp-unredeemed-points-toggle {
+    display: flex !important;
+    width: 100% !important;
+    min-height: 46px !important;
+    padding: 10px 12px !important;
+    align-items: center !important;
+    gap: 10px !important;
+    border: 1px solid rgba(148, 163, 184, 0.2) !important;
+    border-radius: 11px !important;
+    background: rgba(7, 12, 18, 0.64) !important;
+    box-sizing: border-box !important;
+  }
+
+  #rpSpendsView .rp-unredeemed-points-toggle input[type="checkbox"] {
+    display: block !important;
+    flex: 0 0 20px !important;
+    width: 20px !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    margin: 0 !important;
+  }
+
+  #rpSpendsView .rp-unredeemed-points-toggle span {
+    min-width: 0 !important;
+    font-size: 0.76rem !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+  }
+
+  #rpSpendsView .rp-point-allocation-panel,
+  #rpSpendsView .rp-point-balance-grid,
+  #rpSpendsView .rp-point-source-grid,
+  #rpSpendsView .rp-point-allocation-heading {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    gap: 10px !important;
+  }
+
+  #rpSpendsView .rp-point-allocation-panel[hidden] {
+    display: none !important;
+  }
+
+  #rpSpendsView .rp-point-allocation-total {
+    justify-items: start !important;
+    text-align: left !important;
+  }
+
+  #rpSpendsView .rp-spend-actions,
+  #swipesView .swipe-form-container > div:last-child,
+  #intlTravelView .intl-travel-form-actions,
+  #interestIncomeView .income-entry-actions {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    gap: 9px !important;
+  }
+
+  #rpSpendsView .rp-spend-actions > button,
+  #swipesView .swipe-form-container > div:last-child > button,
+  #intlTravelView .intl-travel-form-actions > button,
+  #interestIncomeView .income-entry-actions > button {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Compact, readable summaries instead of squeezed metric columns. */
+  #portfolioView .summary-grid,
+  body[data-view]:not([data-view="dashboard"]) .widget-render-summary,
+  #intlTravelView .intl-travel-currency-summary,
+  #interestIncomeView .income-render-summary {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    gap: 9px !important;
+  }
+
+  #portfolioView .summary-grid > *,
+  body[data-view]:not([data-view="dashboard"]) .widget-render-summary > *,
+  #intlTravelView .intl-travel-currency-summary > * {
+    grid-column: 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 14px !important;
+    box-sizing: border-box !important;
+  }
+
+  #portfolioView .metric-value,
+  body[data-view]:not([data-view="dashboard"]) .widget-render-summary strong,
+  #intlTravelView .intl-travel-currency-summary strong {
+    font-size: clamp(1.05rem, 6.2vw, 1.35rem) !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  /* Opened-widget record lists are cards, never wide desktop tables. */
+  #portfolioView #cardsTable,
+  #swipesView #swipesTable,
+  #rpSpendsView #rpSpendsTable,
+  #pprView .ppr-table,
+  #loungeView #loungeTable,
+  #intlTravelView .intl-travel-expense-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+
+  #portfolioView #cardsTable > .table-head,
+  #swipesView #swipesTable > .table-head,
+  #swipesView #swipesTable > .table-header,
+  #rpSpendsView #rpSpendsTable > .table-head,
+  #pprView .ppr-table > .table-head,
+  #loungeView #loungeTable > .table-head,
+  #intlTravelView .intl-travel-expense-head {
+    display: none !important;
+  }
+
+  #portfolioView #cardsTable > .card-row,
+  #swipesView #swipesTable > .card-row,
+  #rpSpendsView #rpSpendsTable > .rp-spend-row,
+  #pprView .ppr-table > .ppr-partner-row,
+  #loungeView #loungeTable > .card-row,
+  #intlTravelView .intl-travel-expense-row {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    gap: 10px !important;
+    margin: 0 0 10px !important;
+    padding: 14px !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  #portfolioView #cardsTable > .card-row > *,
+  #swipesView #swipesTable > .card-row > *,
+  #rpSpendsView #rpSpendsTable > .rp-spend-row > *,
+  #pprView .ppr-table > .ppr-partner-row > *,
+  #loungeView #loungeTable > .card-row > *,
+  #intlTravelView .intl-travel-expense-row > * {
+    grid-column: 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+    white-space: normal !important;
+    box-sizing: border-box !important;
+  }
+
+  #pprView .ppr-summary-tables-grid,
+  #intlTravelView .intl-travel-trip-grid,
+  #interestIncomeView .income-quarter-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    gap: 12px !important;
+  }
+
+  #pprView .ppr-summary-table-panel,
+  #pprView .ppr-panel,
+  #intlTravelView .intl-travel-trip-card,
+  #intlTravelView .intl-travel-detail-view,
+  #intlTravelView .intl-travel-expense-editor,
+  #interestIncomeView .income-entry-card,
+  #interestIncomeView .income-year-block,
+  #interestIncomeView .income-lifetime-block,
+  #interestIncomeView .income-quarter-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  #pprView .ppr-panel,
+  #pprView .ppr-summary-table-panel {
+    padding: 12px !important;
+    overflow: visible !important;
+  }
+
+  /* Lounge controls and notes use the full card width. */
+  #loungeView .control-band > div,
+  #loungeView .control-band > div > div,
+  #loungeView .lounge-notes-cell,
+  #loungeView .lounge-notes-text {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  #loungeView .control-band > div > div[style*="justify-content:space-between"],
+  #loungeView .control-band > div > div[style*="justify-content: center"] {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: stretch !important;
+  }
+
+  #loungeView .control-band > div > div[style*="justify-content:space-between"] > div,
+  #loungeView .control-band > div > div[style*="justify-content: center"] > label {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Dialogs remain centred, bounded and internally scrollable. */
+  .details-modal,
+  #pprPartnerTransferModal,
+  .widget-activity-modal {
+    padding: 8px !important;
+    align-items: center !important;
+    overflow: hidden !important;
+  }
+
+  .details-modal > .details-dialog,
+  .details-modal > .ppr-manual-dialog,
+  #pprPartnerTransferModal > .ppr-partner-transfer-dialog,
+  #pprValueModal > div,
+  #pprDetailsModal > div,
+  #redeemPointsModal > div,
+  #pointsModal .details-dialog,
+  .points-popup,
+  .widget-activity-dialog {
+    width: calc(100vw - 16px) !important;
+    min-width: 0 !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 16px) !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    border-radius: 16px !important;
+  }
+
+  .details-dialog-body,
+  .details-dialog-header,
+  .details-dialog-footer,
+  .points-popup-header,
+  .points-popup-body,
+  .points-popup-footer,
+  #pointsModalContent,
+  #pprDetailsModalBody {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .details-dialog-footer,
+  .points-popup-footer,
+  #pprValueModal > div > div:last-child,
+  #pprManualModal > div > div:last-child,
+  #redeemPointsModal > div > div:last-child,
+  #pprPartnerTransferModal .ppr-transfer-modal-actions {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    gap: 9px !important;
+  }
+
+  .details-dialog-footer > button,
+  .points-popup-footer > button,
+  #pprValueModal > div > div:last-child > button,
+  #pprManualModal > div > div:last-child > button,
+  #redeemPointsModal > div > div:last-child > button,
+  #pprPartnerTransferModal .ppr-transfer-modal-actions > button {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  #pprPartnerTransferModal .ppr-transfer-modal-actions > span {
+    display: none !important;
+  }
+
+  .lounge-limits-table-wrap {
+    overflow-x: hidden !important;
+  }
+
+  .lounge-limits-table,
+  .lounge-limits-table tbody,
+  .lounge-limits-table tr,
+  .lounge-limits-table td {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Dashboard cards also remain inside the phone viewport. */
+  #dashboardView .dashboard-v2-shell,
+  #dashboardView .dashboard-v2-main,
+  #dashboardView .dashboard-v2-content,
+  #dashboardView .dashboard-v2-layout,
+  #dashboardView .dashboard-v2-widget-grid,
+  #dashboardView .dashboard-v2-right-rail,
+  #dashboardView .dashboard-v2-widget,
+  #dashboardView .dashboard-v2-rail-section {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  #dashboardView .dashboard-v2-widget-grid,
+  #dashboardView .dashboard-v2-right-rail,
+  #dashboardView .dashboard-v2-overview-grid,
+  #dashboardView .dashboard-v2-points-grid,
+  #dashboardView .dashboard-v2-hero,
+  #dashboardView .dashboard-v2-hero-metrics {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  #dashboardView .dashboard-v2-primary-value,
+  #dashboardView .dashboard-v2-widget strong,
+  #dashboardView .dashboard-v2-widget span,
+  #dashboardView .dashboard-v2-widget p {
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+    white-space: normal !important;
+  }
+}
+
+@media (max-width: 390px) {
+  :root {
+    --mobile-page-gutter: 7px;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .portfolio-panel,
+  #rpSpendsView .control-band,
+  #interestIncomeView .income-entry-card {
+    padding-right: 10px !important;
+    padding-left: 10px !important;
+  }
+
+  html body #app#app#app#app#app#app .widget-v2-sidebar .widget-v2-nav .widget-v2-nav-item,
+  html body #app#app#app#app#app#app .widget-v2-sidebar .widget-v2-nav .widget-v2-nav-item:hover:not(:disabled),
+  html body #app#app#app#app#app#app .widget-v2-sidebar .widget-v2-nav .widget-v2-nav-item:focus-visible {
+    flex-basis: 68px !important;
+    width: 68px !important;
+    min-width: 68px !important;
+    max-width: 68px !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .topbar-actions,
+  body[data-view]:not([data-view="dashboard"]) .topbar-actions .floating-actions {
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 }
