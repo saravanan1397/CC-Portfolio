@@ -1262,16 +1262,16 @@ function getActivityCardNormalUnredeemedPoints(snapshot, cardId) {
     .filter((spend) => getRpSpendRedeemedSourceCardId(spend) === cardId)
     .filter((spend) => getRpSpendRedemptionAmount(spend) > 0)
     .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
-  const sourceRecord = (snapshot?.rpSpends || []).find((spend) => (
-    isUnredeemedPointsRecord(spend) && spend.cardId === cardId
+  const sourceRecords = (snapshot?.rpSpends || []).filter((spend) => (
+    isUnredeemedPointsRecord(spend) && getRpSpendRedeemedSourceCardId(spend) === cardId
   ));
   const manualSources = (card.benefits || []).filter((benefit) => (
     benefit?.type === "Unredeemed Points"
     && isPointBenefit(benefit)
     && !isRpRedeemedAutoBenefit(benefit)
   ));
-  const normalPoints = sourceRecord
-    ? toNumber(sourceRecord.points)
+  const normalPoints = sourceRecords.length
+    ? sourceRecords.reduce((sum, spend) => sum + toNumber(spend.points), 0)
     : manualSources.reduce((sum, benefit) => {
         const originalPoints = toNumber(benefit.originalPoints);
         if (originalPoints > 0) return sum + originalPoints;
@@ -2200,8 +2200,8 @@ function getCardRedemptionRows(cardId, excludeId = "") {
 function getCardNormalPointsBaseline(card) {
   if (!card?.id) return 0;
 
-  const sourceRecord = getUnredeemedPointsSourceRecord(card.id);
-  if (sourceRecord) return toNumber(sourceRecord.points);
+  const sourceRecords = getUnredeemedPointsSourceRecords(card.id);
+  if (sourceRecords.length) return sourceRecords.reduce((sum, record) => sum + toNumber(record.points), 0);
 
   const manualSources = (card.benefits || []).filter((benefit) =>
     benefit?.type === "Unredeemed Points"
@@ -7114,6 +7114,13 @@ async function handleRpCardSelectChange(event) {
   }
 
   if (select.value === "Neucoins") {
+    // Leaving a partner transfer must not classify a Neucoins purchase as
+    // another partner transfer through leftover hidden form fields.
+    if (els.rpPurchasedFrom?.dataset.partnerProgramAuto === "true") {
+      els.rpPurchasedFrom.value = "";
+      delete els.rpPurchasedFrom.dataset.partnerProgramAuto;
+    }
+    if (els.rpOriginatingCardId) els.rpOriginatingCardId.value = "";
     const selectedSourceCardId = await showNeucoinsSourceCardPrompt({
       selectedCardId: select.dataset.neucoinsSourceCardId || "",
     });
@@ -7638,12 +7645,17 @@ function showPartnerProgramTransferPrompt(initial = {}) {
   });
 }
 
-function getUnredeemedPointsSourceRecord(cardId, excludeId = "") {
-  return state.rpSpends.find((rpSpend) =>
+function getUnredeemedPointsSourceRecords(cardId, excludeId = "") {
+  const resolvedId = cardId === "Neucoins" ? getNeuPortfolioCardId() || cardId : cardId;
+  return state.rpSpends.filter((rpSpend) =>
     isUnredeemedPointsRecord(rpSpend)
-    && rpSpend.cardId === cardId
+    && (getRpSpendRedeemedSourceCardId(rpSpend) || rpSpend.cardId) === resolvedId
     && rpSpend.id !== excludeId
-  ) || null;
+  );
+}
+
+function getUnredeemedPointsSourceRecord(cardId, excludeId = "") {
+  return getUnredeemedPointsSourceRecords(cardId, excludeId)[0] || null;
 }
 
 function getUnredeemedSourceConsumedPoints(sourceCardId, excludeId = "") {
@@ -7659,21 +7671,32 @@ function getUnredeemedSourceConsumedPoints(sourceCardId, excludeId = "") {
 
 function getUnredeemedSourceBalance(sourceRecord, excludeId = "") {
   if (!sourceRecord) return 0;
-
-  return Math.max(
-    0,
-    toNumber(sourceRecord.points) - getUnredeemedSourceConsumedPoints(sourceRecord.cardId, excludeId)
-  );
+  const sourceId = getRpSpendRedeemedSourceCardId(sourceRecord) || sourceRecord.cardId;
+  const card = getCardById(sourceId);
+  // Only earned-point debits consume these credits; Welcome Benefits have
+  // their own source. Allocate consumption once across multiple credit rows.
+  let consumed = card
+    ? getCardPointAllocation(card).normalRedeemedPoints
+    : getUnredeemedSourceConsumedPoints(sourceId, excludeId);
+  if (card && excludeId) {
+    consumed -= getCardPointAllocation(card).redemptionAllocations[excludeId]?.earnedPoints || 0;
+  }
+  for (const record of getUnredeemedPointsSourceRecords(sourceId)) {
+    const debit = Math.min(toNumber(record.points), Math.max(0, consumed));
+    if (record.id === sourceRecord.id) return Math.max(0, toNumber(record.points) - debit);
+    consumed -= debit;
+  }
+  return 0;
 }
 
 function getCardUnredeemedPoints(card) {
   const cardId = typeof card === "string" ? card : card?.id;
   if (!cardId) return 0;
-  const resolvedCard = typeof card === "string" ? getCardById(cardId) : card;
+  const resolvedCard = typeof card === "string" ? getCardById(cardId === "Neucoins" ? getNeuPortfolioCardId() : cardId) : card;
   if (resolvedCard) return getCardPointAllocation(resolvedCard).totalUnredeemedPoints;
 
-  const sourceRecord = getUnredeemedPointsSourceRecord(cardId);
-  return sourceRecord ? getUnredeemedSourceBalance(sourceRecord) : 0;
+  return getUnredeemedPointsSourceRecords(cardId)
+    .reduce((sum, record) => sum + getUnredeemedSourceBalance(record), 0);
 }
 
 function getRpSpendRedemptionAmount(rpSpend) {
@@ -7779,7 +7802,7 @@ function applyCardPointRedemption(cardId, redeemPoints) {
   // The save handlers validate before inserting/replacing the RP row. At this
   // point the row is already in state, so validating again would count the new
   // redemption twice and reject valid saves.
-  return { ok: true, currentUnredeemed: currentUnredeemed - pointsToRedeem };
+  return { ok: true, currentUnredeemed };
 }
 
 let redeemPointsModalContext = null;
@@ -8725,6 +8748,7 @@ async function saveRpSpendFromForm(event) {
   const keepPointsUnredeemed = Boolean(els.rpUnredeemedPoints?.checked);
   const existingIsUnredeemedRecord = isUnredeemedPointsRecord(existingSpend);
   const isUnredeemedRecord = Boolean(selectedCardId && !isPartnerProgram && keepPointsUnredeemed);
+  const balanceSourceId = isNeucoinsRedemption ? neucoinsSourceCardId : selectedCardId;
   const priorPartnerRedeemedPoints = isPartnerProgram && existingSpend
     ? toNumber(existingSpend.redeemedPoints)
     : 0;
@@ -8753,8 +8777,13 @@ async function saveRpSpendFromForm(event) {
   }
 
   const existingUnredeemedSource = isUnredeemedRecord
-    ? getUnredeemedPointsSourceRecord(selectedCardId, existingSpend?.id || "")
+    ? getUnredeemedPointsSourceRecord(balanceSourceId, existingSpend?.id || "")
     : null;
+
+  if (isNeucoinsRedemption && !neucoinsSourceCard) {
+    showToast("Choose Tata Neu Infinity or Tata Neu Plus for this Neucoins entry.");
+    return;
+  }
 
   // A card keeps one authoritative normal-points source row. When another
   // Unredeemed Points entry is added, treat the entered amount as a new points
@@ -8778,11 +8807,6 @@ async function saveRpSpendFromForm(event) {
     render();
     resetRpSpendForm();
     showToast(`Added ${formatPoints(enteredPoints)} to the card's unredeemed points.`);
-    return;
-  }
-
-  if (isNeucoinsRedemption && !neucoinsSourceCard) {
-    showToast("Choose Tata Neu Infinity or Tata Neu Plus for this Neucoins redemption.");
     return;
   }
 
@@ -8812,9 +8836,7 @@ async function saveRpSpendFromForm(event) {
       // without being sourced from or deducted from a portfolio card.
       : enteredPoints;
   const currentNormalBalanceBeforeEdit = isUnredeemedRecord && existingIsUnredeemedRecord
-    ? selectedPortfolioCard
-      ? getCardPointAllocation(selectedPortfolioCard).normalRemainingPoints
-      : getRpSpendRemainingPoints(existingSpend)
+    ? getUnredeemedSourceBalance(existingSpend)
     : 0;
   const storedPoints = isUnredeemedRecord
     ? existingIsUnredeemedRecord
@@ -8843,7 +8865,7 @@ async function saveRpSpendFromForm(event) {
   const rpSpend = normalizeRpSpend({
     id: editingId || createId(),
     purchaseId,
-    cardId,
+    cardId: isUnredeemedRecord ? balanceSourceId : cardId,
     points: storedPoints,
     redeemedPoints: redeemedPointsForSpend,
     pointAllocationExplicit: pointAllocationActive,
@@ -8944,6 +8966,18 @@ async function saveRpSpendFromForm(event) {
     if (additionalPointsRequired > currentUnredeemed) {
       showToast(`Only ${formatPoints(currentUnredeemed)} more can be redeemed from ${formatCardShortName(redemptionSourceCard)}.`);
       els.rpPoints?.focus();
+      return;
+    }
+  }
+
+  // Platforms with an entered balance must obey the same debit limit as cards.
+  // Platforms without a tracked balance can still record external redemptions.
+  if (!redeemedSourceCardId && !isUnredeemedRecord && getUnredeemedPointsSourceRecord(cardId)) {
+    const previousDebit = existingSpend && getRpSpendRedeemedSourceCardId(existingSpend) === cardId
+      ? getRpSpendRedemptionAmount(existingSpend) : 0;
+    const available = getCardUnredeemedPoints(cardId) + previousDebit;
+    if (getRpSpendRedemptionAmount(rpSpend) > available + 0.000001) {
+      showToast(`Only ${formatPoints(available)} are available for this redemption.`);
       return;
     }
   }
@@ -9246,13 +9280,10 @@ function populateRpSpendForm(rpSpend) {
   }
   if (els.rpPoints) {
     if (isUnredeemedPointsRecord(rpSpend)) {
-      const sourceCard = getCardById(rpSpend.cardId);
       // Edit the balance users actually see in the card allocation. The raw
       // source row cannot be used here because it subtracts every historical
       // redemption, including redemptions allocated to Welcome Benefits.
-      const currentNormalBalance = sourceCard
-        ? getCardPointAllocation(sourceCard).normalRemainingPoints
-        : getRpSpendRemainingPoints(rpSpend);
+      const currentNormalBalance = getUnredeemedSourceBalance(rpSpend);
       els.rpPoints.value = currentNormalBalance || "";
     } else {
       els.rpPoints.value = getRpSpendTotalPoints(rpSpend) || "";
@@ -9499,10 +9530,9 @@ function renderRpSpends() {
             const sourceAllocation = isUnredeemedPointsRecord(item) && sourceCard
               ? getCardPointAllocation(sourceCard)
               : null;
-            const displayPoints = getRpSpendTotalPoints(item) > 0
-              ? getRpSpendDisplayPoints(item)
-              : 0;
-            const showWelcomeBenefits = Boolean(sourceAllocation?.welcomeRemainingPoints > 0);
+            const displayPoints = getRpSpendDisplayPoints(item);
+            const showWelcomeBenefits = Boolean(sourceAllocation?.welcomeRemainingPoints > 0
+              && getUnredeemedPointsSourceRecord(sourceCard.id)?.id === item.id);
 
             return `
             <div class="benefit-line">
@@ -12031,10 +12061,10 @@ function getRpSpendDisplayPoints(rpSpend) {
   if (isUnredeemedPointsRecord(rpSpend)) {
     const sourceCard = getRpSpendDisplayCard(rpSpend);
     if (sourceCard) {
-      // The RP source row stores the manually entered normal balance. The
-      // card allocation also contains any remaining Welcome Benefit points,
-      // so the detail row must display the combined balance.
-      return getCardPointAllocation(sourceCard).totalUnredeemedPoints;
+      const firstSource = getUnredeemedPointsSourceRecord(sourceCard.id);
+      const welcomePoints = firstSource?.id === rpSpend.id
+        ? getCardPointAllocation(sourceCard).welcomeRemainingPoints : 0;
+      return getUnredeemedSourceBalance(rpSpend) + welcomePoints;
     }
     return getRpSpendRemainingPoints(rpSpend);
   }
@@ -12097,7 +12127,7 @@ function getRpPointsUsageTotals() {
     if (isUnredeemedPointsRecord(rpSpend)) {
       // A source record attached to a portfolio card is already included in
       // that card's allocation. Keep standalone/platform records visible too.
-      if (!portfolioCardIds.has(String(rpSpend.cardId || ""))) {
+      if (!portfolioCardIds.has(getRpSpendRedeemedSourceCardId(rpSpend))) {
         totals.notSpent += getRpSpendRemainingPoints(rpSpend);
       }
       return;
@@ -12166,7 +12196,8 @@ function getPartnerProgramCardDebitPoints(rpSpend, partnerPoints) {
 
   const ratio = parsePartnerTransferRatio(rpSpend?.partnerTransferRatio);
   if (ratio) {
-    return points * (ratio.from / ratio.to);
+    // Whole-point rounding at transfer time must not create an extra card debit.
+    return Math.min(getPartnerProgramSourcePoints(rpSpend), points * (ratio.from / ratio.to));
   }
 
   // Ratios are normally recorded for partner transfers. For older records
@@ -12423,7 +12454,8 @@ function getPprPurchaseGroups() {
   const groups = new Map();
 
   getPprCardContributionSources().forEach((source) => {
-    const existing = groups.get(source.purchaseId) || {
+    const groupKey = JSON.stringify([source.purchaseId, normalizePprPartnerName(source.partnerName)]);
+    const existing = groups.get(groupKey) || {
       purchaseId: source.purchaseId,
       partnerName: source.partnerName,
       partnerPoints: 0,
@@ -12439,7 +12471,7 @@ function getPprPurchaseGroups() {
     if (new Date(source.createdAt || 0) > new Date(existing.latestDate || 0)) {
       existing.latestDate = source.createdAt || existing.latestDate;
     }
-    groups.set(source.purchaseId, existing);
+    groups.set(groupKey, existing);
   });
 
   return Array.from(groups.values()).map((group) => ({
