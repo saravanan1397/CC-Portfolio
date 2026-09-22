@@ -17363,3 +17363,74 @@ body[data-view="intlTravel"] #intlTravelView {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 }
+
+/* Keep every Partner Transfer textbox on one identical control measure. */
+#pprPartnerTransferModal .ppr-partner-transfer-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+#pprPartnerTransferModal .ppr-partner-transfer-form > .field {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  justify-self: stretch !important;
+  align-self: start !important;
+  align-content: start !important;
+  grid-auto-rows: max-content !important;
+  box-sizing: border-box !important;
+}
+
+/* Keep the JSON importer available only through the Import button. Mobile
+   input sizing rules must never expose the browser's native file control. */
+#importFile {
+  display: none !important;
+}
+
+/* Restore Net P/L to the Card Portfolio summary. Recovery remains represented
+   by the dedicated portfolio status panel beside the card list. */
+#portfolioView .summary-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+#portfolioView #netMetric {
+  display: block !important;
+  order: 4 !important;
+}
+
+#portfolioView .summary-grid .metric-card:nth-child(5) {
+  display: none !important;
+}
+
+@media (max-width: 840px) {
+  #portfolioView .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 430px) {
+  #portfolioView .summary-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+#pprPartnerTransferRatioInput,
+#pprPartnerTransferPointsInput,
+#pprPartnerTransferBonusInput,
+#pprPartnerTransferValueInput {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: 46px !important;
+  min-height: 46px !important;
+  max-height: 46px !important;
+  margin: 0 !important;
+  padding: 0 13px !important;
+  box-sizing: border-box !important;
+}
+
+@media (max-width: 760px) {
+  #pprPartnerTransferModal .ppr-partner-transfer-form {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
