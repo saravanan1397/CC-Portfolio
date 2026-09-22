@@ -631,7 +631,7 @@ function bindEvents() {
 
 document.addEventListener("click", (e) => {
   if (e.target.id === "benefitValue") {
-    showCashPopup();
+    showCashPopup("gross");
   }
 });
 
@@ -641,7 +641,7 @@ document.addEventListener("click", (e) => {
     if (dashboardHeroAction.dataset.dashboardHeroAction === "points") {
       showPointsPopup();
     } else if (dashboardHeroAction.dataset.dashboardHeroAction === "net") {
-      showCashPopup();
+      showCashPopup("net");
     }
     return;
   }
@@ -10821,12 +10821,12 @@ function renderSummary() {
   els.pointsValue.style.cursor = "pointer";
 els.pointsValue.title = "Click to view point breakdown";
   els.pointsHint.textContent = `Total unredeemed points across all cards`;
-  els.benefitValue.textContent = formatMoney(totals.cashBenefitsNet);
+  els.benefitValue.textContent = formatMoney(totals.grossCashBenefits);
   els.benefitValue.style.cursor = "pointer";
-  els.benefitValue.title = "Click to view net cash-benefit breakdown";
-  els.benefitValue.style.color = totals.cashBenefitsNet > 0 ? "#10b981" : "#ef4444";
-  setWidgetValueState(els.benefitValue, totals.cashBenefitsNet);
-  els.benefitHint.textContent = `Net cash benefits after fees across ${cardCount} ${cardCount === 1 ? "card" : "cards"}`;
+  els.benefitValue.title = "Click to view total cash-benefit breakdown";
+  els.benefitValue.style.color = totals.grossCashBenefits > 0 ? "#10b981" : "#f8fafc";
+  setWidgetValueState(els.benefitValue, totals.grossCashBenefits);
+  els.benefitHint.textContent = `Gross monetary benefits before fees across ${cardCount} ${cardCount === 1 ? "card" : "cards"}`;
   els.netValue.style.color = totals.net > 0 ? "#10b981" : "#ef4444";
   setWidgetValueState(els.netValue, totals.net);
   els.netValue.textContent = formatMoney(totals.net);
@@ -10864,7 +10864,7 @@ function closePointsModal() {
   const modal = document.getElementById("pointsModal");
   if (pointsModalReturnView === "cash") {
     pointsModalReturnView = null;
-    showCashPopup();
+    showCashPopup("gross");
     return;
   }
 
@@ -11079,18 +11079,21 @@ function showFeePopup() {
   modal.style.display = "flex";
 }
 
-function showCashPopup() {
+function showCashPopup(mode = "gross") {
   const modal = document.getElementById("pointsModal");
   const content = document.getElementById("pointsModalContent");
   const title = modal.querySelector("h3");
+  const showNet = mode === "net";
   pointsModalReturnView = null;
   modal.classList.add("cash-benefits-modal");
-  if (title) title.textContent = "Net Cash Benefits";
+  if (title) title.textContent = showNet ? "Net P/L" : "Total Cash Benefits";
 
   const cashCards = [...state.cards].sort((a, b) => {
     const totalsA = getCardTotals(a);
     const totalsB = getCardTotals(b);
-    return totalsB.cashBenefitNet - totalsA.cashBenefitNet;
+    const valueA = showNet ? totalsA.net : totalsA.grossCashBenefits;
+    const valueB = showNet ? totalsB.net : totalsB.grossCashBenefits;
+    return valueB - valueA;
   });
 
   if (!cashCards.length) {
@@ -11102,8 +11105,13 @@ function showCashPopup() {
   } else {
     content.innerHTML = cashCards.map((card) => {
       const totals = getCardTotals(card);
-      const status = getStatus(totals.cashBenefitNet);
-      const valueColor = totals.cashBenefitNet > 0 ? "#10b981" : totals.cashBenefitNet < 0 ? "#ef4444" : "#f8fafc";
+      const displayedValue = showNet ? totals.net : totals.grossCashBenefits;
+      const status = showNet
+        ? getStatus(totals.net)
+        : displayedValue > 0
+          ? { key: "profit", label: "Benefits" }
+          : { key: "breakeven", label: "No benefits" };
+      const valueColor = displayedValue > 0 ? "#10b981" : displayedValue < 0 ? "#ef4444" : "#f8fafc";
 
       return `
         <article class="cash-benefit-popup-row${card.isGreyedOut ? " is-greyed-out" : ""}">
@@ -11122,7 +11130,7 @@ function showCashPopup() {
           </div>
 
           <div class="cash-benefit-popup-value" style="color:${valueColor};">
-            ${escapeHtml(formatMoney(totals.cashBenefitNet))}
+            ${escapeHtml(formatMoney(displayedValue))}
           </div>
         </article>
       `;
@@ -11947,6 +11955,7 @@ function getTotals(cards) {
       const cardTotals = getCardTotals(card);
       totals.fees += cardTotals.fees;
       totals.benefits += cardTotals.benefits;
+      totals.grossCashBenefits += cardTotals.grossCashBenefits;
       totals.cashBenefitsNet += cardTotals.cashBenefitNet;
       totals.points += cardTotals.points;
       totals.net += cardTotals.net;
@@ -11960,6 +11969,7 @@ function getTotals(cards) {
     {
       fees: 0,
       benefits: 0,
+      grossCashBenefits: 0,
       cashBenefitsNet: 0,
       points: 0,
       net: 0,
@@ -11985,7 +11995,8 @@ function getCardTotals(card) {
   // welcome-point portion is intentionally kept out of card.benefits so it
   // cannot be double-counted. Include that portion directly in Net P/L.
   const welcomeRedeemedValue = getCardPointAllocation(card).welcomeRedeemedValue;
-  const cashBenefitNet = benefits + welcomeRedeemedValue - fees;
+  const grossCashBenefits = benefits + welcomeRedeemedValue;
+  const cashBenefitNet = grossCashBenefits - fees;
   const points = getCardUnredeemedPoints(card);
   const cashBenefitCount = card.benefits.filter((benefit) => !isPointBenefit(benefit)).length;
   const pointBenefitCount = card.benefits.filter(isPointBenefit).length;
@@ -11993,6 +12004,7 @@ function getCardTotals(card) {
     fees,
     benefits,
     welcomeRedeemedValue,
+    grossCashBenefits,
     cashBenefitNet,
     points,
     cashBenefitCount,
