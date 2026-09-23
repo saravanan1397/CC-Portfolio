@@ -186,8 +186,232 @@ function getRenderCacheMap(name) {
   return renderDerivedCache[name];
 }
 
+function initLoginWaterAnimation() {
+  const canvas = document.getElementById("loginWaterCanvas");
+  const lockScreen = document.getElementById("lockScreen");
+  if (!canvas || !lockScreen) return;
+
+  const gl = canvas.getContext("webgl", {
+    alpha: true,
+    antialias: false,
+    depth: false,
+    stencil: false,
+    preserveDrawingBuffer: false,
+    powerPreference: "high-performance",
+  });
+  if (!gl) {
+    canvas.style.display = "none";
+    return;
+  }
+
+  const vertexSource = `
+    attribute vec2 aPosition;
+    varying vec2 vUv;
+    void main() {
+      vUv = aPosition * 0.5 + 0.5;
+      gl_Position = vec4(aPosition, 0.0, 1.0);
+    }
+  `;
+  const fragmentSource = `
+    precision mediump float;
+    uniform sampler2D uImage;
+    uniform float uTime;
+    uniform vec2 uCoverScale;
+    uniform float uCenterX;
+    varying vec2 vUv;
+
+    void main() {
+      float fromTop = 1.0 - vUv.y;
+      float waterMask = smoothstep(0.31, 0.48, fromTop);
+      if (waterMask <= 0.001) {
+        gl_FragColor = vec4(0.0);
+        return;
+      }
+
+      vec2 coverUv = vec2(
+        (vUv.x - 0.5) * uCoverScale.x + uCenterX,
+        (vUv.y - 0.5) * uCoverScale.y + 0.5
+      );
+      float depth = smoothstep(0.38, 0.98, fromTop);
+      float t = uTime * 0.52;
+
+      float broadWave = sin(coverUv.x * 19.0 + coverUv.y * 11.0 - t * 1.35);
+      float crossWave = sin(coverUv.x * 37.0 - coverUv.y * 23.0 + t * 0.92 + broadWave * 0.7);
+      float fineWave = sin((coverUv.x + coverUv.y) * 61.0 - t * 1.12 + crossWave * 0.35);
+      float swell = sin(coverUv.y * 14.0 + t * 0.48 + sin(coverUv.x * 8.0 - t * 0.26));
+
+      vec2 drift = vec2(
+        broadWave * 0.0062 + crossWave * 0.0034 + fineWave * 0.0012,
+        swell * 0.0026 + crossWave * 0.0011
+      ) * (0.46 + depth * 0.86);
+      drift += vec2(sin(t * 0.21) * 0.0018, cos(t * 0.17) * 0.0008) * depth;
+
+      vec2 sampleUv = clamp(coverUv + drift, vec2(0.002), vec2(0.998));
+      vec4 scene = texture2D(uImage, sampleUv);
+      float colorBreath = 0.985 + 0.015 * sin(t * 0.45 + coverUv.x * 5.0 + coverUv.y * 3.0);
+      scene.rgb *= vec3(0.985, 1.005, 1.012) * colorBreath;
+      gl_FragColor = vec4(scene.rgb, waterMask * 0.92);
+    }
+  `;
+
+  const compileShader = (type, source) => {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      gl.deleteShader(shader);
+      return null;
+    }
+    return shader;
+  };
+
+  const vertexShader = compileShader(gl.VERTEX_SHADER, vertexSource);
+  const fragmentShader = compileShader(gl.FRAGMENT_SHADER, fragmentSource);
+  if (!vertexShader || !fragmentShader) {
+    canvas.style.display = "none";
+    return;
+  }
+
+  const program = gl.createProgram();
+  gl.attachShader(program, vertexShader);
+  gl.attachShader(program, fragmentShader);
+  gl.linkProgram(program);
+  gl.deleteShader(vertexShader);
+  gl.deleteShader(fragmentShader);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    gl.deleteProgram(program);
+    canvas.style.display = "none";
+    return;
+  }
+
+  const positionBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+    -1, -1, 1, -1, -1, 1,
+    -1, 1, 1, -1, 1, 1,
+  ]), gl.STATIC_DRAW);
+
+  gl.useProgram(program);
+  const positionLocation = gl.getAttribLocation(program, "aPosition");
+  gl.enableVertexAttribArray(positionLocation);
+  gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+  const texture = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+  const image = new Image();
+  image.decoding = "async";
+  image.src = "assets/dashboard/login-ocean-villa-reef-v1.webp";
+
+  const timeLocation = gl.getUniformLocation(program, "uTime");
+  const coverScaleLocation = gl.getUniformLocation(program, "uCoverScale");
+  const centerXLocation = gl.getUniformLocation(program, "uCenterX");
+  gl.uniform1i(gl.getUniformLocation(program, "uImage"), 0);
+
+  let renderScale = window.innerWidth <= 760 ? 0.62 : 0.74;
+  let frameCount = 0;
+  let fpsWindowStart = performance.now();
+  let animationFrameId = 0;
+  let imageReady = false;
+  let lastRafTime = performance.now();
+  let drawAccumulator = 0;
+  const targetFrameInterval = 1000 / 60;
+
+  const resize = () => {
+    const width = Math.max(1, lockScreen.clientWidth);
+    const height = Math.max(1, lockScreen.clientHeight);
+    const widthCapScale = Math.min(1, 1280 / width);
+    const effectiveScale = Math.max(0.46, Math.min(renderScale, widthCapScale));
+    const nextWidth = Math.max(1, Math.round(width * effectiveScale));
+    const nextHeight = Math.max(1, Math.round(height * effectiveScale));
+    if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
+      canvas.width = nextWidth;
+      canvas.height = nextHeight;
+      gl.viewport(0, 0, nextWidth, nextHeight);
+    }
+
+    if (!imageReady) return;
+    const viewportAspect = width / height;
+    const imageAspect = image.naturalWidth / image.naturalHeight;
+    let scaleX = 1;
+    let scaleY = 1;
+    if (viewportAspect > imageAspect) scaleY = imageAspect / viewportAspect;
+    else scaleX = viewportAspect / imageAspect;
+    gl.uniform2f(coverScaleLocation, scaleX, scaleY);
+    gl.uniform1f(centerXLocation, width <= 760 ? 0.67 : 0.5);
+  };
+
+  const stop = () => {
+    if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    animationFrameId = 0;
+    const loseContext = gl.getExtension("WEBGL_lose_context");
+    if (loseContext) loseContext.loseContext();
+  };
+
+  const renderFrame = (now) => {
+    if (!canvas.isConnected || lockScreen.style.display === "none") {
+      stop();
+      return;
+    }
+    if (!imageReady) {
+      lastRafTime = now;
+      animationFrameId = requestAnimationFrame(renderFrame);
+      return;
+    }
+
+    const frameDelta = Math.min(50, Math.max(0, now - lastRafTime));
+    lastRafTime = now;
+    drawAccumulator += frameDelta;
+    if (drawAccumulator < targetFrameInterval) {
+      animationFrameId = requestAnimationFrame(renderFrame);
+      return;
+    }
+    drawAccumulator %= targetFrameInterval;
+
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform1f(timeLocation, now * 0.001);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    frameCount += 1;
+    const elapsed = now - fpsWindowStart;
+    if (elapsed >= 1000) {
+      const fps = Math.round((frameCount * 1000) / elapsed);
+      canvas.dataset.fps = String(fps);
+      window.__loginWaterFps = fps;
+      if (fps < 53 && renderScale > 0.48) {
+        renderScale = Math.max(0.48, renderScale * 0.82);
+        resize();
+      }
+      frameCount = 0;
+      fpsWindowStart = now;
+    }
+    animationFrameId = requestAnimationFrame(renderFrame);
+  };
+
+  image.addEventListener("load", () => {
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+    imageReady = true;
+    resize();
+  }, { once: true });
+  image.addEventListener("error", () => {
+    canvas.style.display = "none";
+    stop();
+  }, { once: true });
+
+  window.addEventListener("resize", resize, { passive: true });
+  animationFrameId = requestAnimationFrame(renderFrame);
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
-  
+  initLoginWaterAnimation();
   cacheElements();
   await loadState();
   renderIssuerOptions();
