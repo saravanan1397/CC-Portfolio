@@ -187,6 +187,61 @@ function getRenderCacheMap(name) {
 }
 
 function initLoginWaterAnimation() {
+  const video = document.querySelector("#lockScreen video.login-water-layer");
+  if (video) {
+    video.muted = true;
+    video.defaultMuted = true;
+    const playButton = document.querySelector("#lockScreen .login-video-play");
+    const mp4Source = video.querySelector('source[type="video/mp4"]')?.src;
+    let blobFallbackStarted = false;
+    const hidePlayButton = () => {
+      if (playButton) playButton.hidden = true;
+    };
+    const loadBlobFallback = async () => {
+      if (blobFallbackStarted || !mp4Source || !video.isConnected) return;
+      blobFallbackStarted = true;
+      try {
+        const response = await fetch(mp4Source);
+        if (!response.ok) return;
+        const data = await response.arrayBuffer();
+        const objectUrl = URL.createObjectURL(new Blob([data], { type: "video/mp4" }));
+        video.src = objectUrl;
+        video.load();
+        startVideo();
+      } catch (_) {
+        hidePlayButton();
+      }
+    };
+    const startVideo = () => {
+      if (!document.getElementById("lockScreen") || document.getElementById("lockScreen").style.display === "none") return;
+      const attempt = video.play();
+      if (attempt && typeof attempt.then === "function") {
+        attempt.then(hidePlayButton).catch((error) => {
+          if (error?.name === "NotSupportedError") {
+            loadBlobFallback();
+            return;
+          }
+          if (playButton && !video.error) playButton.hidden = false;
+        });
+      }
+    };
+    video.addEventListener("playing", hidePlayButton);
+    video.addEventListener("loadeddata", startVideo);
+    video.addEventListener("canplay", startVideo);
+    video.addEventListener("error", loadBlobFallback);
+    window.setTimeout(() => {
+      if (!document.hidden && video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) loadBlobFallback();
+    }, 5000);
+    window.addEventListener("pageshow", startVideo);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) startVideo();
+    });
+    document.getElementById("lockScreen").addEventListener("pointerdown", startVideo, { once: true, passive: true });
+    document.addEventListener("keydown", startVideo, { once: true });
+    if (playButton) playButton.addEventListener("click", startVideo);
+    startVideo();
+    return;
+  }
   const canvas = document.getElementById("loginWaterCanvas");
   const lockScreen = document.getElementById("lockScreen");
   if (!canvas || !lockScreen) return;

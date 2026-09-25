@@ -17490,9 +17490,27 @@ body[data-view="intlTravel"] #intlTravelView {
   will-change: transform;
 }
 
+#lockScreen .login-video-play[hidden] {
+  display: none !important;
+}
+
+#lockScreen .login-video-play {
+  position: absolute;
+  z-index: 3;
+  top: calc(14px + env(safe-area-inset-top, 0px));
+  right: 14px;
+  padding: 8px 12px;
+  border: 1px solid rgba(184, 232, 225, 0.55);
+  border-radius: 999px;
+  background: rgba(3, 15, 22, 0.72);
+  color: #f8fafc;
+  font: 600 0.8rem Inter, system-ui, sans-serif;
+  cursor: pointer;
+}
+
 @media (max-width: 760px) {
   #lockScreen .login-water-layer {
-    object-position: 67% center;
+    object-position: 73% center;
   }
 }
 
@@ -17515,7 +17533,7 @@ body[data-view="intlTravel"] #intlTravelView {
 @media (max-width: 760px) {
   #lockScreen .login-ocean-layer {
     inset: -5%;
-    background-position: 67% center;
+    background-position: 73% center;
     transform-origin: 70% 50%;
   }
 
