@@ -3499,6 +3499,18 @@ body::after {
   gap: 12px;
 }
 
+.intl-travel-trip-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.intl-travel-trip-card-actions .icon-button {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+}
+
 .intl-travel-trip-arrow {
   color: var(--accent);
   font-size: 1.3rem;

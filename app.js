@@ -6558,7 +6558,12 @@ function renderIntlTravelTripCards() {
       <article class="intl-travel-trip-card" data-intl-trip-id="${escapeAttribute(trip.id)}" tabindex="0" role="button" aria-label="Open ${escapeAttribute(trip.destination)} expenses">
         <div class="intl-travel-trip-card-topline">
           <span class="eyebrow">Destination</span>
-          <span class="intl-travel-trip-arrow" aria-hidden="true">&#8599;</span>
+          <div class="intl-travel-trip-card-actions">
+            <button class="icon-button subtle" type="button" data-intl-trip-action="delete-trip" data-intl-trip-id="${escapeAttribute(trip.id)}" title="Delete all expenses for ${escapeAttribute(trip.destination)}" aria-label="Delete all expenses for ${escapeAttribute(trip.destination)}">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg>
+            </button>
+            <span class="intl-travel-trip-arrow" aria-hidden="true">&#8599;</span>
+          </div>
         </div>
         <h3>${escapeHtml(trip.destination)}</h3>
         ${dateLabel ? `<p class="intl-travel-trip-date">${escapeHtml(dateLabel)}</p>` : ""}
@@ -6571,7 +6576,30 @@ function renderIntlTravelTripCards() {
   }).join("");
 }
 
-function handleIntlTravelTripAction(event) {
+async function handleIntlTravelTripAction(event) {
+  const deleteButton = event.target.closest?.('[data-intl-trip-action="delete-trip"]');
+  if (deleteButton) {
+    event.stopPropagation();
+    const trip = state.intlTravelTrips.find((item) => item.id === deleteButton.dataset.intlTripId);
+    if (!trip) return;
+    const expenseCount = trip.expenses.length;
+    const description = expenseCount === 1 ? "1 recorded expense" : `${expenseCount} recorded expenses`;
+    if (!window.confirm(`Delete ${trip.destination} and all ${description}? This cannot be undone.`)) return;
+    const previousTrips = state.intlTravelTrips;
+    state.intlTravelTrips = state.intlTravelTrips.filter((item) => item.id !== trip.id);
+    try {
+      await saveState();
+      render();
+      showToast(`${trip.destination} and its expenses deleted.`);
+    } catch (error) {
+      state.intlTravelTrips = previousTrips;
+      render();
+      showToast("Could not delete this destination. Please try again.");
+      console.error("Failed to delete international travel destination", error);
+    }
+    return;
+  }
+
   const tripCard = event.target.closest?.("[data-intl-trip-id]");
   if (!tripCard) return;
   showIntlTravelDetail(tripCard.dataset.intlTripId);
@@ -6579,6 +6607,7 @@ function handleIntlTravelTripAction(event) {
 
 function handleIntlTravelTripKeydown(event) {
   if (event.key !== "Enter" && event.key !== " ") return;
+  if (event.target.closest?.('[data-intl-trip-action="delete-trip"]')) return;
   const tripCard = event.target.closest?.("[data-intl-trip-id]");
   if (!tripCard) return;
   event.preventDefault();
