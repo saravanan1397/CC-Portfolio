@@ -139,6 +139,7 @@ let rpSpendsAllExpanded = false;
 let loungeAllExpanded = false;
 
 const els = {};
+const activeSaveOperations = new Set();
 // Reuse expensive point/fee calculations while a single render is building
 // several views and summaries. The cache is cleared as soon as that render
 // finishes, so it cannot make state changes stale.
@@ -849,6 +850,37 @@ spentForBtn:document.getElementById("spentForBtn"),
   });
 }
 
+async function runSaveAction(key, handler, event) {
+  event?.preventDefault?.();
+  if (activeSaveOperations.has(key)) return;
+
+  const control = event?.currentTarget?.matches?.("button")
+    ? event.currentTarget
+    : event?.submitter;
+  const originalLabel = control?.textContent;
+  activeSaveOperations.add(key);
+
+  if (control) {
+    control.disabled = true;
+    control.setAttribute("aria-busy", "true");
+    if (originalLabel?.trim()) control.textContent = "Saving…";
+  }
+
+  try {
+    await handler(event);
+  } catch (error) {
+    console.error(`Unable to save ${key}`, error);
+    showToast("Could not save the record. Please try again.");
+  } finally {
+    activeSaveOperations.delete(key);
+    if (control?.isConnected) {
+      control.disabled = false;
+      control.removeAttribute("aria-busy");
+      if (originalLabel !== undefined) control.textContent = originalLabel;
+    }
+  }
+}
+
 function bindEvents() {
   els.searchInput.addEventListener("input", () => {
     state.search = els.searchInput.value.trim().toLowerCase();
@@ -957,7 +989,7 @@ document.addEventListener("keydown", (e) => {
   });
   els.issuerName?.addEventListener("change", updateAxisProgramField);
   els.addBenefitBtn.addEventListener("click", addBenefitDraft);
-  els.cardForm.addEventListener("submit", saveCardFromForm);
+  els.cardForm.addEventListener("submit", (event) => runSaveAction("card", saveCardFromForm, event));
   els.benefitRows.addEventListener("input", updateDraftBenefit);
   els.benefitRows.addEventListener("change", updateDraftBenefit);
   els.benefitRows.addEventListener("click", removeBenefitDraft);
@@ -993,14 +1025,14 @@ document.addEventListener("keydown", (e) => {
   els.backFromPprBtn?.addEventListener("click", () => showView("dashboard"));
   els.backFromInterestIncomeBtn?.addEventListener("click", () => showView("dashboard"));
   els.pprValueModalCancelBtn?.addEventListener("click", closePprValueModal);
-  els.pprValueModalSaveBtn?.addEventListener("click", savePprPartnerValue);
+  els.pprValueModalSaveBtn?.addEventListener("click", (event) => runSaveAction("ppr-value", savePprPartnerValue, event));
   els.pprValueModalDeleteBtn?.addEventListener("click", deleteSelectedPprRedemption);
   els.pprRedemptionBatchSelect?.addEventListener("change", updatePprRedemptionModalSelection);
   [els.pprRedeemPointsInput, els.pprValueInput].forEach((input) => {
     input?.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
-        savePprPartnerValue();
+        runSaveAction("ppr-value", savePprPartnerValue, event);
       }
     });
   });
@@ -1011,7 +1043,7 @@ document.addEventListener("keydown", (e) => {
   });
   els.addPprManualPointsBtn?.addEventListener("click", () => openPprManualPointsModal());
   els.pprManualCancelBtn?.addEventListener("click", closePprManualPointsModal);
-  els.pprManualSaveBtn?.addEventListener("click", savePprManualPoints);
+  els.pprManualSaveBtn?.addEventListener("click", (event) => runSaveAction("ppr-manual", savePprManualPoints, event));
   els.pprManualModal?.addEventListener("click", (event) => {
     if (event.target === els.pprManualModal) {
       closePprManualPointsModal();
@@ -1019,7 +1051,7 @@ document.addEventListener("keydown", (e) => {
   });
   els.pprPartnerTransferCloseBtn?.addEventListener("click", closePprPartnerTransferModal);
   els.pprPartnerTransferCancelBtn?.addEventListener("click", closePprPartnerTransferModal);
-  els.pprPartnerTransferSaveBtn?.addEventListener("click", savePprPartnerTransfer);
+  els.pprPartnerTransferSaveBtn?.addEventListener("click", (event) => runSaveAction("ppr-transfer", savePprPartnerTransfer, event));
   els.pprPartnerTransferDeleteBtn?.addEventListener("click", deleteEditingPprPartnerTransfer);
   els.pprPartnerTransferModal?.addEventListener("click", (event) => {
     if (event.target === els.pprPartnerTransferModal) closePprPartnerTransferModal();
@@ -1036,7 +1068,7 @@ document.addEventListener("keydown", (e) => {
     input?.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
-        savePprPartnerTransfer();
+        runSaveAction("ppr-transfer", savePprPartnerTransfer, event);
       }
     });
   });
@@ -1044,7 +1076,7 @@ document.addEventListener("keydown", (e) => {
     input?.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
-        savePprManualPoints();
+        runSaveAction("ppr-manual", savePprManualPoints, event);
       }
     });
   });
@@ -1079,7 +1111,7 @@ document.addEventListener("keydown", (e) => {
   });
   els.backFromLoungeBtn?.addEventListener("click", () => showView("dashboard"));
   els.backFromIntlTravelBtn?.addEventListener("click", () => showView("dashboard"));
-  els.incomeEntryForm?.addEventListener("submit", saveIncomeEntryFromForm);
+  els.incomeEntryForm?.addEventListener("submit", (event) => runSaveAction("income-entry", saveIncomeEntryFromForm, event));
   els.incomeEntryType?.addEventListener("change", updateIncomeEntryFields);
   els.incomeBankSelect?.addEventListener("change", updateIncomeEntryFields);
   els.incomeSpendScope?.addEventListener("change", updateIncomeEntryFields);
@@ -1089,10 +1121,10 @@ document.addEventListener("keydown", (e) => {
   els.addIntlTravelDetailExpenseBtn?.addEventListener("click", () => openIntlTravelExpenseForm(intlTravelDetailTripId));
   els.intlTravelTripNotesBtn?.addEventListener("click", openIntlTravelTripNotesForm);
   els.cancelIntlTravelTripNotesBtn?.addEventListener("click", closeIntlTravelTripNotesForm);
-  els.intlTravelTripNotesForm?.addEventListener("submit", saveIntlTravelTripNotes);
+  els.intlTravelTripNotesForm?.addEventListener("submit", (event) => runSaveAction("travel-notes", saveIntlTravelTripNotes, event));
   els.addIntlTravelConversionBtn?.addEventListener("click", () => openIntlTravelConversionForm());
   els.cancelIntlTravelConversionBtn?.addEventListener("click", closeIntlTravelConversionForm);
-  els.intlTravelConversionForm?.addEventListener("submit", saveIntlTravelConversionFromForm);
+  els.intlTravelConversionForm?.addEventListener("submit", (event) => runSaveAction("travel-conversion", saveIntlTravelConversionFromForm, event));
   els.intlTravelCurrencySummary?.addEventListener("click", handleIntlTravelConversionAction);
   els.intlTravelPaymentSourceCardSelect?.addEventListener("change", () => {
     const card = state.cards.find((item) => item.id === els.intlTravelPaymentSourceCardSelect.value);
@@ -1111,7 +1143,7 @@ document.addEventListener("keydown", (e) => {
   els.intlTravelPaymentFilter?.addEventListener("change", handleIntlTravelDetailFilterChange);
   els.cancelIntlTravelExpenseBtn?.addEventListener("click", closeIntlTravelExpenseForm);
   els.clearIntlTravelExpenseBtn?.addEventListener("click", resetIntlTravelExpenseForm);
-  els.intlTravelExpenseForm?.addEventListener("submit", saveIntlTravelExpenseFromForm);
+  els.intlTravelExpenseForm?.addEventListener("submit", (event) => runSaveAction("travel-expense", saveIntlTravelExpenseFromForm, event));
   els.backToIntlTravelHomeBtn?.addEventListener("click", showIntlTravelHome);
   els.intlTravelTripCards?.addEventListener("click", handleIntlTravelTripAction);
   els.intlTravelTripCards?.addEventListener("keydown", handleIntlTravelTripKeydown);
@@ -1137,7 +1169,7 @@ document.addEventListener("keydown", (e) => {
   });
   els.rpSpendUnredeemedOnly?.addEventListener("change", handleRpSpendUnredeemedFilterChange);
   els.rpSpendUnredeemedOnly?.addEventListener("input", handleRpSpendUnredeemedFilterChange);
-  els.addSwipeBtn?.addEventListener("click", addSwipeFromForm);
+  els.addSwipeBtn?.addEventListener("click", (event) => runSaveAction("swipe", addSwipeFromForm, event));
   els.exportBtn?.addEventListener("click", exportPortfolio);
   els.importBtn?.addEventListener("click", () => els.importFile?.click());
   els.importFile?.addEventListener("change", importPortfolio);
@@ -1189,7 +1221,7 @@ document.addEventListener("keydown", (e) => {
     updatePartnerTransferDetailsButton();
     refreshAllFieldStates();
   });
-  els.saveRpSpendBtn?.addEventListener("click", saveRpSpendFromForm);
+  els.saveRpSpendBtn?.addEventListener("click", (event) => runSaveAction("rp-spend", saveRpSpendFromForm, event));
   els.clearRpSpendBtn?.addEventListener("click", () => {
     resetRpSpendForm();
     document.body.classList.remove("rp-entry-open");
@@ -1207,7 +1239,7 @@ document.addEventListener("keydown", (e) => {
   updateRpPointAllocationPanel();
   els.loungeMembers?.addEventListener("input", updateLoungeCalculatedValue);
   els.loungeVisitValue?.addEventListener("input", updateLoungeCalculatedValue);
-  els.saveLoungeVisitBtn?.addEventListener("click", saveLoungeVisitFromForm);
+  els.saveLoungeVisitBtn?.addEventListener("click", (event) => runSaveAction("lounge-visit", saveLoungeVisitFromForm, event));
   els.clearLoungeVisitBtn?.addEventListener("click", resetLoungeVisitForm);
   els.loungeTable?.addEventListener("click", handleLoungeAction);
   document.getElementById("toggleLoungeEntryBtn")?.addEventListener("click", () => {
@@ -1216,13 +1248,13 @@ document.addEventListener("keydown", (e) => {
       requestAnimationFrame(() => els.loungeCardSelect?.focus());
     }
   });
-  els.loungeBenefitNotesForm?.addEventListener("submit", saveLoungeBenefitNotes);
+  els.loungeBenefitNotesForm?.addEventListener("submit", (event) => runSaveAction("lounge-notes", saveLoungeBenefitNotes, event));
   els.closeLoungeBenefitNotesBtn?.addEventListener("click", closeLoungeBenefitNotesModal);
   els.cancelLoungeBenefitNotesBtn?.addEventListener("click", closeLoungeBenefitNotesModal);
   els.loungeBenefitNotesModal?.addEventListener("click", (event) => {
     if (event.target === els.loungeBenefitNotesModal) closeLoungeBenefitNotesModal();
   });
-  els.saveLoungeBenefitBtn?.addEventListener("click", saveLoungeBenefitFromForm);
+  els.saveLoungeBenefitBtn?.addEventListener("click", (event) => runSaveAction("lounge-benefit", saveLoungeBenefitFromForm, event));
   els.clearLoungeBenefitBtn?.addEventListener("click", resetLoungeBenefitForm);
   els.loungeCardFilter?.addEventListener("change", () => { loungeAllExpanded = false; renderLoungeVisits(); });
   els.loungeTypeFilter?.addEventListener("change", () => { loungeAllExpanded = false; renderLoungeVisits(); });
@@ -1236,7 +1268,7 @@ document.addEventListener("keydown", (e) => {
   els.loungeLimitsModal?.addEventListener("click", (event) => {
     if (event.target === els.loungeLimitsModal) closeLoungeLimitsPopup();
   });
-  els.loungeLimitForm?.addEventListener("submit", saveLoungeLimitFromForm);
+  els.loungeLimitForm?.addEventListener("submit", (event) => runSaveAction("lounge-limit", saveLoungeLimitFromForm, event));
   els.loungeLimitCardSelect?.addEventListener("change", handleLoungeLimitCardChange);
   els.clearLoungeLimitBtn?.addEventListener("click", () => resetLoungeLimitForm(true));
   els.loungeLimitsTable?.addEventListener("click", handleLoungeLimitTableAction);
@@ -11052,18 +11084,25 @@ function renderInterestIncomeWidget() {
 }
 
 function render() {
-  // Derived benefits are synchronized first because those routines can update
-  // the card objects. Only cache after that work is complete.
+  const activeView = normalizeViewName(state.currentView);
+  // These synchronizations walk every card and activity record. Run them when
+  // the visible widget depends on those totals, while save handlers continue
+  // to synchronize immediately after a related data change.
+  const needsPointSync = ["dashboard", "portfolio", "rpSpends", "ppr"].includes(activeView);
+  const needsLoungeSync = ["dashboard", "portfolio", "lounge"].includes(activeView);
   renderDerivedCache = null;
-  syncRpRedeemedBenefitsFromSpends();
-  // Always sync lounge benefits to ensure all cards have correct lounge benefits
-  syncLoungeBenefitsFromVisits();
+  if (needsPointSync) syncRpRedeemedBenefitsFromSpends();
+  if (needsLoungeSync) syncLoungeBenefitsFromVisits();
   renderDerivedCache = {};
 
   try {
     updateAppHeaderTitle(state.currentView);
     updateWidgetActivityButton(state.currentView);
-    renderCardDropdowns();
+    // Rebuilding every card selector is expensive on larger portfolios. Only
+    // refresh selectors for views that actually expose one.
+    if (["portfolio", "swipes", "rpSpends", "lounge", "intlTravel"].includes(normalizeViewName(state.currentView))) {
+      renderCardDropdowns();
+    }
     renderVisibleView(state.currentView, false);
   } finally {
     renderDerivedCache = null;
@@ -13093,7 +13132,7 @@ function removePprPartnerTransferTree(transferId) {
   return idsToRemove;
 }
 
-function savePprPartnerTransfer() {
+async function savePprPartnerTransfer() {
   const sourcePartnerName = String(els.pprPartnerTransferSource?.dataset.partnerName || "").trim();
   const destinationPartnerName = String(
     els.pprPartnerTransferDestinationSelect?.value
@@ -13208,7 +13247,7 @@ function savePprPartnerTransfer() {
   });
   state.pprPartnerTransfers = [...(state.pprPartnerTransfers || []), transfer];
   syncRpRedeemedBenefitsFromSpends();
-  saveState();
+  await saveState();
   render();
   closePprPartnerTransferModal();
   const bonusCopy = plan.bonusPoints > 0 ? `, including ${formatPoints(plan.bonusPoints)} bonus` : "";
@@ -14097,7 +14136,7 @@ function closePprValueModal() {
   pprValueModalAction = "edit";
 }
 
-function savePprPartnerValue() {
+async function savePprPartnerValue() {
   if (!pprValueModalPartnerName) return;
 
   const pointsToRedeem = toNumber(els.pprRedeemPointsInput?.value || 0);
@@ -14141,7 +14180,7 @@ function savePprPartnerValue() {
   const partnerName = pprValueModalPartnerName;
   const wasRedeemedEdit = pprValueModalScope === "redeemed";
   syncRpRedeemedBenefitsFromSpends();
-  saveState();
+  await saveState();
   render();
   closePprValueModal();
 
@@ -14219,7 +14258,7 @@ function closePprManualPointsModal() {
   pprManualEditingId = "";
 }
 
-function savePprManualPoints() {
+async function savePprManualPoints() {
   const isEditing = Boolean(pprManualEditingId);
   const partnerName = String(els.pprManualPartnerSelect?.value || "").trim();
   const points = toNumber(els.pprManualPointsInput?.value || 0);
@@ -14278,7 +14317,7 @@ function savePprManualPoints() {
       updatedEntry,
     ];
 
-  saveState();
+  await saveState();
   closePprManualPointsModal();
   render();
   showToast(isEditing ? "Partner points updated." : "Partner points added.");
