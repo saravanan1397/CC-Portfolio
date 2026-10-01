@@ -16730,6 +16730,7 @@ body[data-view="investments"] #investmentsView {
 .investment-record > div:first-child { display: grid; gap: 3px; min-width: 0; }
 .investment-record strong { color: var(--ink); }
 .investment-record span, .investment-record small { color: var(--muted); overflow-wrap: anywhere; }
+.investment-record small { white-space: pre-wrap; }
 .investment-record b { color: var(--profit); white-space: nowrap; }
 .investment-empty { color: var(--muted); margin: 4px 0; }
 

@@ -1469,6 +1469,7 @@ function normalizeInvestmentEntry(entry = {}) {
     vendor: String(entry.vendor || "").trim(),
     companyName,
     amount: toNumber(entry.amount),
+    purchaseDate: String(entry.purchaseDate || "").trim(),
     creditDate: String(entry.creditDate || "").trim(),
     notes: String(entry.notes || "").trim(),
     createdAt: entry.createdAt || new Date().toISOString(),
@@ -11393,7 +11394,8 @@ async function saveInvestmentEntryFromForm(event) {
     }
     entry = normalizeInvestmentEntry({
       id: editingId || createId(), kind, goldType: els.investmentGoldType?.value,
-      quantity, cost, vendor: els.investmentGoldVendor?.value, notes: els.investmentGoldNotes?.value,
+      quantity, cost, purchaseDate: els.investmentGoldDate?.value,
+      vendor: els.investmentGoldVendor?.value, notes: els.investmentGoldNotes?.value,
       createdAt: editingId ? state.investments.find((item) => item.id === editingId)?.createdAt : new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
@@ -11426,6 +11428,16 @@ async function saveInvestmentEntryFromForm(event) {
   showToast(index >= 0 ? "Investment record updated." : "Investment record added.");
 }
 
+function formatInvestmentCreditDate(value) {
+  const dateValue = String(value || "").trim();
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue);
+  const date = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+    : new Date(dateValue);
+  if (!dateValue || Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+}
+
 function renderInvestmentsWidget() {
   if (!els.investmentGoldList || !els.investmentDividendList) return;
   const gold = state.investments.filter((item) => item.kind === "gold");
@@ -11446,8 +11458,12 @@ function renderInvestmentsWidget() {
   updateInvestmentEntryFields();
 
   const actions = (entry) => `<div class="row-actions"><button class="icon-button subtle" type="button" data-investment-edit="${escapeAttribute(entry.id)}" title="Edit" aria-label="Edit"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button><button class="icon-button subtle" type="button" data-investment-delete="${escapeAttribute(entry.id)}" title="Delete" aria-label="Delete"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg></button></div>`;
-  els.investmentGoldList.innerHTML = gold.length ? gold.map((entry) => `<article class="investment-record"><div><strong>${escapeHtml(entry.goldType)} · ${escapeHtml(String(entry.quantity))} g</strong><span>${escapeHtml(entry.vendor || "Vendor not entered")}</span>${entry.notes ? `<small>${escapeHtml(entry.notes)}</small>` : ""}</div><b>${escapeHtml(formatMoney(entry.cost))}</b>${actions(entry)}</article>`).join("") : `<p class="investment-empty">No gold purchases recorded.</p>`;
-  els.investmentDividendList.innerHTML = dividends.length ? dividends.map((entry) => `<article class="investment-record"><div><strong>${escapeHtml(entry.companyName)}</strong><span>${escapeHtml(entry.creditDate ? formatDateTime(entry.creditDate) : "Credit date not entered")}</span>${entry.notes ? `<small>${escapeHtml(entry.notes)}</small>` : ""}</div><b>${escapeHtml(formatMoney(entry.amount))}</b>${actions(entry)}</article>`).join("") : `<p class="investment-empty">No dividends recorded.</p>`;
+  els.investmentGoldList.innerHTML = gold.length ? gold.map((entry) => {
+    const dateValue = entry.purchaseDate || String(entry.createdAt || "").slice(0, 10);
+    const dateLabel = dateValue ? `Purchase date: ${formatInvestmentCreditDate(dateValue)}` : "Purchase date not entered";
+    return `<article class="investment-record"><div><strong>${escapeHtml(entry.goldType)} · ${escapeHtml(String(entry.quantity))} g</strong><span>${escapeHtml(dateLabel)}</span><span>${escapeHtml(entry.vendor || "Vendor not entered")}</span>${entry.notes ? `<small>${escapeHtml(entry.notes)}</small>` : ""}</div><b>${escapeHtml(formatMoney(entry.cost))}</b>${actions(entry)}</article>`;
+  }).join("") : `<p class="investment-empty">No gold purchases recorded.</p>`;
+  els.investmentDividendList.innerHTML = dividends.length ? dividends.map((entry) => `<article class="investment-record"><div><strong>${escapeHtml(entry.companyName)}</strong><span>${escapeHtml(entry.creditDate ? `Credit date: ${formatInvestmentCreditDate(entry.creditDate)}` : "Credit date not entered")}</span>${entry.notes ? `<small>${escapeHtml(entry.notes)}</small>` : ""}</div><b>${escapeHtml(formatMoney(entry.amount))}</b>${actions(entry)}</article>`).join("") : `<p class="investment-empty">No dividends recorded.</p>`;
 }
 
 async function handleInvestmentCompanyAction(event) {
@@ -11506,6 +11522,7 @@ function handleInvestmentAction(event) {
     if (els.investmentGoldType) els.investmentGoldType.value = entry.goldType;
     if (els.investmentGoldQuantity) els.investmentGoldQuantity.value = entry.quantity;
     if (els.investmentGoldCostInput) els.investmentGoldCostInput.value = entry.cost;
+    if (els.investmentGoldDate) els.investmentGoldDate.value = entry.purchaseDate;
     if (els.investmentGoldVendor) els.investmentGoldVendor.value = entry.vendor;
     if (els.investmentGoldNotes) els.investmentGoldNotes.value = entry.notes;
   } else {

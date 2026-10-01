@@ -293,6 +293,7 @@
     appId: "1:459587513450:web:b93829e8cb1d57f4516e13"
   };
 
+
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const auth = getAuth(app);
@@ -1647,6 +1648,10 @@
                 <label class="field investment-gold-field">
                   <span>Total purchase cost (INR)</span>
                   <input id="investmentGoldCostInput" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="Includes vouchers / points" />
+                </label>
+                <label class="field investment-gold-field">
+                  <span>Purchase date</span>
+                  <input id="investmentGoldDate" type="date" />
                 </label>
                 <label class="field investment-gold-field">
                   <span>Vendor</span>
