@@ -1,5 +1,5 @@
 {
-  "exportedAt": "2026-10-01T11:27:19.112Z",
+  "exportedAt": "2026-10-01T17:17:32.799Z",
   "currency": "INR",
   "cards": [
     {
@@ -94,12 +94,21 @@
           "addedAt": ""
         },
         {
+          "id": "c28702e1-0273-4816-84e3-b883bc1a0289",
+          "type": "Milestone Points",
+          "valueType": "points",
+          "label": "12500",
+          "amount": 0,
+          "pointsAmount": 0,
+          "addedAt": ""
+        },
+        {
           "id": "rp-redeemed-points-422598b3-e93d-4526-ae25-c8a68f38622e",
           "type": "Unredeemed Points",
           "valueType": "points",
           "label": "Unredeemed Points",
-          "amount": 41217,
-          "originalPoints": 42717
+          "amount": 31217,
+          "originalPoints": 32717
         },
         {
           "id": "rp-redeemed-cash-422598b3-e93d-4526-ae25-c8a68f38622e",
@@ -128,7 +137,7 @@
       "benefits": [
         {
           "id": "17289a2f-7ab4-4fbe-9ff2-0711e37e99c5",
-          "type": "Milestone / Voucher",
+          "type": "Milestone Voucher",
           "valueType": "cash",
           "label": "Taj Voucher",
           "amount": 10000,
@@ -312,7 +321,7 @@
       "benefits": [
         {
           "id": "7ec8fa85-7621-4f64-97ac-621169a3bee8",
-          "type": "Milestone / Voucher",
+          "type": "Milestone Voucher",
           "valueType": "cash",
           "label": "Big Basket Gift Card",
           "amount": 1800,
@@ -321,7 +330,7 @@
         },
         {
           "id": "02e97563-a6c3-4d9f-8287-ab00edeeb6e3",
-          "type": "Milestone / Voucher",
+          "type": "Milestone Voucher",
           "valueType": "cash",
           "label": "Amazon Pay Gift Card",
           "amount": 300,
@@ -2913,7 +2922,7 @@
       "id": "b1e6546f-5d9f-4c0f-912c-b5f5216e2c37",
       "purchaseId": "1f288727-e8dd-477e-acc9-3ba241a6436e",
       "cardId": "422598b3-e93d-4526-ae25-c8a68f38622e",
-      "points": 42717,
+      "points": 32717,
       "redeemedPoints": 0,
       "pointAllocationExplicit": false,
       "pointAllocationMode": "legacy-welcome-first",
@@ -6564,6 +6573,76 @@
   "interestLedgerSeedVersion": "spreadsheet-through-q3-2026-v1",
   "activityLog": [
     {
+      "id": "27108825-e423-470f-8302-adc20b7b7ad6",
+      "widget": "portfolio",
+      "action": "updated",
+      "message": "Updated benefits and points for Axis Bank | Atlas.",
+      "createdAt": "2026-10-01T17:13:49.819Z"
+    },
+    {
+      "id": "735bfae8-4774-4fcb-848f-5904a53a8ae6",
+      "widget": "rpSpends",
+      "action": "updated",
+      "message": "Updated unredeemed points for Axis Bank | Atlas: 41,217 pts → 31,217 pts.",
+      "createdAt": "2026-10-01T17:12:54.022Z"
+    },
+    {
+      "id": "db78f909-0f59-43fe-afba-53e3a6c1c0a0",
+      "widget": "portfolio",
+      "action": "updated",
+      "message": "Updated unredeemed points for Axis Bank | Atlas: 41,217 pts → 31,217 pts.",
+      "createdAt": "2026-10-01T17:12:54.022Z"
+    },
+    {
+      "id": "aa3d73f5-45dc-4caa-bbb0-e5c12fb242de",
+      "widget": "portfolio",
+      "action": "updated",
+      "message": "Imported Card Portfolio records.",
+      "createdAt": "2026-10-01T14:06:27.915Z"
+    },
+    {
+      "id": "33fbb3a6-2466-4924-b3f4-e1674c683a69",
+      "widget": "swipes",
+      "action": "updated",
+      "message": "Imported Swipes records.",
+      "createdAt": "2026-10-01T14:06:27.915Z"
+    },
+    {
+      "id": "40e43088-2c10-4fd2-af2d-65972597acf4",
+      "widget": "rpSpends",
+      "action": "updated",
+      "message": "Imported Reward Points records.",
+      "createdAt": "2026-10-01T14:06:27.915Z"
+    },
+    {
+      "id": "f0027632-b2d7-4395-a9c2-8078f0ee0c6e",
+      "widget": "ppr",
+      "action": "updated",
+      "message": "Imported Partner Programs records.",
+      "createdAt": "2026-10-01T14:06:27.915Z"
+    },
+    {
+      "id": "5ca269cb-5618-4f4d-a95a-2a1b7d623143",
+      "widget": "lounge",
+      "action": "updated",
+      "message": "Imported Lounge Benefits records.",
+      "createdAt": "2026-10-01T14:06:27.915Z"
+    },
+    {
+      "id": "832626b1-99f3-408d-b091-b1361b521b98",
+      "widget": "intlTravel",
+      "action": "updated",
+      "message": "Imported Travel Expenses records.",
+      "createdAt": "2026-10-01T14:06:27.915Z"
+    },
+    {
+      "id": "a45a91d0-987d-4db0-aeca-839c4b1ea85b",
+      "widget": "interestIncome",
+      "action": "updated",
+      "message": "Imported Interest & Income records.",
+      "createdAt": "2026-10-01T14:06:27.915Z"
+    },
+    {
       "id": "668cb0da-ec94-47f2-886d-2b5d947cf40b",
       "widget": "interestIncome",
       "action": "added",
@@ -9992,76 +10071,6 @@
       "action": "added",
       "message": "Added KLIA Malaysia visit for HDFC Bank | Regalia Gold.",
       "createdAt": "2026-05-25T19:55:59.592Z"
-    },
-    {
-      "id": "758a8216-06a0-436a-a2d5-0d20d5614f08",
-      "widget": "lounge",
-      "action": "added",
-      "message": "Added Chennai visit for HDFC Bank | Regalia Gold.",
-      "createdAt": "2026-05-25T19:55:25.918Z"
-    },
-    {
-      "id": "afad3972-7fc2-4d71-90f1-bb689092bdca",
-      "widget": "lounge",
-      "action": "added",
-      "message": "Added Chennai visit for HDFC Bank | Marriott Bonvoy.",
-      "createdAt": "2026-05-25T18:34:34.188Z"
-    },
-    {
-      "id": "b145dd50-4382-4501-a96a-3c8275e30ca0",
-      "widget": "lounge",
-      "action": "added",
-      "message": "Added Chennai visit for HDFC Bank | Tata Neu Infinity.",
-      "createdAt": "2026-05-24T17:45:31.285Z"
-    },
-    {
-      "id": "557c964b-de0c-453a-a662-b8e1d923523d",
-      "widget": "lounge",
-      "action": "added",
-      "message": "Added Chennai visit for HDFC Bank | Tata Neu Infinity.",
-      "createdAt": "2026-05-24T17:45:31.285Z"
-    },
-    {
-      "id": "ade1b244-260d-463c-9e9d-bab198667a69",
-      "widget": "lounge",
-      "action": "added",
-      "message": "Added Chennai visit for HDFC Bank | Tata Neu Infinity.",
-      "createdAt": "2026-05-24T17:45:31.285Z"
-    },
-    {
-      "id": "c82cd101-8cd2-44a4-8664-4934f032dc62",
-      "widget": "lounge",
-      "action": "added",
-      "message": "Added KLIA Malaysia visit for HDFC Bank | Tata Neu Infinity.",
-      "createdAt": "2026-05-24T17:45:31.285Z"
-    },
-    {
-      "id": "51b3d551-d02d-4c2b-92b3-6db3433cf63b",
-      "widget": "lounge",
-      "action": "added",
-      "message": "Added Bali visit for HDFC Bank | Tata Neu Infinity.",
-      "createdAt": "2026-05-24T17:45:31.285Z"
-    },
-    {
-      "id": "9d34892e-7041-4559-9e11-ff9c37dc8f3b",
-      "widget": "lounge",
-      "action": "added",
-      "message": "Added Changi Singapore visit for HDFC Bank | Tata Neu Infinity.",
-      "createdAt": "2026-05-24T17:45:31.285Z"
-    },
-    {
-      "id": "639d3b9f-899b-458e-b763-b50613e842b2",
-      "widget": "lounge",
-      "action": "added",
-      "message": "Added Changi Singapore visit for HDFC Bank | Tata Neu Infinity.",
-      "createdAt": "2026-05-24T17:45:31.285Z"
-    },
-    {
-      "id": "269bf2c2-98a4-4098-81bf-1d37bb2d79ac",
-      "widget": "lounge",
-      "action": "added",
-      "message": "Added Chennai visit for HDFC Bank | Marriott Bonvoy.",
-      "createdAt": "2026-05-24T17:20:08.218Z"
     }
   ]
 }
