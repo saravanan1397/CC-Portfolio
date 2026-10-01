@@ -570,6 +570,7 @@ function cacheElements() {
     investmentGoldType: document.getElementById("investmentGoldType"),
     investmentGoldQuantity: document.getElementById("investmentGoldQuantity"),
     investmentGoldCostInput: document.getElementById("investmentGoldCostInput"),
+    investmentGoldDate: document.getElementById("investmentGoldDate"),
     investmentGoldVendor: document.getElementById("investmentGoldVendor"),
     investmentGoldNotes: document.getElementById("investmentGoldNotes"),
     investmentDividendCompany: document.getElementById("investmentDividendCompany"),
