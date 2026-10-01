@@ -298,27 +298,36 @@
   const db = getFirestore(app);
   const auth = getAuth(app);
 
-  // Enable anonymous authentication for Firestore security rules
-  // Security rule requires: request.auth.uid != null
-  signInAnonymously(auth)
-    .then((userCredential) => {
-      console.log("✅ Anonymous authentication successful");
-      console.log("UID:", userCredential.user.uid);
-      
-      // Monitor auth state changes
-      onAuthStateChanged(auth, (user) => {
-        if (user) {
-          console.log("✅ User authenticated. App can now access Firestore.");
-          // Load app only AFTER auth is confirmed
-          if (typeof init === "function") {
-            init();
-          }
-        } else {
-          console.error("❌ User not authenticated. Check Firestore security rules.");
-        }
-      });
-    })
-    .catch((error) => {
+  // Export Firebase references before application code starts. app.js waits for
+  // firebaseReady before it loads data or enables any save controls.
+  window.db = db;
+  window.auth = auth;
+  window.firebaseFns = { doc, setDoc, getDoc };
+
+  let resolveFirebaseReady;
+  let rejectFirebaseReady;
+  let stopAuthObserver = () => {};
+  window.firebaseReady = new Promise((resolve, reject) => {
+    resolveFirebaseReady = resolve;
+    rejectFirebaseReady = reject;
+  });
+  window.dispatchEvent(new Event("portfoliofirebaseready"));
+
+  // Security rule requires: request.auth.uid != null. A restored anonymous
+  // session may arrive before signInAnonymously resolves, so observe both paths.
+  stopAuthObserver = onAuthStateChanged(auth, (user) => {
+    if (!user) return;
+    console.log("✅ User authenticated. Firestore is ready.");
+    stopAuthObserver();
+    resolveFirebaseReady(user);
+  }, (error) => {
+    stopAuthObserver();
+    rejectFirebaseReady(error);
+  });
+
+  signInAnonymously(auth).catch((error) => {
+      stopAuthObserver();
+      rejectFirebaseReady(error);
       console.error("❌ Anonymous authentication failed:", error.message);
       console.error("Make sure Anonymous sign-in is enabled in Firebase Console > Authentication > Sign-in method");
       
@@ -334,18 +343,9 @@
         `;
       }
     });
-
-  // Export Firebase references for use in app.js
-  window.db = db;
-  window.auth = auth;
-  window.firebaseFns = {
-    doc,
-    setDoc,
-    getDoc
-  };
 </script>
 
-    <script defer src="app.js?v=20260924-safari-video-v18"></script>
+    <script defer src="app.js?v=20261001-save-reliability-v1"></script>
   </head>
 
 

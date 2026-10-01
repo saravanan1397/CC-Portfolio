@@ -140,6 +140,8 @@ let loungeAllExpanded = false;
 
 const els = {};
 const activeSaveOperations = new Set();
+let appInitializationPromise = null;
+let appIsReady = false;
 // Reuse expensive point/fee calculations while a single render is building
 // several views and summaries. The cache is cleared as soon as that render
 // finishes, so it cannot make state changes stale.
@@ -466,16 +468,45 @@ function initLoginWaterAnimation() {
   animationFrameId = requestAnimationFrame(renderFrame);
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
+async function waitForFirebaseReady() {
+  if (!window.firebaseReady) {
+    await new Promise((resolve) => {
+      window.addEventListener("portfoliofirebaseready", resolve, { once: true });
+    });
+  }
+  if (!window.firebaseReady) {
+    throw new Error("The secure data connection did not start.");
+  }
+  return window.firebaseReady;
+}
+
+function initializePortfolioApp() {
+  if (appInitializationPromise) return appInitializationPromise;
+
+  appInitializationPromise = (async () => {
+    await waitForFirebaseReady();
+    cacheElements();
+    await loadState();
+    renderIssuerOptions();
+    bindEvents();
+    initUiEnhancements();
+    resetForm();
+    resetIncomeEntryForm();
+    render();
+    appIsReady = true;
+  })();
+
+  return appInitializationPromise;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
   initLoginWaterAnimation();
-  cacheElements();
-  await loadState();
-  renderIssuerOptions();
-  bindEvents();
-initUiEnhancements();
-resetForm();
-resetIncomeEntryForm();
-render();
+  initializePortfolioApp().then(() => {
+    if (sessionStorage.getItem("unlocked") === "true") revealUnlockedPortfolio();
+  }).catch((error) => {
+    console.error("Unable to initialize the portfolio", error);
+    showPortfolioConnectionError();
+  });
 });
 
 function cacheElements() {
@@ -866,10 +897,14 @@ async function runSaveAction(key, handler, event) {
     if (originalLabel?.trim()) control.textContent = "Saving…";
   }
 
+  const stateBeforeSave = createPersistentStateSnapshot();
   try {
+    await waitForFirebaseReady();
     await handler(event);
   } catch (error) {
     console.error(`Unable to save ${key}`, error);
+    restorePersistentStateSnapshot(stateBeforeSave);
+    render();
     showToast("Could not save the record. Please try again.");
   } finally {
     activeSaveOperations.delete(key);
@@ -879,6 +914,37 @@ async function runSaveAction(key, handler, event) {
       if (originalLabel !== undefined) control.textContent = originalLabel;
     }
   }
+}
+
+function clonePersistedValue(value) {
+  if (typeof structuredClone === "function") return structuredClone(value);
+  return JSON.parse(JSON.stringify(value));
+}
+
+function createPersistentStateSnapshot() {
+  return clonePersistedValue({
+    currency: state.currency,
+    cards: state.cards,
+    swipes: state.swipes,
+    rpSpends: state.rpSpends,
+    pprManualPoints: state.pprManualPoints,
+    pprPartnerTransfers: state.pprPartnerTransfers,
+    loungeVisits: state.loungeVisits,
+    loungeCardLimits: state.loungeCardLimits,
+    intlTravelTrips: state.intlTravelTrips,
+    interestLedger: state.interestLedger,
+    incomeBanks: state.incomeBanks,
+    interestLedgerSeedVersion: state.interestLedgerSeedVersion,
+    activityLog: state.activityLog,
+    aiTrainer: state.aiTrainer,
+    activitySnapshot,
+  });
+}
+
+function restorePersistentStateSnapshot(snapshot) {
+  if (!snapshot) return;
+  Object.assign(state, snapshot);
+  activitySnapshot = snapshot.activitySnapshot || createActivitySnapshot();
 }
 
 function bindEvents() {
@@ -1441,12 +1507,14 @@ async function loadState() {
     }
   } catch (e) {
     console.error("❌ Load failed", e);
+    throw e;
   }
 }
 
 async function saveState(options = {}) {
   console.log("🔥 saveState triggered");
 
+  await waitForFirebaseReady();
   const { doc, setDoc } = window.firebaseFns;
   const nextActivitySnapshot = createActivitySnapshot();
 
@@ -15186,17 +15254,50 @@ function escapeAttribute(value) {
 
 const APP_PIN = "1397"; // 🔥 change this
 
-function checkPin() {
-  const input = document.getElementById("pinInput").value;
+function revealUnlockedPortfolio() {
+  if (!appIsReady) return;
+  document.getElementById("lockScreen").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  showView("dashboard");
+}
+
+function showPortfolioConnectionError() {
+  const error = document.getElementById("pinError");
+  if (!error) return;
+  error.textContent = "Could not connect to your portfolio. Please refresh and try again.";
+  error.style.display = "block";
+}
+
+async function checkPin() {
+  const inputElement = document.getElementById("pinInput");
+  const input = inputElement?.value;
+  const unlockButton = document.querySelector("#lockScreen .pin-button");
 
   if (input === APP_PIN) {
     sessionStorage.setItem("unlocked", "true");
-
-    document.getElementById("lockScreen").style.display = "none";
-    document.getElementById("app").style.display = "block";
-    showView("dashboard");
+    if (unlockButton) {
+      unlockButton.disabled = true;
+      unlockButton.textContent = "Opening…";
+    }
+    try {
+      await initializePortfolioApp();
+      revealUnlockedPortfolio();
+    } catch (error) {
+      console.error("Unable to unlock portfolio", error);
+      sessionStorage.removeItem("unlocked");
+      showPortfolioConnectionError();
+    } finally {
+      if (unlockButton?.isConnected) {
+        unlockButton.disabled = false;
+        unlockButton.textContent = "Unlock Portfolio";
+      }
+    }
   } else {
-    document.getElementById("pinError").style.display = "block";
+    const error = document.getElementById("pinError");
+    if (error) {
+      error.textContent = "Incorrect PIN. Please try again.";
+      error.style.display = "block";
+    }
   }
 }
 
@@ -15209,15 +15310,6 @@ document.addEventListener("DOMContentLoaded", () => {
         checkPin();
       }
     });
-  }
-});
-
-// Auto-check on reload
-window.addEventListener("DOMContentLoaded", () => {
-  if (sessionStorage.getItem("unlocked") === "true") {
-    document.getElementById("lockScreen").style.display = "none";
-    document.getElementById("app").style.display = "block";
-    showView("dashboard");
   }
 });
 
