@@ -1455,11 +1455,20 @@ function normalizeInvestmentCompanies(rawCompanies, entries = []) {
   return [...unique.values()].sort((a, b) => a.localeCompare(b, "en-IN"));
 }
 
+function getInvestmentRecordDate(entry = {}) {
+  const explicitDate = String(entry.purchaseDate || entry.creditDate || entry.date || "").trim();
+  if (explicitDate) return explicitDate;
+  const createdAt = String(entry.createdAt || "").trim();
+  return createdAt ? createdAt.slice(0, 10) : "";
+}
+
 function normalizeInvestmentEntry(entry = {}) {
   const kind = entry.kind === "dividend" ? "dividend" : entry.kind === "gold" ? "gold" : "";
   if (!kind) return null;
   const companyName = String(entry.companyName || "").trim().replace(/\s+/g, " ");
   if (kind === "dividend" && !companyName) return null;
+  const purchaseDate = String(entry.purchaseDate || entry.date || "").trim();
+  const creditDate = String(entry.creditDate || entry.date || "").trim();
   return {
     id: String(entry.id || createId()),
     kind,
@@ -1469,8 +1478,8 @@ function normalizeInvestmentEntry(entry = {}) {
     vendor: String(entry.vendor || "").trim(),
     companyName,
     amount: toNumber(entry.amount),
-    purchaseDate: String(entry.purchaseDate || "").trim(),
-    creditDate: String(entry.creditDate || "").trim(),
+    purchaseDate: kind === "gold" ? purchaseDate : "",
+    creditDate: kind === "dividend" ? creditDate : "",
     notes: String(entry.notes || "").trim(),
     createdAt: entry.createdAt || new Date().toISOString(),
     updatedAt: entry.updatedAt || entry.createdAt || new Date().toISOString(),
@@ -11459,11 +11468,14 @@ function renderInvestmentsWidget() {
 
   const actions = (entry) => `<div class="row-actions"><button class="icon-button subtle" type="button" data-investment-edit="${escapeAttribute(entry.id)}" title="Edit" aria-label="Edit"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button><button class="icon-button subtle" type="button" data-investment-delete="${escapeAttribute(entry.id)}" title="Delete" aria-label="Delete"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg></button></div>`;
   els.investmentGoldList.innerHTML = gold.length ? gold.map((entry) => {
-    const dateValue = entry.purchaseDate || String(entry.createdAt || "").slice(0, 10);
+    const dateValue = getInvestmentRecordDate(entry);
     const dateLabel = dateValue ? `Purchase date: ${formatInvestmentCreditDate(dateValue)}` : "Purchase date not entered";
     return `<article class="investment-record"><div><strong>${escapeHtml(entry.goldType)} · ${escapeHtml(String(entry.quantity))} g</strong><span>${escapeHtml(dateLabel)}</span><span>${escapeHtml(entry.vendor || "Vendor not entered")}</span>${entry.notes ? `<small>${escapeHtml(entry.notes)}</small>` : ""}</div><b>${escapeHtml(formatMoney(entry.cost))}</b>${actions(entry)}</article>`;
   }).join("") : `<p class="investment-empty">No gold purchases recorded.</p>`;
-  els.investmentDividendList.innerHTML = dividends.length ? dividends.map((entry) => `<article class="investment-record"><div><strong>${escapeHtml(entry.companyName)}</strong><span>${escapeHtml(entry.creditDate ? `Credit date: ${formatInvestmentCreditDate(entry.creditDate)}` : "Credit date not entered")}</span>${entry.notes ? `<small>${escapeHtml(entry.notes)}</small>` : ""}</div><b>${escapeHtml(formatMoney(entry.amount))}</b>${actions(entry)}</article>`).join("") : `<p class="investment-empty">No dividends recorded.</p>`;
+  els.investmentDividendList.innerHTML = dividends.length ? dividends.map((entry) => {
+    const dateValue = getInvestmentRecordDate(entry);
+    return `<article class="investment-record"><div><strong>${escapeHtml(entry.companyName)}</strong><span>${escapeHtml(dateValue ? `Credit date: ${formatInvestmentCreditDate(dateValue)}` : "Credit date not entered")}</span>${entry.notes ? `<small>${escapeHtml(entry.notes)}</small>` : ""}</div><b>${escapeHtml(formatMoney(entry.amount))}</b>${actions(entry)}</article>`;
+  }).join("") : `<p class="investment-empty">No dividends recorded.</p>`;
 }
 
 async function handleInvestmentCompanyAction(event) {
