@@ -81,7 +81,6 @@
         #swipesView .swipe-form-container {
           flex-direction: column !important;
           align-items: stretch !important;
-          gap: 16px !important;
         }
         #swipesView .field {
           min-width: 100% !important;
@@ -345,7 +344,7 @@
     });
 </script>
 
-    <script defer src="app.js?v=20261001-save-reliability-v1"></script>
+    <script defer src="app.js?v=20261001-rp-unredeemed-benefit-sum-v1"></script>
   </head>
 
 
@@ -421,6 +420,10 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16M6 16V9m4 7V5m4 11v-4m4 4V7" /><path d="m5 7 4-3 5 4 5-5" /></svg>
             <span>Interest &amp; income</span>
           </button>
+          <button type="button" class="widget-v2-nav-item" data-dashboard-nav="investments">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16M6 16V9m4 7V5m4 11v-4m4 4V7" /><path d="M5 7h14M12 4v6" /></svg>
+            <span>Investments</span>
+          </button>
           <button type="button" class="widget-v2-nav-item" data-dashboard-nav="lounge">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13h14v6H5zM7 13V8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v5M3 19h18" /></svg>
             <span>Lounge benefits</span>
@@ -476,6 +479,10 @@
               <button type="button" class="dashboard-v2-nav-item" data-dashboard-nav="interestIncome">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16M6 16V9m4 7V5m4 11v-4m4 4V7" /><path d="m5 7 4-3 5 4 5-5" /></svg>
                 <span>Interest &amp; income</span>
+              </button>
+              <button type="button" class="dashboard-v2-nav-item" data-dashboard-nav="investments">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16M6 16V9m4 7V5m4 11v-4m4 4V7" /><path d="M5 7h14M12 4v6" /></svg>
+                <span>Investments</span>
               </button>
               <button type="button" class="dashboard-v2-nav-item" data-dashboard-nav="lounge">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13h14v6H5zM7 13V8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v5M3 19h18" /></svg>
@@ -685,6 +692,23 @@
                         <div><span>Spends</span><strong id="dashboardIncomeSpends">INR 0</strong></div>
                       </div>
                       <div class="dashboard-v2-widget-context" id="dashboardIncomeHint">Calendar-year interest with lifetime adjustments</div>
+                    </article>
+
+                    <article class="dashboard-v2-widget dashboard-v2-investments-widget">
+                      <header class="dashboard-v2-widget-top">
+                        <span>Investments</span>
+                        <button class="dashboard-v2-open-widget" type="button" id="openInvestmentsBtn" aria-label="Open investments" title="Open investments">
+                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9" /></svg>
+                        </button>
+                      </header>
+                      <h4>Gold purchases &amp; stock dividends</h4>
+                      <div class="dashboard-v2-primary-value" id="dashboardInvestmentValue">INR 0</div>
+                      <div class="dashboard-v2-detail-list">
+                        <div><span>Gold cost</span><strong id="dashboardInvestmentGoldCost">INR 0</strong></div>
+                        <div><span>Dividends credited</span><strong id="dashboardInvestmentDividends">INR 0</strong></div>
+                        <div><span>Stock companies</span><strong id="dashboardInvestmentCompanies">0</strong></div>
+                      </div>
+                      <div class="dashboard-v2-widget-context" id="dashboardInvestmentHint">No investment records yet</div>
                     </article>
                   </div>
                 </section>
@@ -1189,9 +1213,13 @@
                     <strong id="rpWelcomePointsAvailable">0 pts</strong>
                   </div>
                   <div>
+                    <span>Milestone Points available</span>
+                    <strong id="rpMilestonePointsAvailable">0 pts</strong>
+                  </div>
+                  <div>
                     <span>Earned Points available</span>
                     <strong id="rpEarnedPointsAvailable">0 pts</strong>
-                    <small>Includes manually entered card points</small>
+                    <small>Excludes Welcome Benefits and Milestone Points</small>
                   </div>
                 </div>
                 <div class="rp-point-source-grid">
@@ -1569,6 +1597,101 @@
           </section>
 
           <div id="incomeLedgerBlocks" class="income-ledger-blocks" aria-live="polite"></div>
+        </section>
+      </main>
+
+      <main id="investmentsView" style="display:none;">
+        <section class="portfolio-panel investments-panel" aria-label="Investments">
+          <div class="panel-heading portfolio-heading">
+            <div>
+              <p class="eyebrow">Standalone tracker</p>
+              <h2>Investments</h2>
+              <p class="panel-subtitle">Gold purchases and credited stock dividends in one consolidated view.</p>
+            </div>
+          </div>
+
+          <section class="widget-render-summary investments-summary" aria-label="Investment summary">
+            <div><span>Gold purchases</span><strong id="investmentGoldCount">0</strong></div>
+            <div><span>Total gold cost</span><strong id="investmentGoldCost">INR 0</strong></div>
+            <div><span>Dividends credited</span><strong id="investmentDividendTotal">INR 0</strong></div>
+            <div><span>Stock companies</span><strong id="investmentCompanyCount">0</strong></div>
+          </section>
+
+          <section class="investment-entry-card" aria-labelledby="investmentEntryTitle">
+            <div class="income-entry-card-heading">
+              <div>
+                <p class="eyebrow">Data entry</p>
+                <h3 id="investmentEntryTitle">Add an investment record</h3>
+              </div>
+            </div>
+            <form id="investmentEntryForm" autocomplete="off">
+              <input id="investmentEditingId" type="hidden" />
+              <div class="investment-entry-grid">
+                <label class="field">
+                  <span>Entry type</span>
+                  <select id="investmentEntryType">
+                    <option value="" selected>Please select</option>
+                    <option value="gold">Gold purchase</option>
+                    <option value="dividend">Stock dividend</option>
+                  </select>
+                </label>
+
+                <label class="field investment-gold-field">
+                  <span>Gold type</span>
+                  <select id="investmentGoldType"><option value="Coin">Coin</option><option value="Jewellery">Jewellery</option></select>
+                </label>
+                <label class="field investment-gold-field">
+                  <span>Gold quantity (grams)</span>
+                  <input id="investmentGoldQuantity" type="number" min="0.001" step="0.001" inputmode="decimal" placeholder="Required" />
+                </label>
+                <label class="field investment-gold-field">
+                  <span>Total purchase cost (INR)</span>
+                  <input id="investmentGoldCostInput" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="Includes vouchers / points" />
+                </label>
+                <label class="field investment-gold-field">
+                  <span>Vendor</span>
+                  <input id="investmentGoldVendor" type="text" maxlength="100" placeholder="Optional vendor name" />
+                </label>
+                <label class="field investment-gold-field investment-wide-field">
+                  <span>Notes</span>
+                  <textarea id="investmentGoldNotes" rows="2" maxlength="500" placeholder="Optional comments, vouchers or points used"></textarea>
+                </label>
+
+                <label class="field investment-dividend-field" hidden>
+                  <span>Stock company <em>Required</em></span>
+                  <select id="investmentDividendCompany"></select>
+                </label>
+                <label class="field investment-dividend-field" hidden>
+                  <span>Dividend amount (INR)</span>
+                  <input id="investmentDividendAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Optional" />
+                </label>
+                <label class="field investment-dividend-field" hidden>
+                  <span>Credit date</span>
+                  <input id="investmentDividendDate" type="date" />
+                </label>
+                <label class="field investment-dividend-field investment-wide-field" hidden>
+                  <span>Notes</span>
+                  <textarea id="investmentDividendNotes" rows="2" maxlength="500" placeholder="Optional comments"></textarea>
+                </label>
+              </div>
+              <div class="investment-entry-footer">
+                <div class="investment-company-manager">
+                  <label class="field"><span>Add stock company</span><input id="investmentCompanyName" type="text" maxlength="100" placeholder="e.g. Reliance Industries" /></label>
+                  <button id="addInvestmentCompanyBtn" class="ghost-button" type="button">Add company</button>
+                </div>
+                <div class="income-entry-actions">
+                  <button id="clearInvestmentEntryBtn" class="ghost-button" type="button">Clear</button>
+                  <button id="saveInvestmentEntryBtn" class="primary-button" type="submit">Add Entry</button>
+                </div>
+              </div>
+            </form>
+            <div id="investmentCompanyList" class="investment-company-list" aria-label="Saved stock companies"></div>
+          </section>
+
+          <section class="investment-lists" aria-live="polite">
+            <section class="investment-list-panel"><h3>Gold purchases</h3><div id="investmentGoldList"></div></section>
+            <section class="investment-list-panel"><h3>Stock dividends</h3><div id="investmentDividendList"></div></section>
+          </section>
         </section>
       </main>
 

@@ -1,5 +1,5 @@
 {
-  "exportedAt": "2026-10-01T03:09:58.499Z",
+  "exportedAt": "2026-10-01T11:27:19.112Z",
   "currency": "INR",
   "cards": [
     {
@@ -6504,6 +6504,54 @@
       "imported": true,
       "createdAt": "2026-09-05T12:00:00.000Z",
       "updatedAt": "2026-09-05T12:00:00.000Z"
+    },
+    {
+      "id": "4590b58f-9863-4380-9060-30dfc6b359a2",
+      "kind": "interest",
+      "bankName": "DBS",
+      "source": "",
+      "scope": "overall",
+      "frequency": "quarterly",
+      "year": 2026,
+      "quarter": "Q3",
+      "amount": 2038,
+      "description": "",
+      "notes": "",
+      "imported": false,
+      "createdAt": "2026-10-01T11:26:29.439Z",
+      "updatedAt": "2026-10-01T11:26:29.439Z"
+    },
+    {
+      "id": "be20d4c1-0f5a-4cac-a24a-9535b515806d",
+      "kind": "interest",
+      "bankName": "IDFC",
+      "source": "",
+      "scope": "overall",
+      "frequency": "monthly",
+      "year": 2026,
+      "quarter": "Q3",
+      "amount": 299,
+      "description": "",
+      "notes": "",
+      "imported": false,
+      "createdAt": "2026-10-01T11:26:49.165Z",
+      "updatedAt": "2026-10-01T11:26:49.165Z"
+    },
+    {
+      "id": "ad25e3a6-450a-42c1-890d-cf73b558d802",
+      "kind": "interest",
+      "bankName": "HDFC",
+      "source": "",
+      "scope": "overall",
+      "frequency": "quarterly",
+      "year": 2026,
+      "quarter": "Q3",
+      "amount": 2.15,
+      "description": "",
+      "notes": "",
+      "imported": false,
+      "createdAt": "2026-10-01T11:27:13.248Z",
+      "updatedAt": "2026-10-01T11:27:13.248Z"
     }
   ],
   "incomeBanks": [
@@ -6515,6 +6563,76 @@
   ],
   "interestLedgerSeedVersion": "spreadsheet-through-q3-2026-v1",
   "activityLog": [
+    {
+      "id": "668cb0da-ec94-47f2-886d-2b5d947cf40b",
+      "widget": "interestIncome",
+      "action": "added",
+      "message": "Added interest for HDFC Q3 2026: INR 2.15.",
+      "createdAt": "2026-10-01T11:27:13.251Z"
+    },
+    {
+      "id": "4b9e013b-d5e6-4f74-b685-73998994cf30",
+      "widget": "interestIncome",
+      "action": "added",
+      "message": "Added interest for IDFC Q3 2026: INR 299.",
+      "createdAt": "2026-10-01T11:26:49.168Z"
+    },
+    {
+      "id": "1a633676-5140-4a99-bd86-9ad80bc14b22",
+      "widget": "interestIncome",
+      "action": "added",
+      "message": "Added interest for DBS Q3 2026: INR 2,038.",
+      "createdAt": "2026-10-01T11:26:29.441Z"
+    },
+    {
+      "id": "de63dc1e-6ca7-4129-9b41-b2882c4c6b5c",
+      "widget": "portfolio",
+      "action": "updated",
+      "message": "Imported Card Portfolio records.",
+      "createdAt": "2026-10-01T11:25:32.471Z"
+    },
+    {
+      "id": "58b05ceb-bc9e-4005-93ca-7c2e36a9fce6",
+      "widget": "swipes",
+      "action": "updated",
+      "message": "Imported Swipes records.",
+      "createdAt": "2026-10-01T11:25:32.471Z"
+    },
+    {
+      "id": "c9744089-c08c-40ff-9717-66425cc87645",
+      "widget": "rpSpends",
+      "action": "updated",
+      "message": "Imported Reward Points records.",
+      "createdAt": "2026-10-01T11:25:32.471Z"
+    },
+    {
+      "id": "0c6f8cf5-ee0d-4b05-b888-e369220b2e28",
+      "widget": "ppr",
+      "action": "updated",
+      "message": "Imported Partner Programs records.",
+      "createdAt": "2026-10-01T11:25:32.471Z"
+    },
+    {
+      "id": "a5852ced-5739-4119-88a2-caa369d93494",
+      "widget": "lounge",
+      "action": "updated",
+      "message": "Imported Lounge Benefits records.",
+      "createdAt": "2026-10-01T11:25:32.471Z"
+    },
+    {
+      "id": "3cf922b1-ddb6-41c8-b393-4c902797166d",
+      "widget": "intlTravel",
+      "action": "updated",
+      "message": "Imported Travel Expenses records.",
+      "createdAt": "2026-10-01T11:25:32.471Z"
+    },
+    {
+      "id": "f2195adc-2b5f-4f9b-8f8e-58d2293db253",
+      "widget": "interestIncome",
+      "action": "updated",
+      "message": "Imported Interest & Income records.",
+      "createdAt": "2026-10-01T11:25:32.471Z"
+    },
     {
       "id": "9fd3163d-199d-412b-b0f6-af45dfcd39a7",
       "widget": "swipes",
@@ -9944,48 +10062,6 @@
       "action": "added",
       "message": "Added Chennai visit for HDFC Bank | Marriott Bonvoy.",
       "createdAt": "2026-05-24T17:20:08.218Z"
-    },
-    {
-      "id": "1fd05575-ed23-4af1-bc51-025f99f20755",
-      "widget": "lounge",
-      "action": "added",
-      "message": "Added Chennai visit for HDFC Bank | Marriott Bonvoy.",
-      "createdAt": "2026-05-24T17:20:08.218Z"
-    },
-    {
-      "id": "7f1cd1b6-a4d8-498e-9db2-2fed55d1a135",
-      "widget": "lounge",
-      "action": "added",
-      "message": "Added Chennai visit for HDFC Bank | Marriott Bonvoy.",
-      "createdAt": "2026-05-24T17:20:08.218Z"
-    },
-    {
-      "id": "929e44ed-fb11-4129-8caf-cb84b771ad0c",
-      "widget": "lounge",
-      "action": "added",
-      "message": "Added Noi Bai Hanoi Vietnam visit for HDFC Bank | Marriott Bonvoy.",
-      "createdAt": "2026-05-24T17:20:08.218Z"
-    },
-    {
-      "id": "c5b36b96-0054-40af-a32a-1966bb048b7f",
-      "widget": "lounge",
-      "action": "added",
-      "message": "Added Changi Singapore visit for HDFC Bank | Marriott Bonvoy.",
-      "createdAt": "2026-05-24T17:20:08.218Z"
-    },
-    {
-      "id": "5f86cfa4-4d1d-47b6-8195-df9736908b39",
-      "widget": "lounge",
-      "action": "added",
-      "message": "Added Chennai visit for HDFC Bank | Marriott Bonvoy.",
-      "createdAt": "2026-05-24T17:20:08.218Z"
-    },
-    {
-      "id": "92efd1e3-db7b-420c-8ed9-6f5f0f780754",
-      "widget": "lounge",
-      "action": "added",
-      "message": "Added Chennai visit for HDFC Bank | Marriott Bonvoy.",
-      "createdAt": "2026-05-24T17:07:33.741Z"
     }
   ]
 }

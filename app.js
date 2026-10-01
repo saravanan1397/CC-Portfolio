@@ -6,7 +6,8 @@ const benefitTypes = [
   "Points Redeemed",
   "Unredeemed Points",
   "Cashback / Statement Credit",
-  "Milestone / Voucher",
+  "Milestone Voucher",
+  "Milestone Points",
 ];
 
 const benefitValueTypes = [
@@ -92,6 +93,8 @@ const state = {
   intlTravelTrips: [],
   interestLedger: [],
   incomeBanks: [],
+  investments: [],
+  investmentCompanies: [],
   interestLedgerSeedVersion: "",
   activityLog: [],
   aiTrainer: {
@@ -492,6 +495,7 @@ function initializePortfolioApp() {
     initUiEnhancements();
     resetForm();
     resetIncomeEntryForm();
+    resetInvestmentEntryForm();
     render();
     appIsReady = true;
   })();
@@ -559,6 +563,30 @@ function cacheElements() {
     loungeView: document.getElementById("loungeView"),
     intlTravelView: document.getElementById("intlTravelView"),
     interestIncomeView: document.getElementById("interestIncomeView"),
+    investmentsView: document.getElementById("investmentsView"),
+    investmentEntryForm: document.getElementById("investmentEntryForm"),
+    investmentEditingId: document.getElementById("investmentEditingId"),
+    investmentEntryType: document.getElementById("investmentEntryType"),
+    investmentGoldType: document.getElementById("investmentGoldType"),
+    investmentGoldQuantity: document.getElementById("investmentGoldQuantity"),
+    investmentGoldCostInput: document.getElementById("investmentGoldCostInput"),
+    investmentGoldVendor: document.getElementById("investmentGoldVendor"),
+    investmentGoldNotes: document.getElementById("investmentGoldNotes"),
+    investmentDividendCompany: document.getElementById("investmentDividendCompany"),
+    investmentDividendAmount: document.getElementById("investmentDividendAmount"),
+    investmentDividendDate: document.getElementById("investmentDividendDate"),
+    investmentDividendNotes: document.getElementById("investmentDividendNotes"),
+    investmentCompanyName: document.getElementById("investmentCompanyName"),
+    investmentCompanyList: document.getElementById("investmentCompanyList"),
+    addInvestmentCompanyBtn: document.getElementById("addInvestmentCompanyBtn"),
+    clearInvestmentEntryBtn: document.getElementById("clearInvestmentEntryBtn"),
+    saveInvestmentEntryBtn: document.getElementById("saveInvestmentEntryBtn"),
+    investmentGoldCount: document.getElementById("investmentGoldCount"),
+    investmentGoldCost: document.getElementById("investmentGoldCost"),
+    investmentDividendTotal: document.getElementById("investmentDividendTotal"),
+    investmentCompanyCount: document.getElementById("investmentCompanyCount"),
+    investmentGoldList: document.getElementById("investmentGoldList"),
+    investmentDividendList: document.getElementById("investmentDividendList"),
     appPageTitle: document.getElementById("appPageTitle"),
     widgetActivityBtn: document.getElementById("widgetActivityBtn"),
     widgetActivityModal: document.getElementById("widgetActivityModal"),
@@ -672,6 +700,12 @@ function cacheElements() {
     openLoungeBtn: document.getElementById("openLoungeBtn"),
     openIntlTravelBtn: document.getElementById("openIntlTravelBtn"),
     openInterestIncomeBtn: document.getElementById("openInterestIncomeBtn"),
+    openInvestmentsBtn: document.getElementById("openInvestmentsBtn"),
+    dashboardInvestmentValue: document.getElementById("dashboardInvestmentValue"),
+    dashboardInvestmentGoldCost: document.getElementById("dashboardInvestmentGoldCost"),
+    dashboardInvestmentDividends: document.getElementById("dashboardInvestmentDividends"),
+    dashboardInvestmentCompanies: document.getElementById("dashboardInvestmentCompanies"),
+    dashboardInvestmentHint: document.getElementById("dashboardInvestmentHint"),
     backFromPortfolioBtn: document.getElementById("backFromPortfolioBtn"),
     backFromSwipesBtn: document.getElementById("backFromSwipesBtn"),
     backFromRpSpendsBtn: document.getElementById("backFromRpSpendsBtn"),
@@ -797,6 +831,7 @@ spentForBtn:document.getElementById("spentForBtn"),
     rpPointAllocationTotal: document.getElementById("rpPointAllocationTotal"),
     rpWelcomePointsAvailable: document.getElementById("rpWelcomePointsAvailable"),
     rpEarnedPointsAvailable: document.getElementById("rpEarnedPointsAvailable"),
+    rpMilestonePointsAvailable: document.getElementById("rpMilestonePointsAvailable"),
     rpUseWelcomePoints: document.getElementById("rpUseWelcomePoints"),
     rpWelcomePointsToRedeem: document.getElementById("rpWelcomePointsToRedeem"),
     rpEarnedPointsToRedeem: document.getElementById("rpEarnedPointsToRedeem"),
@@ -934,6 +969,8 @@ function createPersistentStateSnapshot() {
     intlTravelTrips: state.intlTravelTrips,
     interestLedger: state.interestLedger,
     incomeBanks: state.incomeBanks,
+    investments: state.investments,
+    investmentCompanies: state.investmentCompanies,
     interestLedgerSeedVersion: state.interestLedgerSeedVersion,
     activityLog: state.activityLog,
     aiTrainer: state.aiTrainer,
@@ -1076,6 +1113,7 @@ document.addEventListener("keydown", (e) => {
   els.openLoungeBtn?.addEventListener("click", () => showView("lounge"));
   els.openIntlTravelBtn?.addEventListener("click", () => showView("intlTravel"));
   els.openInterestIncomeBtn?.addEventListener("click", () => showView("interestIncome"));
+  els.openInvestmentsBtn?.addEventListener("click", () => showView("investments"));
   els.widgetActivityBtn?.addEventListener("click", openWidgetActivityModal);
   els.closeWidgetActivityBtn?.addEventListener("click", closeWidgetActivityModal);
   els.closeWidgetActivityFooterBtn?.addEventListener("click", closeWidgetActivityModal);
@@ -1183,6 +1221,13 @@ document.addEventListener("keydown", (e) => {
   els.incomeSpendScope?.addEventListener("change", updateIncomeEntryFields);
   els.clearIncomeEntryBtn?.addEventListener("click", resetIncomeEntryForm);
   els.incomeLedgerBlocks?.addEventListener("click", handleIncomeLedgerAction);
+  els.investmentEntryForm?.addEventListener("submit", (event) => runSaveAction("investment-entry", saveInvestmentEntryFromForm, event));
+  els.investmentEntryType?.addEventListener("change", updateInvestmentEntryFields);
+  els.addInvestmentCompanyBtn?.addEventListener("click", (event) => runSaveAction("investment-company", addInvestmentCompany, event));
+  els.clearInvestmentEntryBtn?.addEventListener("click", resetInvestmentEntryForm);
+  els.investmentGoldList?.addEventListener("click", handleInvestmentAction);
+  els.investmentDividendList?.addEventListener("click", handleInvestmentAction);
+  els.investmentCompanyList?.addEventListener("click", handleInvestmentCompanyAction);
   els.addIntlTravelExpenseBtn?.addEventListener("click", () => openIntlTravelExpenseForm());
   els.addIntlTravelDetailExpenseBtn?.addEventListener("click", () => openIntlTravelExpenseForm(intlTravelDetailTripId));
   els.intlTravelTripNotesBtn?.addEventListener("click", openIntlTravelTripNotesForm);
@@ -1395,6 +1440,49 @@ function normalizeIncomeLedgerEntry(entry = {}) {
   };
 }
 
+function normalizeInvestmentCompanyKey(value) {
+  return String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN");
+}
+
+function normalizeInvestmentCompanies(rawCompanies, entries = []) {
+  const unique = new Map();
+  [...(Array.isArray(rawCompanies) ? rawCompanies : []), ...entries.map((entry) => entry.companyName)]
+    .forEach((name) => {
+      const display = String(name || "").trim().replace(/\s+/g, " ");
+      const key = normalizeInvestmentCompanyKey(display);
+      if (key && !unique.has(key)) unique.set(key, display);
+    });
+  return [...unique.values()].sort((a, b) => a.localeCompare(b, "en-IN"));
+}
+
+function normalizeInvestmentEntry(entry = {}) {
+  const kind = entry.kind === "dividend" ? "dividend" : entry.kind === "gold" ? "gold" : "";
+  if (!kind) return null;
+  const companyName = String(entry.companyName || "").trim().replace(/\s+/g, " ");
+  if (kind === "dividend" && !companyName) return null;
+  return {
+    id: String(entry.id || createId()),
+    kind,
+    goldType: ["Jewel", "Jewellery"].includes(entry.goldType) ? "Jewellery" : "Coin",
+    quantity: toNumber(entry.quantity),
+    cost: toNumber(entry.cost),
+    vendor: String(entry.vendor || "").trim(),
+    companyName,
+    amount: toNumber(entry.amount),
+    creditDate: String(entry.creditDate || "").trim(),
+    notes: String(entry.notes || "").trim(),
+    createdAt: entry.createdAt || new Date().toISOString(),
+    updatedAt: entry.updatedAt || entry.createdAt || new Date().toISOString(),
+  };
+}
+
+function recordInvestmentActivity(action, message) {
+  state.activityLog.unshift(normalizeActivityEntry({
+    id: createId(), widget: "investments", action, message, createdAt: new Date().toISOString(),
+  }));
+  state.activityLog = state.activityLog.filter(Boolean).slice(0, 500);
+}
+
 function getInterestLedgerSeedEntries() {
   const interest = [
     ["DBS", 2024, "Q4", 7065],
@@ -1482,6 +1570,8 @@ async function loadState() {
       state.intlTravelTrips = (data.intlTravelTrips || data.intlTrips || []).map(normalizeIntlTravelTrip);
       state.interestLedger = (data.interestLedger || data.incomeLedger || []).map(normalizeIncomeLedgerEntry).filter(Boolean);
       state.incomeBanks = normalizeIncomeBanks(data.incomeBanks, state.interestLedger);
+      state.investments = (data.investments || []).map(normalizeInvestmentEntry).filter(Boolean);
+      state.investmentCompanies = normalizeInvestmentCompanies(data.investmentCompanies, state.investments);
       state.interestLedgerSeedVersion = String(data.interestLedgerSeedVersion || "");
       state.activityLog = (data.activityLog || []).map(normalizeActivityEntry).filter(Boolean);
       state.aiTrainer = normalizeAiTrainer(data.aiTrainer);
@@ -1541,6 +1631,8 @@ async function saveState(options = {}) {
     intlTravelTrips: state.intlTravelTrips,
     interestLedger: state.interestLedger,
     incomeBanks: state.incomeBanks,
+    investments: state.investments,
+    investmentCompanies: state.investmentCompanies,
     interestLedgerSeedVersion: state.interestLedgerSeedVersion,
     activityLog: state.activityLog,
     aiTrainer: state.aiTrainer,
@@ -1559,6 +1651,7 @@ const widgetActivityMeta = {
   lounge: { title: "Lounge Benefits", empty: "No lounge updates recorded yet." },
   intlTravel: { title: "Travel Expenses", empty: "No travel updates recorded yet." },
   interestIncome: { title: "Interest & Income", empty: "No income-ledger updates recorded yet." },
+  investments: { title: "Investments", empty: "No investment updates recorded yet." },
 };
 
 function normalizeActivityEntry(entry = {}) {
@@ -1644,12 +1737,17 @@ function getActivityCardNormalUnredeemedPoints(snapshot, cardId) {
   const sourceRecords = (snapshot?.rpSpends || []).filter((spend) => (
     isUnredeemedPointsRecord(spend) && getRpSpendRedeemedSourceCardId(spend) === cardId
   ));
+  const milestonePoints = (card.benefits || []).reduce((sum, benefit) => (
+    benefit?.type === "Milestone Points" && isPointBenefit(benefit) && !isRpRedeemedAutoBenefit(benefit)
+      ? sum + getMilestoneBenefitPoints(benefit)
+      : sum
+  ), 0);
   const manualSources = (card.benefits || []).filter((benefit) => (
     benefit?.type === "Unredeemed Points"
     && isPointBenefit(benefit)
     && !isRpRedeemedAutoBenefit(benefit)
   ));
-  const normalPoints = sourceRecords.length
+  const normalPoints = milestonePoints + (sourceRecords.length
     ? sourceRecords.reduce((sum, spend) => sum + toNumber(spend.points), 0)
     : manualSources.reduce((sum, benefit) => {
         const originalPoints = toNumber(benefit.originalPoints);
@@ -1659,7 +1757,7 @@ function getActivityCardNormalUnredeemedPoints(snapshot, cardId) {
           0
         );
         return sum + toNumber(benefit.amount) + historicalRedemptions;
-      }, 0);
+      }, 0));
   const welcomeSources = (card.benefits || [])
     .filter((benefit) => benefit?.type === welcomeBenefitPointsType)
     .sort((a, b) => new Date(a.addedAt || 0) - new Date(b.addedAt || 0));
@@ -2074,11 +2172,18 @@ function normalizeCard(card) {
     targetValue: toNumber(card.targetValue),
     notes: card.notes || "",
     benefits: Array.isArray(card.benefits)
-      ? card.benefits.map((benefit) => ({
+      ? card.benefits.map((benefit) => {
+          const isLegacyMilestone = benefit.type === "Milestone / Voucher";
+          const type = isLegacyMilestone
+            ? "Milestone Voucher"
+            : benefitTypes.includes(benefit.type) ? benefit.type : "Other";
+          return {
           id: benefit.id || createId(),
-          type: benefitTypes.includes(benefit.type) ? benefit.type : "Other",
-          valueType: benefit.type === welcomeBenefitPointsType
+          type,
+          valueType: type === welcomeBenefitPointsType || type === "Milestone Voucher"
             ? "cash"
+            : type === "Milestone Points"
+              ? "points"
             : normalizeBenefitValueType(benefit.valueType),
           label: benefit.label || "",
           amount: toNumber(benefit.amount),
@@ -2087,7 +2192,8 @@ function normalizeCard(card) {
           ...(Object.prototype.hasOwnProperty.call(benefit, "originalPoints")
             ? { originalPoints: toNumber(benefit.originalPoints) }
             : {}),
-        }))
+          };
+        })
       : [],
   };
 }
@@ -2556,6 +2662,11 @@ function getWelcomeBenefitPoints(benefit) {
   return extractNumericPointsFromBenefitLabel(benefit.label);
 }
 
+function getMilestoneBenefitPoints(benefit) {
+  if (!benefit || benefit.type !== "Milestone Points") return 0;
+  return toNumber(benefit.amount) || extractNumericPointsFromBenefitLabel(benefit.label);
+}
+
 function getCardRedemptionRows(cardId, excludeId = "") {
   const cache = !excludeId ? getRenderCacheMap("redemptionRows") : null;
   if (cache && cardId && cache.has(cardId)) return cache.get(cardId);
@@ -2730,14 +2841,19 @@ function getCardPointAllocation(card) {
     });
   const welcomePoints = welcomeSources.reduce((sum, benefit) => sum + getWelcomeBenefitPoints(benefit), 0);
   const welcomeValue = welcomeSources.reduce((sum, benefit) => sum + toNumber(benefit.amount), 0);
+  const milestonePoints = (card?.benefits || [])
+    .filter((benefit) => benefit?.type === "Milestone Points" && isPointBenefit(benefit) && !isRpRedeemedAutoBenefit(benefit))
+    .reduce((sum, benefit) => sum + getMilestoneBenefitPoints(benefit), 0);
   const normalPoints = getCardNormalPointsBaseline(card);
   const rows = getCardRedemptionRows(card?.id || "");
 
   const welcomeRedeemedBySource = new Map();
   let welcomeRedeemedPoints = 0;
   let normalRedeemedPoints = 0;
+  let milestoneRedeemedPoints = 0;
   let welcomeRedeemedValue = 0;
   let normalRedeemedValue = 0;
+  let milestoneRedeemedValue = 0;
   const redemptionAllocations = {};
 
   rows.forEach((rpSpend) => {
@@ -2773,31 +2889,40 @@ function getCardPointAllocation(card) {
     const requestedNormalPoints = explicitAllocation
       ? explicitAllocation.earnedPoints
       : Math.max(0, redemptionPoints - welcomePart);
-    const normalPart = Math.min(
-      requestedNormalPoints,
-      Math.max(0, normalPoints - normalRedeemedPoints)
+    const normalPart = Math.min(requestedNormalPoints, Math.max(0, normalPoints - normalRedeemedPoints));
+    const milestonePart = Math.min(
+      Math.max(0, requestedNormalPoints - normalPart),
+      Math.max(0, milestonePoints - milestoneRedeemedPoints)
     );
 
     redemptionAllocations[rpSpend.id] = {
       welcomePoints: welcomePart,
-      earnedPoints: normalPart,
-      totalPoints: welcomePart + normalPart,
+      earnedPoints: normalPart + milestonePart,
+      normalPoints: normalPart,
+      milestonePoints: milestonePart,
+      totalPoints: welcomePart + normalPart + milestonePart,
       explicit: Boolean(explicitAllocation),
     };
 
     welcomeRedeemedPoints += welcomePart;
     normalRedeemedPoints += normalPart;
+    milestoneRedeemedPoints += milestonePart;
 
     if (redemptionPoints > 0) {
       welcomeRedeemedValue += redemptionValue * (welcomePart / redemptionPoints);
+      milestoneRedeemedValue += redemptionValue * (milestonePart / redemptionPoints);
       // Keep the full entered monetary value represented even if old data has
-      // more redemptions than the recorded point sources.
-      normalRedeemedValue += redemptionValue - (redemptionValue * (welcomePart / redemptionPoints));
+      // more redemptions than the recorded point sources; attribute any
+      // unmatched remainder to the regular earned-points source.
+      normalRedeemedValue += redemptionValue
+        - (redemptionValue * (welcomePart / redemptionPoints))
+        - (redemptionValue * (milestonePart / redemptionPoints));
     }
   });
 
   const welcomeRemainingPoints = Math.max(0, welcomePoints - welcomeRedeemedPoints);
   const normalRemainingPoints = Math.max(0, normalPoints - normalRedeemedPoints);
+  const milestoneRemainingPoints = Math.max(0, milestonePoints - milestoneRedeemedPoints);
   const welcomeRemainingValue = Math.max(0, welcomeValue - welcomeRedeemedValue);
 
   const allocation = {
@@ -2807,14 +2932,18 @@ function getCardPointAllocation(card) {
     welcomeRedeemedValue,
     welcomeRemainingPoints,
     welcomeRemainingValue,
+    milestonePoints,
+    milestoneRedeemedPoints,
+    milestoneRedeemedValue,
+    milestoneRemainingPoints,
     normalPoints,
     normalRedeemedPoints,
     normalRedeemedValue,
     normalRemainingPoints,
     redemptionAllocations,
-    redeemedPoints: welcomeRedeemedPoints + normalRedeemedPoints,
-    redeemedValue: welcomeRedeemedValue + normalRedeemedValue,
-    totalUnredeemedPoints: welcomeRemainingPoints + normalRemainingPoints,
+    redeemedPoints: welcomeRedeemedPoints + normalRedeemedPoints + milestoneRedeemedPoints,
+    redeemedValue: welcomeRedeemedValue + normalRedeemedValue + milestoneRedeemedValue,
+    totalUnredeemedPoints: welcomeRemainingPoints + normalRemainingPoints + milestoneRemainingPoints,
   };
 
   if (cache && cardId) cache.set(cardId, allocation);
@@ -2981,6 +3110,7 @@ function syncRpRedeemedBenefitsFromSpends() {
     const hasPointSources = Boolean(
       allocation.welcomePoints > 0
       || allocation.normalPoints > 0
+      || allocation.milestonePoints > 0
     );
     // Unredeemed points must come only from the authoritative allocation.
     // Never infer a new balance from ordinary redemption rows.
@@ -3413,6 +3543,7 @@ function showView(view) {
   if (els.loungeView) els.loungeView.style.display = nextView === "lounge" ? "block" : "none";
   if (els.intlTravelView) els.intlTravelView.style.display = nextView === "intlTravel" ? "block" : "none";
   if (els.interestIncomeView) els.interestIncomeView.style.display = nextView === "interestIncome" ? "block" : "none";
+  if (els.investmentsView) els.investmentsView.style.display = nextView === "investments" ? "block" : "none";
   scheduleVisualAssets(nextView);
   updateAppHeaderTitle(nextView);
   updateWidgetActivityButton(nextView);
@@ -5842,7 +5973,7 @@ function initUiEnhancements() {
 }
 
 function getViews() {
-  return [els.dashboardView, els.portfolioView, els.swipesView, els.rpSpendsView, els.pprView, els.loungeView, els.intlTravelView, els.interestIncomeView].filter(Boolean);
+  return [els.dashboardView, els.portfolioView, els.swipesView, els.rpSpendsView, els.pprView, els.loungeView, els.intlTravelView, els.interestIncomeView, els.investmentsView].filter(Boolean);
 }
 
 function handleDashboardStudioAction(event) {
@@ -5882,6 +6013,7 @@ function syncActiveViewClasses() {
     lounge: els.loungeView,
     intlTravel: els.intlTravelView,
     interestIncome: els.interestIncomeView,
+    investments: els.investmentsView,
   };
 
   if (document.body) {
@@ -5915,6 +6047,7 @@ function animateActiveView(view) {
     lounge: els.loungeView,
     intlTravel: els.intlTravelView,
     interestIncome: els.interestIncomeView,
+    investments: els.investmentsView,
   }[view];
 
   if (!viewEl) return;
@@ -5998,7 +6131,7 @@ function setWidgetValueState(element, value) {
 }
 
 function normalizeViewName(view) {
-  return ["dashboard", "portfolio", "swipes", "rpSpends", "ppr", "lounge", "intlTravel", "interestIncome"].includes(view) ? view : "dashboard";
+  return ["dashboard", "portfolio", "swipes", "rpSpends", "ppr", "lounge", "intlTravel", "interestIncome", "investments"].includes(view) ? view : "dashboard";
 }
 
 function renderDashboard() {
@@ -6204,6 +6337,17 @@ function renderDashboard() {
   if (els.dashboardIncomeSpends) els.dashboardIncomeSpends.textContent = formatMoney(incomeTotals.spends);
   if (els.dashboardIncomeHint) {
     els.dashboardIncomeHint.textContent = `${incomeTotals.yearCount} calendar ${incomeTotals.yearCount === 1 ? "year" : "years"} · ${state.interestLedger.length} entries`;
+  }
+
+  const investmentGoldCost = state.investments.filter((entry) => entry.kind === "gold").reduce((sum, entry) => sum + toNumber(entry.cost), 0);
+  const investmentDividends = state.investments.filter((entry) => entry.kind === "dividend").reduce((sum, entry) => sum + toNumber(entry.amount), 0);
+  const investmentCompanies = normalizeInvestmentCompanies(state.investmentCompanies, state.investments);
+  if (els.dashboardInvestmentValue) els.dashboardInvestmentValue.textContent = formatMoney(investmentGoldCost + investmentDividends);
+  if (els.dashboardInvestmentGoldCost) els.dashboardInvestmentGoldCost.textContent = formatMoney(investmentGoldCost);
+  if (els.dashboardInvestmentDividends) els.dashboardInvestmentDividends.textContent = formatMoney(investmentDividends);
+  if (els.dashboardInvestmentCompanies) els.dashboardInvestmentCompanies.textContent = String(investmentCompanies.length);
+  if (els.dashboardInvestmentHint) {
+    els.dashboardInvestmentHint.textContent = `${state.investments.length} ${state.investments.length === 1 ? "record" : "records"} · consolidated tracker`;
   }
 
   renderDashboardTopBalances();
@@ -7367,23 +7511,31 @@ function getRpPointSourceCard(cardId = "") {
 
 function getRpSpendCardAllocation(rpSpend, card) {
   if (!rpSpend || !card || getRpSpendRedeemedSourceCardId(rpSpend) !== card.id) {
-    return { welcomePoints: 0, earnedPoints: 0, totalPoints: 0 };
+    return { welcomePoints: 0, earnedPoints: 0, normalPoints: 0, milestonePoints: 0, totalPoints: 0 };
   }
 
   const cardAllocation = getCardPointAllocation(card);
   const rowAllocation = cardAllocation.redemptionAllocations?.[rpSpend.id];
-  if (rowAllocation) return rowAllocation;
+  if (rowAllocation) {
+    return {
+      ...rowAllocation,
+      normalPoints: toNumber(rowAllocation.normalPoints ?? rowAllocation.earnedPoints),
+      milestonePoints: toNumber(rowAllocation.milestonePoints),
+    };
+  }
 
   const explicitAllocation = getExplicitRpPointAllocation(rpSpend);
   if (explicitAllocation) {
     return {
       welcomePoints: explicitAllocation.welcomePoints,
       earnedPoints: explicitAllocation.earnedPoints,
+      normalPoints: explicitAllocation.earnedPoints,
+      milestonePoints: 0,
       totalPoints: explicitAllocation.welcomePoints + explicitAllocation.earnedPoints,
     };
   }
 
-  return { welcomePoints: 0, earnedPoints: 0, totalPoints: 0 };
+  return { welcomePoints: 0, earnedPoints: 0, normalPoints: 0, milestonePoints: 0, totalPoints: 0 };
 }
 
 function getRpPointSourceAvailability(card, rpSpend = getEditingRpSpend()) {
@@ -7392,11 +7544,15 @@ function getRpPointSourceAvailability(card, rpSpend = getEditingRpSpend()) {
   const allocation = getCardPointAllocation(card);
   const priorAllocation = getRpSpendCardAllocation(rpSpend, card);
   const welcomePoints = allocation.welcomeRemainingPoints + priorAllocation.welcomePoints;
-  const earnedPoints = allocation.normalRemainingPoints + priorAllocation.earnedPoints;
+  const earnedPoints = allocation.normalRemainingPoints + priorAllocation.normalPoints;
+  const milestonePoints = allocation.milestoneRemainingPoints + priorAllocation.milestonePoints;
+  const earnedRedeemablePoints = earnedPoints + milestonePoints;
   return {
     welcomePoints,
     earnedPoints,
-    totalPoints: welcomePoints + earnedPoints,
+    milestonePoints,
+    earnedRedeemablePoints,
+    totalPoints: welcomePoints + earnedRedeemablePoints,
   };
 }
 
@@ -7460,8 +7616,9 @@ function updateRpPointAllocationPanel({ resetValues = false, cardId = "" } = {})
   if (els.rpPointAllocationCard) els.rpPointAllocationCard.textContent = formatCardName(card);
   if (els.rpWelcomePointsAvailable) els.rpWelcomePointsAvailable.textContent = formatPoints(availability.welcomePoints);
   if (els.rpEarnedPointsAvailable) els.rpEarnedPointsAvailable.textContent = formatPoints(availability.earnedPoints);
+  if (els.rpMilestonePointsAvailable) els.rpMilestonePointsAvailable.textContent = formatPoints(availability.milestonePoints);
   if (els.rpWelcomePointsToRedeem) els.rpWelcomePointsToRedeem.max = String(availability.welcomePoints);
-  if (els.rpEarnedPointsToRedeem) els.rpEarnedPointsToRedeem.max = String(availability.earnedPoints);
+  if (els.rpEarnedPointsToRedeem) els.rpEarnedPointsToRedeem.max = String(availability.earnedRedeemablePoints);
 
   if (resetValues) {
     if (els.rpUseWelcomePoints) els.rpUseWelcomePoints.value = "no";
@@ -7742,6 +7899,7 @@ function showPartnerProgramTransferPrompt(initial = {}) {
     const useWelcomeId = "partnerProgramPromptUseWelcome";
     const welcomeAvailableId = "partnerProgramPromptWelcomeAvailable";
     const earnedAvailableId = "partnerProgramPromptEarnedAvailable";
+    const milestoneAvailableId = "partnerProgramPromptMilestoneAvailable";
     const welcomePointsId = "partnerProgramPromptWelcomePoints";
     const earnedPointsId = "partnerProgramPromptEarnedPoints";
     const allocationTotalId = "partnerProgramPromptAllocationTotal";
@@ -7804,7 +7962,8 @@ function showPartnerProgramTransferPrompt(initial = {}) {
             </div>
             <div class="rp-point-balance-grid">
               <div><span>Welcome Benefits available</span><strong id="${welcomeAvailableId}">0 pts</strong></div>
-              <div><span>Earned Points available</span><strong id="${earnedAvailableId}">0 pts</strong><small>Includes manually entered card points</small></div>
+              <div><span>Milestone Points available</span><strong id="${milestoneAvailableId}">0 pts</strong></div>
+              <div><span>Earned Points available</span><strong id="${earnedAvailableId}">0 pts</strong><small>Excludes Welcome Benefits and Milestone Points</small></div>
             </div>
             <div class="rp-point-source-grid">
               <label class="field">
@@ -7845,6 +8004,7 @@ function showPartnerProgramTransferPrompt(initial = {}) {
     const useWelcomeSelect = document.getElementById(useWelcomeId);
     const welcomeAvailableEl = document.getElementById(welcomeAvailableId);
     const earnedAvailableEl = document.getElementById(earnedAvailableId);
+    const milestoneAvailableEl = document.getElementById(milestoneAvailableId);
     const welcomePointsInput = document.getElementById(welcomePointsId);
     const earnedPointsInput = document.getElementById(earnedPointsId);
     const allocationTotalEl = document.getElementById(allocationTotalId);
@@ -7895,8 +8055,9 @@ function showPartnerProgramTransferPrompt(initial = {}) {
       const availability = getRpPointSourceAvailability(sourceCard);
       if (welcomeAvailableEl) welcomeAvailableEl.textContent = formatPoints(availability.welcomePoints);
       if (earnedAvailableEl) earnedAvailableEl.textContent = formatPoints(availability.earnedPoints);
+      if (milestoneAvailableEl) milestoneAvailableEl.textContent = formatPoints(availability.milestonePoints);
       if (welcomePointsInput) welcomePointsInput.max = String(availability.welcomePoints);
-      if (earnedPointsInput) earnedPointsInput.max = String(availability.earnedPoints);
+      if (earnedPointsInput) earnedPointsInput.max = String(availability.earnedRedeemablePoints);
 
       const cardChanged = Boolean(lastAllocationCardId && lastAllocationCardId !== sourceCardId);
       if (resetAllocation || cardChanged) {
@@ -7940,8 +8101,8 @@ function showPartnerProgramTransferPrompt(initial = {}) {
         welcomePointsInput?.focus();
         return null;
       }
-      if (allocation.earnedPoints > availability.earnedPoints) {
-        showToast(`Only ${formatPoints(availability.earnedPoints)} Earned Points are available.`);
+      if (allocation.earnedPoints > availability.earnedRedeemablePoints) {
+        showToast(`Only ${formatPoints(availability.earnedRedeemablePoints)} Earned and Milestone Points are available.`);
         earnedPointsInput?.focus();
         return null;
       }
@@ -8098,7 +8259,7 @@ function getUnredeemedSourceBalance(sourceRecord, excludeId = "") {
     ? getCardPointAllocation(card).normalRedeemedPoints
     : getUnredeemedSourceConsumedPoints(sourceId, excludeId);
   if (card && excludeId) {
-    consumed -= getCardPointAllocation(card).redemptionAllocations[excludeId]?.earnedPoints || 0;
+    consumed -= getCardPointAllocation(card).redemptionAllocations[excludeId]?.normalPoints || 0;
   }
   for (const record of getUnredeemedPointsSourceRecords(sourceId)) {
     const debit = Math.min(toNumber(record.points), Math.max(0, consumed));
@@ -9952,14 +10113,17 @@ function renderRpSpends() {
               ? getCardPointAllocation(sourceCard)
               : null;
             const displayPoints = getRpSpendDisplayPoints(item);
-            const showWelcomeBenefits = Boolean(sourceAllocation?.welcomeRemainingPoints > 0
+            const isPrimaryUnredeemedSource = Boolean(sourceAllocation
               && getUnredeemedPointsSourceRecord(sourceCard.id)?.id === item.id);
+            const includedBenefits = isPrimaryUnredeemedSource
+              ? getRpUnredeemedBenefitLabels(sourceCard)
+              : [];
 
             return `
             <div class="benefit-line">
               <span class="benefit-line-name rp-spend-source-name">
                 <span class="rp-spend-source-name-text">${escapeHtml(formatRpSourceName(item.cardId))}</span>
-                ${showWelcomeBenefits ? '<small class="rp-welcome-balance-label">+ Welcome Benefits</small>' : ''}
+                ${includedBenefits.length ? `<small class="rp-welcome-balance-label">+ ${includedBenefits.map(escapeHtml).join(", ")}</small>` : ''}
               </span>
               <span class="benefit-line-meta">
                 ${displayPoints > 0 ? `${formatPoints(displayPoints)}` : ''}
@@ -11164,6 +11328,196 @@ function renderInterestIncomeWidget() {
   `;
 }
 
+function renderInvestmentCompanyOptions(selected = "") {
+  if (!els.investmentDividendCompany) return;
+  const companies = normalizeInvestmentCompanies(state.investmentCompanies, state.investments);
+  state.investmentCompanies = companies;
+  els.investmentDividendCompany.innerHTML = `<option value="">Select company</option>${companies.map((company) => `<option value="${escapeAttribute(company)}">${escapeHtml(company)}</option>`).join("")}`;
+  if (companies.includes(selected)) els.investmentDividendCompany.value = selected;
+}
+
+function updateInvestmentEntryFields() {
+  const kind = els.investmentEntryType?.value || "";
+  document.querySelectorAll("#investmentsView .investment-gold-field").forEach((field) => { field.hidden = kind !== "gold"; });
+  document.querySelectorAll("#investmentsView .investment-dividend-field").forEach((field) => { field.hidden = kind !== "dividend"; });
+  renderInvestmentCompanyOptions(els.investmentDividendCompany?.value || "");
+}
+
+function resetInvestmentEntryForm() {
+  els.investmentEntryForm?.reset();
+  if (els.investmentEditingId) els.investmentEditingId.value = "";
+  if (els.investmentEntryType) els.investmentEntryType.value = "";
+  if (els.investmentGoldType) els.investmentGoldType.value = "Coin";
+  if (els.saveInvestmentEntryBtn) els.saveInvestmentEntryBtn.textContent = "Add Entry";
+  renderInvestmentCompanyOptions();
+  updateInvestmentEntryFields();
+}
+
+async function addInvestmentCompany(event) {
+  event?.preventDefault();
+  const name = String(els.investmentCompanyName?.value || "").trim().replace(/\s+/g, " ");
+  if (!name) {
+    showToast("Enter a stock company name.");
+    els.investmentCompanyName?.focus();
+    return;
+  }
+  if (state.investmentCompanies.some((company) => normalizeInvestmentCompanyKey(company) === normalizeInvestmentCompanyKey(name))) {
+    showToast(`${name} already exists.`);
+    return;
+  }
+  state.investmentCompanies = normalizeInvestmentCompanies([...state.investmentCompanies, name], state.investments);
+  recordInvestmentActivity("added", `Added stock company ${name}.`);
+  await saveState();
+  if (els.investmentCompanyName) els.investmentCompanyName.value = "";
+  renderInvestmentCompanyOptions(name);
+  showToast("Stock company added.");
+}
+
+async function saveInvestmentEntryFromForm(event) {
+  event?.preventDefault();
+  const kind = els.investmentEntryType?.value || "";
+  if (!kind) {
+    showToast("Select Gold purchase or Stock dividend.");
+    els.investmentEntryType?.focus();
+    return;
+  }
+  const editingId = els.investmentEditingId?.value || "";
+  let entry;
+
+  if (kind === "gold") {
+    const quantity = toNumber(els.investmentGoldQuantity?.value);
+    const cost = toNumber(els.investmentGoldCostInput?.value);
+    if (quantity <= 0 || cost <= 0) {
+      showToast("Enter the gold quantity and total purchase cost.");
+      return;
+    }
+    entry = normalizeInvestmentEntry({
+      id: editingId || createId(), kind, goldType: els.investmentGoldType?.value,
+      quantity, cost, vendor: els.investmentGoldVendor?.value, notes: els.investmentGoldNotes?.value,
+      createdAt: editingId ? state.investments.find((item) => item.id === editingId)?.createdAt : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  } else {
+    const companyName = els.investmentDividendCompany?.value || "";
+    if (!companyName) {
+      showToast("Select a stock company.");
+      els.investmentDividendCompany?.focus();
+      return;
+    }
+    entry = normalizeInvestmentEntry({
+      id: editingId || createId(), kind, companyName, amount: els.investmentDividendAmount?.value,
+      creditDate: els.investmentDividendDate?.value, notes: els.investmentDividendNotes?.value,
+      createdAt: editingId ? state.investments.find((item) => item.id === editingId)?.createdAt : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  if (!entry) return;
+  const index = state.investments.findIndex((item) => item.id === entry.id);
+  if (index >= 0) state.investments[index] = entry;
+  else state.investments.unshift(entry);
+  if (entry.companyName) state.investmentCompanies = normalizeInvestmentCompanies([...state.investmentCompanies, entry.companyName], state.investments);
+  recordInvestmentActivity(index >= 0 ? "updated" : "added", entry.kind === "gold"
+    ? `${index >= 0 ? "Updated" : "Added"} ${entry.goldType.toLowerCase()} purchase: ${formatMoney(entry.cost)}.`
+    : `${index >= 0 ? "Updated" : "Added"} dividend for ${entry.companyName}: ${formatMoney(entry.amount)}.`);
+  await saveState();
+  resetInvestmentEntryForm();
+  renderInvestmentsWidget();
+  showToast(index >= 0 ? "Investment record updated." : "Investment record added.");
+}
+
+function renderInvestmentsWidget() {
+  if (!els.investmentGoldList || !els.investmentDividendList) return;
+  const gold = state.investments.filter((item) => item.kind === "gold");
+  const dividends = state.investments.filter((item) => item.kind === "dividend");
+  const goldCost = gold.reduce((sum, item) => sum + toNumber(item.cost), 0);
+  const dividendTotal = dividends.reduce((sum, item) => sum + toNumber(item.amount), 0);
+  const companies = normalizeInvestmentCompanies(state.investmentCompanies, state.investments);
+  if (els.investmentGoldCount) els.investmentGoldCount.textContent = String(gold.length);
+  if (els.investmentGoldCost) els.investmentGoldCost.textContent = formatMoney(goldCost);
+  if (els.investmentDividendTotal) els.investmentDividendTotal.textContent = formatMoney(dividendTotal);
+  if (els.investmentCompanyCount) els.investmentCompanyCount.textContent = String(companies.length);
+  renderInvestmentCompanyOptions(els.investmentDividendCompany?.value || "");
+  if (els.investmentCompanyList) {
+    els.investmentCompanyList.innerHTML = companies.length
+      ? companies.map((company) => `<div class="investment-company-chip"><span>${escapeHtml(company)}</span><button type="button" data-investment-company-edit="${escapeAttribute(company)}" title="Edit company" aria-label="Edit ${escapeAttribute(company)}">✎</button><button type="button" data-investment-company-delete="${escapeAttribute(company)}" title="Delete company" aria-label="Delete ${escapeAttribute(company)}">×</button></div>`).join("")
+      : "";
+  }
+  updateInvestmentEntryFields();
+
+  const actions = (entry) => `<div class="row-actions"><button class="icon-button subtle" type="button" data-investment-edit="${escapeAttribute(entry.id)}" title="Edit" aria-label="Edit"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button><button class="icon-button subtle" type="button" data-investment-delete="${escapeAttribute(entry.id)}" title="Delete" aria-label="Delete"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg></button></div>`;
+  els.investmentGoldList.innerHTML = gold.length ? gold.map((entry) => `<article class="investment-record"><div><strong>${escapeHtml(entry.goldType)} · ${escapeHtml(String(entry.quantity))} g</strong><span>${escapeHtml(entry.vendor || "Vendor not entered")}</span>${entry.notes ? `<small>${escapeHtml(entry.notes)}</small>` : ""}</div><b>${escapeHtml(formatMoney(entry.cost))}</b>${actions(entry)}</article>`).join("") : `<p class="investment-empty">No gold purchases recorded.</p>`;
+  els.investmentDividendList.innerHTML = dividends.length ? dividends.map((entry) => `<article class="investment-record"><div><strong>${escapeHtml(entry.companyName)}</strong><span>${escapeHtml(entry.creditDate ? formatDateTime(entry.creditDate) : "Credit date not entered")}</span>${entry.notes ? `<small>${escapeHtml(entry.notes)}</small>` : ""}</div><b>${escapeHtml(formatMoney(entry.amount))}</b>${actions(entry)}</article>`).join("") : `<p class="investment-empty">No dividends recorded.</p>`;
+}
+
+async function handleInvestmentCompanyAction(event) {
+  const edit = event.target.closest("[data-investment-company-edit]");
+  const remove = event.target.closest("[data-investment-company-delete]");
+  const company = edit?.dataset.investmentCompanyEdit || remove?.dataset.investmentCompanyDelete;
+  if (!company) return;
+  const matchingEntries = state.investments.filter((entry) => entry.kind === "dividend" && normalizeInvestmentCompanyKey(entry.companyName) === normalizeInvestmentCompanyKey(company));
+  if (remove) {
+    if (matchingEntries.length) {
+      showToast("Delete or rename the related dividend records first.");
+      return;
+    }
+    state.investmentCompanies = state.investmentCompanies.filter((item) => normalizeInvestmentCompanyKey(item) !== normalizeInvestmentCompanyKey(company));
+    recordInvestmentActivity("deleted", `Deleted stock company ${company}.`);
+    await saveState();
+    renderInvestmentsWidget();
+    showToast("Stock company deleted.");
+    return;
+  }
+  const nextName = window.prompt("Update stock company name", company)?.trim().replace(/\s+/g, " ");
+  if (!nextName || normalizeInvestmentCompanyKey(nextName) === normalizeInvestmentCompanyKey(company)) return;
+  if (state.investmentCompanies.some((item) => normalizeInvestmentCompanyKey(item) === normalizeInvestmentCompanyKey(nextName))) {
+    showToast(`${nextName} already exists.`);
+    return;
+  }
+  state.investmentCompanies = state.investmentCompanies.map((item) => normalizeInvestmentCompanyKey(item) === normalizeInvestmentCompanyKey(company) ? nextName : item);
+  state.investments = state.investments.map((entry) => normalizeInvestmentCompanyKey(entry.companyName) === normalizeInvestmentCompanyKey(company)
+    ? { ...entry, companyName: nextName, updatedAt: new Date().toISOString() }
+    : entry);
+  recordInvestmentActivity("updated", `Renamed stock company ${company} to ${nextName}.`);
+  await saveState();
+  renderInvestmentsWidget();
+  showToast("Stock company updated.");
+}
+
+function handleInvestmentAction(event) {
+  const edit = event.target.closest("[data-investment-edit]");
+  const remove = event.target.closest("[data-investment-delete]");
+  const id = edit?.dataset.investmentEdit || remove?.dataset.investmentDelete;
+  const entry = state.investments.find((item) => item.id === id);
+  if (!entry) return;
+  if (remove) {
+    if (!window.confirm("Delete this investment record?")) return;
+    state.investments = state.investments.filter((item) => item.id !== id);
+    recordInvestmentActivity("deleted", entry.kind === "gold"
+      ? `Deleted ${entry.goldType.toLowerCase()} purchase: ${formatMoney(entry.cost)}.`
+      : `Deleted dividend for ${entry.companyName}: ${formatMoney(entry.amount)}.`);
+    saveState().then(() => { renderInvestmentsWidget(); showToast("Investment record deleted."); });
+    return;
+  }
+  if (els.investmentEditingId) els.investmentEditingId.value = entry.id;
+  if (els.investmentEntryType) els.investmentEntryType.value = entry.kind;
+  updateInvestmentEntryFields();
+  if (entry.kind === "gold") {
+    if (els.investmentGoldType) els.investmentGoldType.value = entry.goldType;
+    if (els.investmentGoldQuantity) els.investmentGoldQuantity.value = entry.quantity;
+    if (els.investmentGoldCostInput) els.investmentGoldCostInput.value = entry.cost;
+    if (els.investmentGoldVendor) els.investmentGoldVendor.value = entry.vendor;
+    if (els.investmentGoldNotes) els.investmentGoldNotes.value = entry.notes;
+  } else {
+    renderInvestmentCompanyOptions(entry.companyName);
+    if (els.investmentDividendAmount) els.investmentDividendAmount.value = entry.amount || "";
+    if (els.investmentDividendDate) els.investmentDividendDate.value = entry.creditDate;
+    if (els.investmentDividendNotes) els.investmentDividendNotes.value = entry.notes;
+  }
+  if (els.saveInvestmentEntryBtn) els.saveInvestmentEntryBtn.textContent = "Save Changes";
+  els.investmentEntryForm?.scrollIntoView({ behavior: shouldReduceMotion() ? "auto" : "smooth", block: "start" });
+}
+
 function render() {
   const activeView = normalizeViewName(state.currentView);
   // These synchronizations walk every card and activity record. Run them when
@@ -11223,6 +11577,9 @@ function renderVisibleView(view = state.currentView, includeDropdowns = false) {
         break;
       case "interestIncome":
         renderInterestIncomeWidget();
+        break;
+      case "investments":
+        renderInvestmentsWidget();
         break;
       case "dashboard":
       default:
@@ -11658,6 +12015,8 @@ function renderBenefitsEditor() {
     const welcomePoints = benefit.type === welcomeBenefitPointsType
       ? (toNumber(benefit.pointsAmount) || extractNumericPointsFromBenefitLabel(benefit.label))
       : 0;
+    const isMilestonePoints = benefit.type === "Milestone Points";
+    const milestonePoints = isMilestonePoints ? getMilestoneBenefitPoints(benefit) : 0;
     const typeOptions = [
       !editableBenefitTypes.includes(benefit.type) && benefit.type
         ? `<option value="${escapeAttribute(benefit.type)}" selected hidden>${escapeHtml(benefit.type)}</option>`
@@ -11685,18 +12044,20 @@ function renderBenefitsEditor() {
         </select>
       </label>
       <label class="field">
-        <span>Benefit</span>
-        <input data-benefit-field="label" type="text" value="${escapeAttribute(benefit.label)}" placeholder="e.g. 5000 Pts / Amazon Voucher" autocomplete="off" />
+        <span>${isMilestonePoints ? "Milestone description" : "Benefit"}</span>
+        <input data-benefit-field="label" type="text" value="${escapeAttribute(benefit.label)}" placeholder="${isMilestonePoints ? "e.g. Spend milestone reached" : "e.g. 5000 Pts / Amazon Voucher"}" autocomplete="off" />
       </label>
+      ${isMilestonePoints ? "" : `
+        <label class="field">
+          <span>Value type</span>
+          <select data-benefit-field="valueType">
+            ${valueTypeOptions}
+          </select>
+        </label>
+      `}
       <label class="field">
-        <span>Value type</span>
-        <select data-benefit-field="valueType">
-          ${valueTypeOptions}
-        </select>
-      </label>
-      <label class="field">
-        <span>Value</span>
-        <input data-benefit-field="amount" type="number" min="0" step="any" inputmode="decimal" value="${benefit.amount || ""}" placeholder="0.00" />
+        <span>${isMilestonePoints ? "Points to add" : "Value"}</span>
+        <input data-benefit-field="amount" type="number" min="0" step="any" inputmode="decimal" value="${isMilestonePoints ? milestonePoints || "" : benefit.amount || ""}" placeholder="${isMilestonePoints ? "Enter milestone points" : "0.00"}" />
       </label>
       ${benefit.type === welcomeBenefitPointsType ? `
         <label class="field benefit-points-field">
@@ -12072,16 +12433,15 @@ async function saveCardFromForm(event)
 
   if (existingIndex >= 0) {
     state.cards[existingIndex] = card;
-    showToast("Card updated.");
   } else {
     state.cards.push(card);
-    showToast("Card added.");
   }
 
   syncLoungeBenefitsFromVisits();
   console.log("🔥 Saving to Firebase...", state.cards);
 
-  await saveState();   
+  await saveState();
+  showToast(existingIndex >= 0 ? "Card updated." : "Card added.");
 
   resetForm();
   document.body.classList.remove("card-editor-open");
@@ -12222,6 +12582,10 @@ function updateDraftBenefit(event) {
   if (fieldName === "type") {
     if (draftBenefits[index].type === welcomeBenefitPointsType) {
       draftBenefits[index].valueType = "cash";
+    } else if (draftBenefits[index].type === "Milestone Points") {
+      draftBenefits[index].valueType = "points";
+    } else if (draftBenefits[index].type === "Milestone Voucher") {
+      draftBenefits[index].valueType = "cash";
     }
     renderBenefitsEditor();
   }
@@ -12240,7 +12604,9 @@ function removeBenefitDraft(event) {
 function syncDraftBenefitsFromDom() {
   draftBenefits = Array.from(els.benefitRows.querySelectorAll(".benefit-row")).map((row) => {
     const type = row.querySelector('[data-benefit-field="type"]').value;
-    const valueType = row.querySelector('[data-benefit-field="valueType"]').value;
+    const valueTypeField = row.querySelector('[data-benefit-field="valueType"]');
+    const valueType = valueTypeField?.value
+      || (type === "Milestone Points" ? "points" : type === "Milestone Voucher" ? "cash" : "");
     const label = row.querySelector('[data-benefit-field="label"]').value.trim();
     const amount = toNumber(row.querySelector('[data-benefit-field="amount"]').value);
     const pointsField = row.querySelector('[data-benefit-field="pointsAmount"]');
@@ -12423,7 +12789,8 @@ function getCardTotals(card) {
   // welcome-point portion is intentionally kept out of card.benefits so it
   // cannot be double-counted. Include that portion directly in Net P/L.
   const welcomeRedeemedValue = getCardPointAllocation(card).welcomeRedeemedValue;
-  const grossCashBenefits = benefits + welcomeRedeemedValue;
+  const milestoneRedeemedValue = getCardPointAllocation(card).milestoneRedeemedValue;
+  const grossCashBenefits = benefits + welcomeRedeemedValue + milestoneRedeemedValue;
   const cashBenefitNet = grossCashBenefits - fees;
   const points = getCardUnredeemedPoints(card);
   const cashBenefitCount = card.benefits.filter((benefit) => !isPointBenefit(benefit)).length;
@@ -12502,9 +12869,11 @@ function getRpSpendDisplayPoints(rpSpend) {
     const sourceCard = getRpSpendDisplayCard(rpSpend);
     if (sourceCard) {
       const firstSource = getUnredeemedPointsSourceRecord(sourceCard.id);
-      const welcomePoints = firstSource?.id === rpSpend.id
-        ? getCardPointAllocation(sourceCard).welcomeRemainingPoints : 0;
-      return getUnredeemedSourceBalance(rpSpend) + welcomePoints;
+      const allocation = getCardPointAllocation(sourceCard);
+      const isFirstSource = firstSource?.id === rpSpend.id;
+      const welcomePoints = isFirstSource ? allocation.welcomeRemainingPoints : 0;
+      const milestonePoints = isFirstSource ? allocation.milestoneRemainingPoints : 0;
+      return getUnredeemedSourceBalance(rpSpend) + welcomePoints + milestonePoints;
     }
     return getRpSpendRemainingPoints(rpSpend);
   }
@@ -12538,6 +12907,15 @@ function getRpSpendDisplayPoints(rpSpend) {
   }
 
   return getRpSpendRemainingPoints(rpSpend);
+}
+
+function getRpUnredeemedBenefitLabels(card) {
+  if (!card) return [];
+  const allocation = getCardPointAllocation(card);
+  const labels = [];
+  if (allocation.welcomeRemainingPoints > 0) labels.push("Welcome Benefits");
+  if (allocation.milestoneRemainingPoints > 0) labels.push("Milestone Points");
+  return labels;
 }
 
 function getRpSpendTotal() {
@@ -14923,6 +15301,8 @@ function getViewTitle(view) {
       return "International Travel Expenses";
     case "interestIncome":
       return "Interest & Additional Income";
+      case "investments":
+        return "Investments";
     default:
       return "Personal Finance";
   }
@@ -15135,7 +15515,9 @@ function formatPoints(value) {
 }
 
 function formatBenefitValue(benefit) {
-  return isPointBenefit(benefit) ? formatPoints(benefit.amount) : formatMoney(benefit.amount);
+  return isPointBenefit(benefit)
+    ? formatPoints(benefit.type === "Milestone Points" ? getMilestoneBenefitPoints(benefit) : benefit.amount)
+    : formatMoney(benefit.amount);
 }
 
 function formatMixedValue(cash, points) {
@@ -15169,8 +15551,10 @@ function formatBenefitSplitHtml(cash, points, redeemedPoints = 0) {
 function formatCardBenefitsHtml(card) {
   const allocation = getCardPointAllocation(card);
   const hasWelcomePoints = card.benefits.some((benefit) => benefit?.type === welcomeBenefitPointsType);
+  const hasMilestonePoints = allocation.milestonePoints > 0;
   const visibleBenefits = card.benefits.filter((benefit) =>
     benefit?.type !== welcomeBenefitPointsType
+    && benefit?.type !== "Milestone Points"
     && !(benefit?.type === "Unredeemed Points" && isPointBenefit(benefit) && !isRpRedeemedAutoBenefit(benefit))
   );
   const redeemedBenefits = visibleBenefits.filter((benefit) => benefit?.type === "Points Redeemed");
@@ -15179,7 +15563,7 @@ function formatCardBenefitsHtml(card) {
     benefit?.type !== "Points Redeemed" && benefit?.type !== "Unredeemed Points"
   ));
 
-  if (!visibleBenefits.length && !hasWelcomePoints) {
+  if (!visibleBenefits.length && !hasWelcomePoints && !hasMilestonePoints) {
     return `<div class="benefit-breakdown muted-breakdown">No points or redemptions logged</div>`;
   }
 
@@ -15199,6 +15583,22 @@ function formatCardBenefitsHtml(card) {
     </span>
   ` : "";
 
+  const milestoneRedeemedLine = hasMilestonePoints ? `
+    <span class="benefit-line benefit-line-derived${allocation.milestoneRedeemedPoints > 0 ? " benefit-line-redeemed" : ""}">
+      <span class="benefit-line-name" style="font-style: italic;">${escapeHtml(formatPoints(allocation.milestoneRedeemedPoints))}</span>
+      <span class="benefit-line-meta">Milestone Points | Redeemed</span>
+      <strong>${escapeHtml(formatMoney(allocation.milestoneRedeemedValue))}</strong>
+    </span>
+  ` : "";
+
+  const milestoneUnredeemedLine = hasMilestonePoints ? `
+    <span class="benefit-line benefit-line-derived">
+      <span class="benefit-line-name" style="font-style: italic;">Milestone Points Unredeemed</span>
+      <span class="benefit-line-meta">Milestone Points | Unredeemed</span>
+      <strong>${escapeHtml(formatPoints(allocation.milestoneRemainingPoints))}</strong>
+    </span>
+  ` : "";
+
   const renderBenefitLines = (benefits) => benefits
     .map((benefit) => {
       const isRedeemedMonetary = benefit?.type === "Points Redeemed" && !isPointBenefit(benefit) && toNumber(benefit.pointsAmount) > 0;
@@ -15206,12 +15606,15 @@ function formatCardBenefitsHtml(card) {
         ? toNumber(benefit.amount)
         : toNumber(benefit.pointsAmount);
       const isRedeemedPoints = benefit?.type === "Points Redeemed" && redeemedPoints > 0;
-      const impactLabel = isPointBenefit(benefit) ? "Points" : "Monetary";
+      const impactLabel = isRedeemedMonetary
+        ? (toNumber(benefit.amount) > 0 ? "Points + Monetary" : "Points")
+        : isPointBenefit(benefit) ? "Points" : "Monetary";
+      const typeLabel = isRedeemedMonetary ? (benefit.label || "Points Redeemed") : benefit.type;
       const name = isRedeemedMonetary ? formatPoints(benefit.pointsAmount) : (benefit.label || benefit.type);
       return `
         <span class="benefit-line${isRedeemedPoints ? " benefit-line-redeemed" : ""}">
           <span class="benefit-line-name" style="font-style: italic;">${escapeHtml(name)}</span>
-          <span class="benefit-line-meta" style="background: rgba(148, 163, 184, 0.1); padding: 2px 8px; border-radius: 12px; font-style: italic;">${escapeHtml(benefit.type)} | ${escapeHtml(impactLabel)}</span>
+          <span class="benefit-line-meta" style="background: rgba(148, 163, 184, 0.1); padding: 2px 8px; border-radius: 12px; font-style: italic;">${escapeHtml(typeLabel)} | ${escapeHtml(impactLabel)}</span>
           <strong>${escapeHtml(formatBenefitValue(benefit))}</strong>
         </span>
       `;
@@ -15222,7 +15625,9 @@ function formatCardBenefitsHtml(card) {
     <div class="benefit-breakdown">
       ${welcomeRedeemedLine}
       ${renderBenefitLines(redeemedBenefits)}
+      ${milestoneRedeemedLine}
       ${welcomeUnredeemedLine}
+      ${milestoneUnredeemedLine}
       ${renderBenefitLines(unredeemedBenefits)}
       ${renderBenefitLines(otherBenefits)}
     </div>
