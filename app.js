@@ -2953,7 +2953,17 @@ function syncRpRedeemedBenefitsFromSpends() {
 }
 
 function normalizeSwipeCategory(category) {
-  return String(category || "").toLowerCase() === "personal" ? "personal" : "business";
+  const normalized = String(category || "").trim().toLowerCase();
+  if (normalized === "personal") return "personal";
+  if (normalized === "reliance") return "reliance";
+  return "business";
+}
+
+function getSwipeCategoryLabel(category) {
+  const normalized = normalizeSwipeCategory(category);
+  if (normalized === "personal") return "Personal";
+  if (normalized === "reliance") return "Reliance";
+  return "Business";
 }
 
 function normalizeLoungeVisit(visit) {
@@ -4350,13 +4360,13 @@ function buildSwipeReadOnlyReport({ intent, card, intentLabelCard, normalizedQue
   const total = matches.reduce((sum, swipe) => sum + toNumber(swipe.amount), 0);
   const titleParts = [];
   if (intentLabelCard) titleParts.push(intentLabelCard);
-  if (category) titleParts.push(category === "business" ? "business" : "personal");
+  if (category) titleParts.push(getSwipeCategoryLabel(category).toLowerCase());
   if (type) titleParts.push(type === "E" ? "EMI" : "full swipe");
   if (effectiveFY) titleParts.push(effectiveFY);
   const intentLabel = titleParts.length ? `${titleParts.join(" ")} spends` : "Total swipe spends";
   const filtersLabel = [
     card ? intentLabelCard : "All cards",
-    category ? (category === "business" ? "Business" : "Personal") : "All categories",
+    category ? getSwipeCategoryLabel(category) : "All categories",
     type ? (type === "E" ? "EMI" : "Full swipe") : "All swipe types",
     effectiveFY || (hasFyCue ? financialYear : "All FY"),
   ].filter(Boolean).join(" | ");
@@ -4525,7 +4535,7 @@ function buildSwipeBreakdownHtml(swipes) {
           return `
             <div class="ai-result-card">
               <strong>${escapeHtml(formatCardName(card))}</strong>
-              <div class="ai-result-meta">${escapeHtml(swipe.financialYear)} | ${escapeHtml(normalizeSwipeCategory(swipe.category) === "personal" ? "Personal" : "Business")} | ${escapeHtml(swipe.type === "E" ? "EMI" : "Full Swipe")}</div>
+              <div class="ai-result-meta">${escapeHtml(swipe.financialYear)} | ${escapeHtml(getSwipeCategoryLabel(swipe.category))} | ${escapeHtml(swipe.type === "E" ? "EMI" : "Full Swipe")}</div>
               <div class="ai-result-meta">${escapeHtml(swipe.spentFor || "No spent-for note")} | ${escapeHtml(formatMoney(swipe.amount))}</div>
               <div class="row-actions">
                 <button type="button" class="ghost-button" data-ai-open="swipe-edit" data-swipe-id="${escapeAttribute(swipe.id)}">Open swipe</button>
@@ -4685,7 +4695,7 @@ function showAiSearchResults(query) {
           ${results.swipes.map(({ swipe, card }) => `
             <div class="ai-result-card">
               <strong>${escapeHtml(formatCardName(card))}</strong>
-              <div class="ai-result-meta">${escapeHtml(swipe.financialYear)} | ${escapeHtml(normalizeSwipeCategory(swipe.category) === "personal" ? "Personal" : "Business")} | ${escapeHtml(swipe.type === "E" ? "EMI" : "Full Swipe")} | ${escapeHtml(swipe.spentFor || "No spent-for note")}</div>
+              <div class="ai-result-meta">${escapeHtml(swipe.financialYear)} | ${escapeHtml(getSwipeCategoryLabel(swipe.category))} | ${escapeHtml(swipe.type === "E" ? "EMI" : "Full Swipe")} | ${escapeHtml(swipe.spentFor || "No spent-for note")}</div>
               <div class="ai-result-meta">${escapeHtml(formatMoney(swipe.amount))}</div>
               <div class="row-actions">
                 <button type="button" class="ghost-button" data-ai-open="swipe-edit" data-swipe-id="${escapeAttribute(swipe.id)}">Open swipe</button>
@@ -5040,6 +5050,7 @@ async function collectAiSwipeCommand(intent) {
       message: "Choose the swipe category.",
       options: [
         { value: "business", label: "Business" },
+        { value: "reliance", label: "Reliance" },
         { value: "personal", label: "Personal" },
       ],
       value: "business",
@@ -5356,7 +5367,7 @@ function buildAiSwipeSummary(resolved) {
       <section class="ai-search-section">
         <div class="ai-result-card">
           <strong>${escapeHtml(formatCardName(resolved.card))}</strong>
-          <div class="ai-result-meta">${escapeHtml(normalizeSwipeCategory(resolved.category) === "personal" ? "Personal" : "Business")} | ${escapeHtml(resolved.swipeType === "E" ? "EMI" : "Full Swipe")} | ${escapeHtml(normalizeFinancialYear(resolved.financialYear))}</div>
+          <div class="ai-result-meta">${escapeHtml(getSwipeCategoryLabel(resolved.category))} | ${escapeHtml(resolved.swipeType === "E" ? "EMI" : "Full Swipe")} | ${escapeHtml(normalizeFinancialYear(resolved.financialYear))}</div>
           <div class="ai-result-meta">Amount ${escapeHtml(formatMoney(resolved.amount))}</div>
           ${normalizeSwipeCategory(resolved.category) === "personal" ? `<div class="ai-result-meta">Spent for ${escapeHtml(resolved.spentFor || "")}</div>` : ""}
         </div>
@@ -5457,7 +5468,7 @@ function findRpMatchesForIntent(intent) {
 
 function formatAiSwipeCandidate(swipe) {
   const card = getCardById(swipe.cardId);
-  return `${formatCardName(card)} | ${formatMoney(swipe.amount)} | ${normalizeSwipeCategory(swipe.category) === "personal" ? "Personal" : "Business"} | ${swipe.spentFor || "No spent-for note"} | ${swipe.financialYear || "No FY"}`;
+  return `${formatCardName(card)} | ${formatMoney(swipe.amount)} | ${getSwipeCategoryLabel(swipe.category)} | ${swipe.spentFor || "No spent-for note"} | ${swipe.financialYear || "No FY"}`;
 }
 
 function formatAiRpCandidate(rpSpend) {
@@ -8315,7 +8326,7 @@ async function addSwipeFromForm() {
   render();
   resetSwipeForm();
 
-  showToast(`${category === "personal" ? "Personal" : "Business"} swipe ${editingId ? "updated" : "added"}.`);
+  showToast(`${getSwipeCategoryLabel(category)} swipe ${editingId ? "updated" : "added"}.`);
 }
 function resetSwipeForm() {
 
@@ -8370,7 +8381,9 @@ function refreshSwipeSpentForRequirement() {
   els.swipeSpentFor.required = isPersonal;
   els.swipeSpentFor.placeholder = isPersonal
     ? "Required for personal swipes"
-    : "Optional for business swipes";
+    : category === "reliance"
+      ? "Optional for Reliance swipes"
+      : "Optional for business swipes";
 }
 
 function resetPortfolioFilters(shouldRender = true) {
@@ -8887,7 +8900,7 @@ function renderSwipes() {
   const totalSwipes = sortedSwipes.length;
   const visibleCountSwipes = shouldShowAllSwipes ? totalSwipes : (swipesAllExpanded ? totalSwipes : INITIAL_VISIBLE_CARDS);
   const renderSwipeRow = (swipe) => {
-    const title = normalizeSwipeCategory(swipe.category) === "personal" ? "Personal" : "Business";
+    const title = getSwipeCategoryLabel(swipe.category);
     return `
       <article class="card-row">
         <div class="card-name">
@@ -12379,7 +12392,7 @@ function getSwipeCategoryTotals() {
   return state.swipes.reduce(
     (totals, swipe) => {
       const category = normalizeSwipeCategory(swipe.category);
-      totals[category] += toNumber(swipe.amount);
+      totals[category === "reliance" ? "business" : category] += toNumber(swipe.amount);
       return totals;
     },
     { business: 0, personal: 0 }
