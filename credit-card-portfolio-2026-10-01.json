@@ -1,5 +1,5 @@
 {
-  "exportedAt": "2026-10-01T17:50:22.985Z",
+  "exportedAt": "2026-10-01T18:36:58.351Z",
   "currency": "INR",
   "cards": [
     {
@@ -46,7 +46,8 @@
           "valueType": "cash",
           "label": "Earned Points Redeemed",
           "amount": 0,
-          "pointsAmount": 4816
+          "pointsAmount": 4816,
+          "addedAt": ""
         },
         {
           "id": "lounge-37e991e3-d9a3-4187-afc8-f96e2273df0f-Domestic",
@@ -108,6 +109,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 31217,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 32717
         },
         {
@@ -116,7 +119,8 @@
           "valueType": "cash",
           "label": "Earned Points Redeemed",
           "amount": 0,
-          "pointsAmount": 1500
+          "pointsAmount": 1500,
+          "addedAt": ""
         }
       ]
     },
@@ -150,6 +154,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 90361,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 90361
         }
       ]
@@ -175,6 +181,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 300,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 17800
         },
         {
@@ -183,7 +191,8 @@
           "valueType": "cash",
           "label": "Points Redeemed",
           "amount": 3500,
-          "pointsAmount": 17500
+          "pointsAmount": 17500,
+          "addedAt": ""
         }
       ]
     },
@@ -217,6 +226,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 8856,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 8856
         }
       ]
@@ -242,6 +253,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 194,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 1044
         },
         {
@@ -250,7 +263,8 @@
           "valueType": "cash",
           "label": "Points Redeemed",
           "amount": 0,
-          "pointsAmount": 850
+          "pointsAmount": 850,
+          "addedAt": ""
         }
       ]
     },
@@ -275,6 +289,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 370,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 370
         }
       ]
@@ -300,6 +316,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 1196,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 1196
         }
       ]
@@ -343,6 +361,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 3462,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 12840
         },
         {
@@ -351,7 +371,8 @@
           "valueType": "cash",
           "label": "Points Redeemed",
           "amount": 2344.5,
-          "pointsAmount": 9378
+          "pointsAmount": 9378,
+          "addedAt": ""
         }
       ]
     },
@@ -376,6 +397,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 4931,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 48734
         },
         {
@@ -384,7 +407,8 @@
           "valueType": "cash",
           "label": "Points Redeemed",
           "amount": 43803,
-          "pointsAmount": 43803
+          "pointsAmount": 43803,
+          "addedAt": ""
         },
         {
           "id": "lounge-74e4ca1a-700a-4df8-b740-ab55dbc19454-Domestic",
@@ -423,7 +447,8 @@
           "valueType": "cash",
           "label": "Points Redeemed",
           "amount": 2425,
-          "pointsAmount": 9700
+          "pointsAmount": 9700,
+          "addedAt": ""
         }
       ]
     },
@@ -448,7 +473,8 @@
           "valueType": "cash",
           "label": "Points Redeemed",
           "amount": 124.5,
-          "pointsAmount": 498
+          "pointsAmount": 498,
+          "addedAt": ""
         }
       ]
     },
@@ -524,7 +550,8 @@
           "valueType": "cash",
           "label": "Points Redeemed",
           "amount": 500,
-          "pointsAmount": 1528
+          "pointsAmount": 1528,
+          "addedAt": ""
         },
         {
           "id": "lounge-876dfe31-e68c-4e19-9686-9f9f965cee87-International",
@@ -588,6 +615,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 5640,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 5640
         }
       ]
@@ -6573,6 +6602,111 @@
   "interestLedgerSeedVersion": "spreadsheet-through-q3-2026-v1",
   "activityLog": [
     {
+      "id": "3800818e-03b4-4b5b-bf0f-9bfaefe3a361",
+      "widget": "investments",
+      "action": "updated",
+      "message": "Updated jewellery purchase: INR 36,443.",
+      "createdAt": "2026-10-01T18:36:00.610Z"
+    },
+    {
+      "id": "cec37d7d-35b9-4dd9-bb6f-cea09617d34f",
+      "widget": "investments",
+      "action": "updated",
+      "message": "Updated jewellery purchase: INR 20,521.",
+      "createdAt": "2026-10-01T18:34:51.893Z"
+    },
+    {
+      "id": "ce50a0b9-21fa-44e5-b6b5-8cbb56d3efc2",
+      "widget": "investments",
+      "action": "updated",
+      "message": "Updated jewellery purchase: INR 181,379.",
+      "createdAt": "2026-10-01T18:34:06.459Z"
+    },
+    {
+      "id": "f9f360f8-1f25-4813-a9cd-9dd3911ce2c9",
+      "widget": "investments",
+      "action": "updated",
+      "message": "Updated coin purchase: INR 29,449.",
+      "createdAt": "2026-10-01T18:33:45.458Z"
+    },
+    {
+      "id": "baa0e249-161d-4316-aced-3dbecc489b52",
+      "widget": "investments",
+      "action": "updated",
+      "message": "Updated coin purchase: INR 13,405.",
+      "createdAt": "2026-10-01T18:33:14.529Z"
+    },
+    {
+      "id": "9e2eb434-2f1d-47f7-bf17-897c0d106675",
+      "widget": "investments",
+      "action": "updated",
+      "message": "Updated coin purchase: INR 13,370.",
+      "createdAt": "2026-10-01T18:33:05.788Z"
+    },
+    {
+      "id": "8426fb30-5c5a-4d07-a7d2-3951bf3834d4",
+      "widget": "investments",
+      "action": "updated",
+      "message": "Updated coin purchase: INR 13,370.",
+      "createdAt": "2026-10-01T18:21:02.905Z"
+    },
+    {
+      "id": "580c5197-278f-4d2b-b820-2005b5f1c960",
+      "widget": "investments",
+      "action": "updated",
+      "message": "Updated coin purchase: INR 13,405.",
+      "createdAt": "2026-10-01T18:20:51.084Z"
+    },
+    {
+      "id": "47bfe7e0-3a7f-47f5-90fd-1fd564218c00",
+      "widget": "investments",
+      "action": "updated",
+      "message": "Updated coin purchase: INR 13,370.",
+      "createdAt": "2026-10-01T18:20:22.565Z"
+    },
+    {
+      "id": "788cf1c1-dec9-4657-8b80-18263208bfcf",
+      "widget": "investments",
+      "action": "updated",
+      "message": "Updated coin purchase: INR 13,405.",
+      "createdAt": "2026-10-01T18:01:53.949Z"
+    },
+    {
+      "id": "11c4051b-05e1-46f7-ae88-10873b989c72",
+      "widget": "investments",
+      "action": "updated",
+      "message": "Updated coin purchase: INR 13,405.",
+      "createdAt": "2026-10-01T18:01:03.426Z"
+    },
+    {
+      "id": "28644c1d-6e29-4dc8-9d6f-f688e7afd4d0",
+      "widget": "investments",
+      "action": "updated",
+      "message": "Updated coin purchase: INR 13,405.",
+      "createdAt": "2026-10-01T17:54:07.715Z"
+    },
+    {
+      "id": "0d8bd5e7-db4f-4dfe-a6e5-51ec7d025f30",
+      "widget": "investments",
+      "action": "updated",
+      "message": "Updated jewellery purchase: INR 36,443.",
+      "createdAt": "2026-10-01T17:53:13.296Z"
+    },
+    {
+      "id": "4d3f667f-d58c-40af-8cf7-b7ff47a15a9c",
+      "widget": "investments",
+      "action": "updated",
+      "message": "Updated jewellery purchase: INR 20,521.",
+      "createdAt": "2026-10-01T17:53:06.876Z"
+    },
+    {
+      "id": "109e1e89-f485-4763-b18b-16941cccafd5",
+      "widget": "investments",
+      "action": "added",
+      "message": "Added stock company ITC.",
+      "createdAt": "2026-10-01T17:51:37.569Z"
+    },
+    {
       "id": "c958c3ae-5ec9-4258-8156-ff649f9d396f",
       "widget": "investments",
       "action": "added",
@@ -9966,111 +10100,6 @@
       "action": "added",
       "message": "Added INR 42,099 business swipe on Federal Bank | Imperio.",
       "createdAt": "2026-05-28T06:30:13.048Z"
-    },
-    {
-      "id": "c52bcc5b-56ef-4489-bfaf-65666250c5f1",
-      "widget": "swipes",
-      "action": "added",
-      "message": "Added INR 45,677.5 business swipe on ICICI Bank | Coral Rupay.",
-      "createdAt": "2026-05-28T06:30:03.473Z"
-    },
-    {
-      "id": "d77de3c9-ac65-4eaf-af73-1c86cfc79985",
-      "widget": "swipes",
-      "action": "added",
-      "message": "Added INR 86,000 business swipe on American Express | Smart Earn.",
-      "createdAt": "2026-05-28T06:25:17.863Z"
-    },
-    {
-      "id": "0fd771db-55c9-44ab-ba9e-18237f6c4b05",
-      "widget": "swipes",
-      "action": "added",
-      "message": "Added INR 60,480.77 business swipe on Axis Bank | Rewards.",
-      "createdAt": "2026-05-28T06:25:00.736Z"
-    },
-    {
-      "id": "79785cc0-2e1e-4836-a543-035e942391d9",
-      "widget": "swipes",
-      "action": "added",
-      "message": "Added INR 29,099 business swipe on IDFC | Ashva.",
-      "createdAt": "2026-05-28T06:24:39.830Z"
-    },
-    {
-      "id": "a0054de3-f9ff-4825-9968-2ddaf7c14092",
-      "widget": "swipes",
-      "action": "added",
-      "message": "Added INR 29,099 business swipe on Axis Bank | Rewards.",
-      "createdAt": "2026-05-28T06:24:27.348Z"
-    },
-    {
-      "id": "7a828cba-09f6-46d5-9655-8edb3283c866",
-      "widget": "swipes",
-      "action": "added",
-      "message": "Added INR 45,677.5 business swipe on Federal Bank | Imperio.",
-      "createdAt": "2026-05-28T06:24:12.245Z"
-    },
-    {
-      "id": "c8ca9256-864f-426c-a2ed-f7ca7ecf6732",
-      "widget": "swipes",
-      "action": "added",
-      "message": "Added INR 26,394.29 business swipe on Federal Bank | Imperio.",
-      "createdAt": "2026-05-28T06:24:02.517Z"
-    },
-    {
-      "id": "ab8c12c6-55c9-4171-8599-d430f765f9b5",
-      "widget": "swipes",
-      "action": "added",
-      "message": "Added INR 45,677.5 business swipe on IDFC | Ashva.",
-      "createdAt": "2026-05-28T06:23:51.272Z"
-    },
-    {
-      "id": "3e520359-ceb3-4d32-ace0-f879db59c2cf",
-      "widget": "swipes",
-      "action": "added",
-      "message": "Added INR 45,872.28 business swipe on Federal Bank | Imperio.",
-      "createdAt": "2026-05-28T06:22:00.247Z"
-    },
-    {
-      "id": "596f7d21-f877-47cb-aade-8bdfd9813968",
-      "widget": "swipes",
-      "action": "added",
-      "message": "Added INR 19,299 business swipe on Axis Bank | Rewards.",
-      "createdAt": "2026-05-28T06:21:43.355Z"
-    },
-    {
-      "id": "4acbf70e-f95e-4fa9-9192-401c5513e54e",
-      "widget": "swipes",
-      "action": "added",
-      "message": "Added INR 36,099 business swipe on Axis Bank | Rewards.",
-      "createdAt": "2026-05-28T06:21:34.157Z"
-    },
-    {
-      "id": "2ff6b7f3-8668-4b39-b087-b1ab65348795",
-      "widget": "swipes",
-      "action": "added",
-      "message": "Added INR 36,279 business swipe on Federal Bank | Imperio.",
-      "createdAt": "2026-05-28T06:21:27.552Z"
-    },
-    {
-      "id": "1e2a91cc-92e9-4ee2-aa03-2e439accb6ed",
-      "widget": "swipes",
-      "action": "added",
-      "message": "Added INR 61,760.94 business swipe on Axis Bank | Airtel.",
-      "createdAt": "2026-05-28T06:21:21.697Z"
-    },
-    {
-      "id": "5555c9ec-d583-4168-9e68-f5462dd0d566",
-      "widget": "swipes",
-      "action": "added",
-      "message": "Added INR 33,368.56 business swipe on Axis Bank | Airtel.",
-      "createdAt": "2026-05-28T06:21:14.596Z"
-    },
-    {
-      "id": "d6cb98c7-7658-42d0-80f3-25f75e2141f0",
-      "widget": "swipes",
-      "action": "added",
-      "message": "Added INR 39,054.98 business swipe on Federal Bank | Imperio.",
-      "createdAt": "2026-05-28T06:21:08.191Z"
     }
   ]
 }
