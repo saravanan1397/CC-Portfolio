@@ -712,6 +712,8 @@ function cacheElements() {
     dashboardInvestmentGoldCost: document.getElementById("dashboardInvestmentGoldCost"),
     dashboardInvestmentDividends: document.getElementById("dashboardInvestmentDividends"),
     dashboardInvestmentDividendsRow: document.getElementById("dashboardInvestmentDividendsRow"),
+    dashboardDividendSummary: document.getElementById("dashboardDividendSummary"),
+    dashboardDividendTotal: document.getElementById("dashboardDividendTotal"),
     dashboardInvestmentCompanies: document.getElementById("dashboardInvestmentCompanies"),
     dashboardInvestmentHint: document.getElementById("dashboardInvestmentHint"),
     backFromPortfolioBtn: document.getElementById("backFromPortfolioBtn"),
@@ -1227,6 +1229,13 @@ document.addEventListener("keydown", (e) => {
   });
   els.dashboardInvestmentDividendsRow?.addEventListener("click", openInvestmentDividendBreakdown);
   els.dashboardInvestmentDividendsRow?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openInvestmentDividendBreakdown();
+    }
+  });
+  els.dashboardDividendSummary?.addEventListener("click", openInvestmentDividendBreakdown);
+  els.dashboardDividendSummary?.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       openInvestmentDividendBreakdown();
@@ -6268,7 +6277,7 @@ function renderDashboard() {
   }
 
   if (els.dashboardGreetingLead) {
-    els.dashboardGreetingLead.textContent = `${greeting}, Sarav.`;
+    els.dashboardGreetingLead.textContent = `${greeting}, Saravanan.`;
   }
 
   if (els.dashboardNetValue) {
@@ -6438,6 +6447,7 @@ function renderDashboard() {
   if (els.dashboardInvestmentValue) els.dashboardInvestmentValue.textContent = formatMoney(investmentGoldCost + investmentDividends);
   if (els.dashboardInvestmentGoldCost) els.dashboardInvestmentGoldCost.textContent = formatMoney(investmentGoldCost);
   if (els.dashboardInvestmentDividends) els.dashboardInvestmentDividends.textContent = formatMoney(investmentDividends);
+  if (els.dashboardDividendTotal) els.dashboardDividendTotal.textContent = formatMoney(investmentDividends);
   if (els.dashboardInvestmentCompanies) els.dashboardInvestmentCompanies.textContent = String(investmentCompanies.length);
   if (els.dashboardInvestmentHint) {
     els.dashboardInvestmentHint.textContent = `${state.investments.length} ${state.investments.length === 1 ? "record" : "records"} · consolidated tracker`;

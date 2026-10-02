@@ -1343,7 +1343,7 @@ h3 {
 
 .value-row span {
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: clamp(1rem, 1.5vw, 1.625rem);
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -11643,10 +11643,12 @@ body[data-view="dashboard"] .app-shell > .topbar {
 #dashboardView .dashboard-v2-hero h2 {
   max-width: 650px;
   margin: 0;
-  color: #f5f7fa;
-  font-size: clamp(2rem, 3vw, 3.25rem);
-  font-weight: 500;
-  letter-spacing: -0.045em;
+  color: #fff;
+  font-size: clamp(1rem, 1.5vw, 1.625rem);
+  font-weight: 400;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 #dashboardView .dashboard-v2-hero h2 em {
@@ -11663,7 +11665,7 @@ body[data-view="dashboard"] .app-shell > .topbar {
 
 #dashboardView .dashboard-v2-hero-metrics {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -11675,7 +11677,7 @@ body[data-view="dashboard"] .app-shell > .topbar {
 
 #dashboardView .dashboard-v2-hero-metrics > div {
   min-width: 0;
-  padding: 19px;
+  padding: 14px;
   background: rgba(7, 9, 13, 0.58);
 }
 
@@ -11692,6 +11694,10 @@ body[data-view="dashboard"] .app-shell > .topbar {
   border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+#dashboardView .dashboard-v2-hero-metrics > div:nth-child(2) {
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 #dashboardView .dashboard-v2-hero-metrics span {
   display: block;
   margin-bottom: 8px;
@@ -11704,7 +11710,7 @@ body[data-view="dashboard"] .app-shell > .topbar {
 #dashboardView .dashboard-v2-hero-metrics strong {
   display: block;
   color: #83ebbd;
-  font-size: clamp(1.2rem, 2vw, 1.75rem);
+  font-size: clamp(1rem, 1.5vw, 1.25rem);
   letter-spacing: -0.03em;
   overflow-wrap: anywhere;
 }
@@ -12493,10 +12499,6 @@ body[data-view="dashboard"] .app-shell > .topbar {
     padding: 21px;
   }
 
-  #dashboardView .dashboard-v2-hero h2 {
-    font-size: 1.7rem;
-  }
-
   #dashboardView .dashboard-v2-hero-metrics,
   #dashboardView .dashboard-v2-overview-grid,
   #dashboardView .dashboard-v2-points-grid {
@@ -12504,6 +12506,11 @@ body[data-view="dashboard"] .app-shell > .topbar {
   }
 
   #dashboardView .dashboard-v2-hero-metrics > div:first-child {
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  #dashboardView .dashboard-v2-hero-metrics > div:nth-child(2) {
     border-right: 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
@@ -15667,11 +15674,6 @@ html body #app#app#app#app#app#app .widget-v2-sidebar .widget-v2-nav .widget-v2-
     gap: 16px !important;
   }
 
-  #dashboardView .dashboard-v2-hero h2 {
-    font-size: clamp(1.65rem, 9vw, 2.25rem) !important;
-    line-height: 1.06 !important;
-  }
-
   #dashboardView .dashboard-v2-hero-metrics,
   #dashboardView .dashboard-v2-overview-grid,
   #dashboardView .dashboard-v2-points-grid,
@@ -15680,6 +15682,11 @@ html body #app#app#app#app#app#app .widget-v2-sidebar .widget-v2-nav .widget-v2-
   }
 
   #dashboardView .dashboard-v2-hero-metrics > div:first-child {
+    border-right: 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  }
+
+  #dashboardView .dashboard-v2-hero-metrics > div:nth-child(2) {
     border-right: 0 !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
   }
