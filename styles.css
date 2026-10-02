@@ -12776,6 +12776,16 @@ body[data-view="intlTravel"] .brand .eyebrow {
   min-height: calc(100vh - 138px) !important;
 }
 
+#portfolioView .portfolio-panel,
+#swipesView .portfolio-panel,
+#rpSpendsView .portfolio-panel,
+#pprView .portfolio-panel,
+#loungeView .portfolio-panel,
+#intlTravelView .intl-travel-panel,
+#investmentsView .portfolio-panel {
+  border-radius: 20px !important;
+}
+
 #portfolioView .panel-heading,
 #swipesView .panel-heading,
 #rpSpendsView .panel-heading,
@@ -17804,4 +17814,15 @@ body[data-view]:not([data-view="dashboard"]) .control-band,
   body[data-view]:not([data-view="dashboard"]) #portfolioView .summary-grid {
     grid-template-columns: minmax(0, 1fr) !important;
   }
+}
+
+#portfolioView,
+#swipesView,
+#rpSpendsView,
+#pprView,
+#loungeView,
+#intlTravelView,
+#interestIncomeView,
+#investmentsView {
+  border-radius: 0 !important;
 }
