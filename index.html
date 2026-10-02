@@ -293,7 +293,6 @@
     appId: "1:459587513450:web:b93829e8cb1d57f4516e13"
   };
 
-
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const auth = getAuth(app);
@@ -706,7 +705,7 @@
                       <div class="dashboard-v2-primary-value" id="dashboardInvestmentValue">INR 0</div>
                       <div class="dashboard-v2-detail-list">
                         <div><span>Gold cost</span><strong id="dashboardInvestmentGoldCost">INR 0</strong></div>
-                        <div><span>Dividends credited</span><strong id="dashboardInvestmentDividends">INR 0</strong></div>
+                        <div id="dashboardInvestmentDividendsRow" class="dashboard-v2-clickable-detail" role="button" tabindex="0" aria-haspopup="dialog" title="View dividends by company"><span>Dividends credited</span><strong id="dashboardInvestmentDividends">INR 0</strong></div>
                         <div><span>Stock companies</span><strong id="dashboardInvestmentCompanies">0</strong></div>
                       </div>
                       <div class="dashboard-v2-widget-context" id="dashboardInvestmentHint">No investment records yet</div>
@@ -1070,6 +1069,11 @@
         </select>
       </label>
 
+      <label class="field" style="flex: 1; min-width: 140px;">
+        <span>Swipe date</span>
+        <input id="swipeDate" type="date" style="width:100%; height: 42px;" />
+      </label>
+
       <label class="field" style="flex: 2; min-width: 200px;">
         <span>Spent for</span>
         <input id="swipeSpentFor"
@@ -1130,6 +1134,14 @@
                  <option value="F">Full Swipe</option>
                  <option value="E">EMI</option>
                </select>
+             </label>
+             <label class="field compact-field">
+               <span>From date</span>
+               <input id="swipeFromDate" type="date" style="width:100%; height:42px;" />
+             </label>
+             <label class="field compact-field">
+               <span>To date</span>
+               <input id="swipeToDate" type="date" style="width:100%; height:42px;" />
              </label>
              <label class="field compact-field" style="flex: 1; min-width: 100px; max-width: 300px;">
                <span>Search swipes</span>
@@ -1476,6 +1488,20 @@
         </div>
       </div>
 
+      <div id="investmentDividendBreakdownModal" class="details-modal" role="presentation" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:20002; align-items:center; justify-content:center; padding:20px;">
+        <section class="details-dialog dividend-breakdown-dialog" role="dialog" aria-modal="true" aria-labelledby="investmentDividendBreakdownTitle" aria-describedby="investmentDividendBreakdownSubtitle">
+          <header class="dividend-breakdown-header">
+            <div>
+              <h3 id="investmentDividendBreakdownTitle">Dividends by company</h3>
+              <p id="investmentDividendBreakdownSubtitle"></p>
+            </div>
+            <button id="investmentDividendBreakdownCloseBtn" class="dividend-breakdown-icon-close" type="button" aria-label="Close dividend breakdown">&times;</button>
+          </header>
+          <div id="investmentDividendBreakdownBody" class="dividend-breakdown-list" role="list" aria-live="polite"></div>
+          <footer class="dividend-breakdown-footer"><button id="investmentDividendBreakdownFooterCloseBtn" class="ghost-button" type="button">Close</button></footer>
+        </section>
+      </div>
+
       <main id="interestIncomeView" style="display:none;">
         <section class="portfolio-panel income-ledger-panel" aria-label="Interest and additional income">
           <div class="panel-heading portfolio-heading income-ledger-heading">
@@ -1614,7 +1640,7 @@
           <section class="widget-render-summary investments-summary" aria-label="Investment summary">
             <div><span>Gold purchases</span><strong id="investmentGoldCount">0</strong></div>
             <div><span>Total gold cost</span><strong id="investmentGoldCost">INR 0</strong></div>
-            <div><span>Dividends credited</span><strong id="investmentDividendTotal">INR 0</strong></div>
+            <div id="investmentDividendSummary" class="investment-dividend-summary" role="button" tabindex="0" aria-haspopup="dialog" title="View dividends by company"><span>Dividends credited</span><strong id="investmentDividendTotal">INR 0</strong></div>
             <div><span>Stock companies</span><strong id="investmentCompanyCount">0</strong></div>
           </section>
 

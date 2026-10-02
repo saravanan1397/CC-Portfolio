@@ -585,6 +585,7 @@ function cacheElements() {
     investmentGoldCount: document.getElementById("investmentGoldCount"),
     investmentGoldCost: document.getElementById("investmentGoldCost"),
     investmentDividendTotal: document.getElementById("investmentDividendTotal"),
+    investmentDividendSummary: document.getElementById("investmentDividendSummary"),
     investmentCompanyCount: document.getElementById("investmentCompanyCount"),
     investmentGoldList: document.getElementById("investmentGoldList"),
     investmentDividendList: document.getElementById("investmentDividendList"),
@@ -690,6 +691,11 @@ function cacheElements() {
     pprDetailsModalSubtitle: document.getElementById("pprDetailsModalSubtitle"),
     pprDetailsModalBody: document.getElementById("pprDetailsModalBody"),
     pprDetailsModalCloseBtn: document.getElementById("pprDetailsModalCloseBtn"),
+    investmentDividendBreakdownModal: document.getElementById("investmentDividendBreakdownModal"),
+    investmentDividendBreakdownSubtitle: document.getElementById("investmentDividendBreakdownSubtitle"),
+    investmentDividendBreakdownBody: document.getElementById("investmentDividendBreakdownBody"),
+    investmentDividendBreakdownCloseBtn: document.getElementById("investmentDividendBreakdownCloseBtn"),
+    investmentDividendBreakdownFooterCloseBtn: document.getElementById("investmentDividendBreakdownFooterCloseBtn"),
     aiCommandForm: document.getElementById("aiCommandForm"),
     aiCommandInput: document.getElementById("aiCommandInput"),
     aiCommandRunBtn: document.getElementById("aiCommandRunBtn"),
@@ -705,6 +711,7 @@ function cacheElements() {
     dashboardInvestmentValue: document.getElementById("dashboardInvestmentValue"),
     dashboardInvestmentGoldCost: document.getElementById("dashboardInvestmentGoldCost"),
     dashboardInvestmentDividends: document.getElementById("dashboardInvestmentDividends"),
+    dashboardInvestmentDividendsRow: document.getElementById("dashboardInvestmentDividendsRow"),
     dashboardInvestmentCompanies: document.getElementById("dashboardInvestmentCompanies"),
     dashboardInvestmentHint: document.getElementById("dashboardInvestmentHint"),
     backFromPortfolioBtn: document.getElementById("backFromPortfolioBtn"),
@@ -807,9 +814,12 @@ spentForText:document.getElementById("spentForText"),
 spentForBtn:document.getElementById("spentForBtn"),
     swipeTypeSelect: document.getElementById("swipeTypeSelect"),
     swipeFySelect: document.getElementById("swipeFySelect"),
+    swipeDate: document.getElementById("swipeDate"),
     swipeFyFilter: document.getElementById("swipeFyFilter"),
     swipeCategoryFilter: document.getElementById("swipeCategoryFilter"),
     swipeTypeFilter: document.getElementById("swipeTypeFilter"),
+    swipeFromDate: document.getElementById("swipeFromDate"),
+    swipeToDate: document.getElementById("swipeToDate"),
     swipeFilteredTotal: document.getElementById("swipeFilteredTotal"),
     swipeCardFilter: document.getElementById("swipeCardFilter"),
     swipeSearchInput: document.getElementById("swipeSearchInput"),
@@ -1205,6 +1215,30 @@ document.addEventListener("keydown", (e) => {
     }
   });
   els.pprDetailsModalBody?.addEventListener("click", handlePprDetailsAction);
+  els.investmentDividendBreakdownCloseBtn?.addEventListener("click", closeInvestmentDividendBreakdown);
+  els.investmentDividendBreakdownFooterCloseBtn?.addEventListener("click", closeInvestmentDividendBreakdown);
+  els.investmentDividendBreakdownModal?.addEventListener("click", (event) => {
+    if (event.target === els.investmentDividendBreakdownModal) closeInvestmentDividendBreakdown();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && els.investmentDividendBreakdownModal?.style.display === "flex") {
+      closeInvestmentDividendBreakdown();
+    }
+  });
+  els.dashboardInvestmentDividendsRow?.addEventListener("click", openInvestmentDividendBreakdown);
+  els.dashboardInvestmentDividendsRow?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openInvestmentDividendBreakdown();
+    }
+  });
+  els.investmentDividendSummary?.addEventListener("click", openInvestmentDividendBreakdown);
+  els.investmentDividendSummary?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openInvestmentDividendBreakdown();
+    }
+  });
   els.pprWidgetList?.addEventListener("click", handlePprWidgetAction);
   els.pprWidgetList?.addEventListener("keydown", (event) => {
     const row = event.target.closest?.(".ppr-partner-row");
@@ -1268,6 +1302,8 @@ document.addEventListener("keydown", (e) => {
   els.swipeFyFilter?.addEventListener("change", () => { swipesAllExpanded = false; renderSwipes(); });
   els.swipeCategoryFilter?.addEventListener("change", () => { swipesAllExpanded = false; renderSwipes(); });
   els.swipeTypeFilter?.addEventListener("change", () => { swipesAllExpanded = false; renderSwipes(); });
+  els.swipeFromDate?.addEventListener("change", () => { swipesAllExpanded = false; renderSwipes(); });
+  els.swipeToDate?.addEventListener("change", () => { swipesAllExpanded = false; renderSwipes(); });
   els.swipeCardFilter?.addEventListener("change", () => { swipesAllExpanded = false; renderSwipes(); });
   els.swipeSearchInput?.addEventListener("input", () => {
     state.swipeSearch = els.swipeSearchInput.value.trim().toLowerCase();
@@ -1443,6 +1479,38 @@ function normalizeIncomeLedgerEntry(entry = {}) {
 
 function normalizeInvestmentCompanyKey(value) {
   return String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN");
+}
+
+function getDividendTotalsByCompany(entries = state.investments || []) {
+  const totals = new Map();
+  entries.filter((entry) => entry.kind === "dividend").forEach((entry) => {
+    const companyName = String(entry.companyName || "").trim().replace(/\s+/g, " ");
+    const key = normalizeInvestmentCompanyKey(companyName);
+    if (!key) return;
+    const company = totals.get(key) || { companyName, amount: 0 };
+    company.amount += toNumber(entry.amount);
+    totals.set(key, company);
+  });
+  return [...totals.values()].sort((a, b) => a.companyName.localeCompare(b.companyName, "en-IN"));
+}
+
+function openInvestmentDividendBreakdown() {
+  if (!els.investmentDividendBreakdownModal || !els.investmentDividendBreakdownBody) return;
+  const companies = getDividendTotalsByCompany();
+  const total = companies.reduce((sum, company) => sum + company.amount, 0);
+  if (els.investmentDividendBreakdownSubtitle) {
+    els.investmentDividendBreakdownSubtitle.textContent = companies.length
+      ? `${companies.length} ${companies.length === 1 ? "company" : "companies"} · ${formatMoney(total)} total` : "No dividend records yet.";
+  }
+  els.investmentDividendBreakdownBody.innerHTML = companies.length
+    ? companies.map((company) => `<div class="dividend-breakdown-row" role="listitem"><span>${escapeHtml(company.companyName)}</span><strong>${escapeHtml(formatMoney(company.amount))}</strong></div>`).join("")
+    : `<p class="dividend-breakdown-empty">No dividends have been recorded.</p>`;
+  els.investmentDividendBreakdownModal.style.display = "flex";
+  els.investmentDividendBreakdownCloseBtn?.focus();
+}
+
+function closeInvestmentDividendBreakdown() {
+  if (els.investmentDividendBreakdownModal) els.investmentDividendBreakdownModal.style.display = "none";
 }
 
 function normalizeInvestmentCompanies(rawCompanies, entries = []) {
@@ -2346,7 +2414,20 @@ function updateAxisProgramField() {
   }
 }
 
+function normalizeDateInput(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  const match = text.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : "";
+}
+
+function getSwipeRecordDate(swipe = {}) {
+  return normalizeDateInput(swipe.date || swipe.createdAt) || "";
+}
+
 function normalizeSwipe(swipe) {
+  const normalizedDate = normalizeDateInput(swipe.date || swipe.createdAt) || normalizeDateInput(new Date().toISOString());
   return {
     id: swipe.id || createId(),
     cardId: swipe.cardId || "",
@@ -2355,6 +2436,7 @@ function normalizeSwipe(swipe) {
     financialYear: normalizeFinancialYear(swipe.financialYear),
     category: normalizeSwipeCategory(swipe.category),
     spentFor: swipe.spentFor || "",
+    date: normalizedDate,
     createdAt: swipe.createdAt || new Date().toISOString(),
   };
 }
@@ -8494,6 +8576,7 @@ async function addSwipeFromForm() {
   const amountInput = els.swipeAmount;
   const typeSelect = els.swipeTypeSelect;
   const fySelect = els.swipeFySelect;
+  const dateInput = els.swipeDate;
   const cardId = cardSelect?.value || "";
 
   if (!cardId) {
@@ -8534,6 +8617,8 @@ async function addSwipeFromForm() {
     return;
   }
 
+  const swipeDateValue = normalizeDateInput(dateInput?.value || "");
+
   const category = normalizeSwipeCategory(categoryValue);
   const spentFor = els.swipeSpentFor?.value.trim() || "";
 
@@ -8551,6 +8636,7 @@ async function addSwipeFromForm() {
     financialYear: normalizeFinancialYear(financialYearValue),
     category,
     spentFor,
+    date: swipeDateValue || "",
     createdAt: existingIndex >= 0
       ? state.swipes[existingIndex].createdAt
       : new Date().toISOString(),
@@ -8604,6 +8690,10 @@ function resetSwipeForm() {
     els.swipeFySelect.value = "";
   }
 
+  if (els.swipeDate) {
+    els.swipeDate.value = "";
+  }
+
   if (els.editingSwipeId) {
     els.editingSwipeId.value = "";
 }
@@ -8643,6 +8733,8 @@ function resetSwipeFilters(shouldRender = true) {
   if (els.swipeFyFilter) els.swipeFyFilter.value = "all";
   if (els.swipeCategoryFilter) els.swipeCategoryFilter.value = "all";
   if (els.swipeTypeFilter) els.swipeTypeFilter.value = "all";
+  if (els.swipeFromDate) els.swipeFromDate.value = "";
+  if (els.swipeToDate) els.swipeToDate.value = "";
   if (els.swipeCardFilter) els.swipeCardFilter.value = "all";
   state.swipeSearch = "";
   if (els.swipeSearchInput) els.swipeSearchInput.value = "";
@@ -8991,6 +9083,8 @@ function populateSwipeForm(swipe) {
 
   const fySelect = els.swipeFySelect;
 
+  const swipeDateInput = els.swipeDate;
+
   // Store editing ID
   if (els.editingSwipeId) {
 
@@ -9030,6 +9124,10 @@ function populateSwipeForm(swipe) {
   if (fySelect) {
     fySelect.value =
       swipe.financialYear || "";
+  }
+
+  if (swipeDateInput) {
+    swipeDateInput.value = getSwipeRecordDate(swipe) || "";
   }
 
   // Spent-for note
@@ -9081,6 +9179,8 @@ function renderSwipes() {
   const selectedFy = els.swipeFyFilter?.value || "all";
   const selectedCategory = els.swipeCategoryFilter?.value || "all";
   const selectedType = els.swipeTypeFilter?.value || "all";
+  const selectedFromDate = els.swipeFromDate?.value || "";
+  const selectedToDate = els.swipeToDate?.value || "";
   const selectedCard = els.swipeCardFilter?.value || "all";
   const searchQuery = state.swipeSearch?.trim().toLowerCase() || "";
 
@@ -9089,6 +9189,11 @@ function renderSwipes() {
     const matchesCategory = selectedCategory === "all" || normalizeSwipeCategory(swipe.category) === selectedCategory;
     const matchesType = selectedType === "all" || swipe.type === selectedType;
     const matchesCard = selectedCard === "all" || swipe.cardId === selectedCard;
+
+    const swipeDate = getSwipeRecordDate(swipe);
+    const swipeDateMs = swipeDate ? new Date(`${swipeDate}T00:00:00`).getTime() : new Date(swipe.createdAt || 0).getTime();
+    const matchesFromDate = !selectedFromDate || swipeDateMs >= new Date(`${selectedFromDate}T00:00:00`).getTime();
+    const matchesToDate = !selectedToDate || swipeDateMs <= new Date(`${selectedToDate}T23:59:59.999`).getTime();
 
     const card = getCardById(swipe.cardId) || {};
     const swipeText = [
@@ -9114,13 +9219,13 @@ function renderSwipes() {
         }
       }
     }
-    return matchesFy && matchesCategory && matchesType && matchesCard && matchesSearch;
+    return matchesFy && matchesCategory && matchesType && matchesFromDate && matchesToDate && matchesCard && matchesSearch;
   });
 
   // Sort logic
   const sortedSwipes = [...visibleSwipes].sort((a, b) => {
-    const dateA = getSwipeCreatedTime(a) ?? 0;
-    const dateB = getSwipeCreatedTime(b) ?? 0;
+    const dateA = new Date(`${getSwipeRecordDate(a) || a.createdAt || "1970-01-01"}T00:00:00`).getTime();
+    const dateB = new Date(`${getSwipeRecordDate(b) || b.createdAt || "1970-01-01"}T00:00:00`).getTime();
     return dateB - dateA;
   });
 
@@ -11450,8 +11555,22 @@ function formatInvestmentCreditDate(value) {
 
 function renderInvestmentsWidget() {
   if (!els.investmentGoldList || !els.investmentDividendList) return;
-  const gold = state.investments.filter((item) => item.kind === "gold");
-  const dividends = state.investments.filter((item) => item.kind === "dividend");
+  const gold = state.investments
+    .filter((item) => item.kind === "gold")
+    .slice()
+    .sort((a, b) => {
+      const dateA = new Date(`${getInvestmentRecordDate(a) || a.createdAt || "1970-01-01"}T00:00:00`).getTime();
+      const dateB = new Date(`${getInvestmentRecordDate(b) || b.createdAt || "1970-01-01"}T00:00:00`).getTime();
+      return dateB - dateA;
+    });
+  const dividends = state.investments
+    .filter((item) => item.kind === "dividend")
+    .slice()
+    .sort((a, b) => {
+      const dateA = new Date(`${getInvestmentRecordDate(a) || a.createdAt || "1970-01-01"}T00:00:00`).getTime();
+      const dateB = new Date(`${getInvestmentRecordDate(b) || b.createdAt || "1970-01-01"}T00:00:00`).getTime();
+      return dateB - dateA;
+    });
   const goldCost = gold.reduce((sum, item) => sum + toNumber(item.cost), 0);
   const dividendTotal = dividends.reduce((sum, item) => sum + toNumber(item.amount), 0);
   const companies = normalizeInvestmentCompanies(state.investmentCompanies, state.investments);
