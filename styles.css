@@ -5498,6 +5498,18 @@ h3 { letter-spacing: -0.015em !important; }
   width: 100%;
 }
 
+.lounge-record-controls {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 12px 30px;
+}
+
+.lounge-record-controls .field {
+  flex: 0 1 260px;
+}
+
 #pprView .ppr-panel {
   width: 100%;
 }

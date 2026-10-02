@@ -293,6 +293,7 @@
     appId: "1:459587513450:web:b93829e8cb1d57f4516e13"
   };
 
+
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const auth = getAuth(app);
@@ -1824,34 +1825,43 @@
             </div>
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 250px;">
               <canvas id="loungeChartCanvas" style="max-width: 100%; max-height: 300px;"></canvas>
-              <div style="margin-top: 16px; width: 100%; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-                <label class="field compact-field" style="min-width: 120px;">
-                  <span>Filter Card</span>
-                  <select id="loungeCardFilter">
-                    <option value="all">All Cards</option>
-                  </select>
-                </label>
-                <label class="field compact-field" style="min-width: 120px;">
-                  <span>Filter Type</span>
-                  <select id="loungeTypeFilter">
-                    <option value="all">All Types</option>
-                    <option value="Domestic">Domestic Lounge</option>
-                    <option value="International">International Lounge</option>
-                    <option value="Domestic_Golf">Domestic Golf</option>
-                    <option value="International_Golf">International Golf</option>
-                    <option value="Domestic_Restaurant">Domestic Restaurant</option>
-                    <option value="International_Restaurant">International Restaurant</option>
-                    <option value="Domestic_Spa">Domestic Spa</option>
-                    <option value="International_Spa">International Spa</option>
-                    <option value="Meet_Greet">Meet & Greet</option>
-                    <option value="Airport_Transfer">Airport Transfer</option>
-                  </select>
-                </label>
-              </div>
             </div>
           </div>
 
-          <div class="cards-table" id="loungeTable" style="margin-top: 18px;"></div>
+          <div class="lounge-record-controls">
+            <label class="field compact-field" style="min-width: 120px;">
+              <span>Filter Card</span>
+              <select id="loungeCardFilter">
+                <option value="all">All Cards</option>
+              </select>
+            </label>
+            <label class="field compact-field" style="min-width: 120px;">
+              <span>Filter Type</span>
+              <select id="loungeTypeFilter">
+                <option value="all">All Types</option>
+                <option value="Domestic">Domestic Lounge</option>
+                <option value="International">International Lounge</option>
+                <option value="Domestic_Golf">Domestic Golf</option>
+                <option value="International_Golf">International Golf</option>
+                <option value="Domestic_Restaurant">Domestic Restaurant</option>
+                <option value="International_Restaurant">International Restaurant</option>
+                <option value="Domestic_Spa">Domestic Spa</option>
+                <option value="International_Spa">International Spa</option>
+                <option value="Meet_Greet">Meet & Greet</option>
+                <option value="Airport_Transfer">Airport Transfer</option>
+              </select>
+            </label>
+            <label class="field compact-field" style="min-width: 120px;">
+              <span>Sort by</span>
+              <select id="loungeSortBy">
+                <option value="date">Date (Newest)</option>
+                <option value="card">Card (A-Z)</option>
+                <option value="benefit">Benefit (A-Z)</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="cards-table" id="loungeTable"></div>
         </section>
       </main>
 
