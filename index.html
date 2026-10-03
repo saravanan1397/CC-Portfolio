@@ -293,7 +293,6 @@
     appId: "1:459587513450:web:b93829e8cb1d57f4516e13"
   };
 
-
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const auth = getAuth(app);
@@ -371,6 +370,13 @@
           <button class="ghost-button" type="button" id="backFromInterestIncomeBtn">Dashboard</button>
           <button class="ghost-button" type="button" id="backFromLoungeBtn">Dashboard</button>
           <button class="ghost-button" type="button" id="backFromIntlTravelBtn">Dashboard</button>
+          <button class="ghost-button refresh-view-button" type="button" id="refreshViewBtn" title="Refresh current view" aria-label="Refresh current view">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 7v5h-5M4 17v-5h5" />
+              <path d="M5.6 9a7 7 0 0 1 11.8-2L20 12M4 12l2.6 5a7 7 0 0 0 11.8-2" />
+            </svg>
+            <span>Refresh</span>
+          </button>
           <button class="widget-activity-button" type="button" id="widgetActivityBtn" title="Recent updates" aria-label="View recent updates" style="display:none;">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />

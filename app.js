@@ -590,6 +590,7 @@ function cacheElements() {
     investmentGoldList: document.getElementById("investmentGoldList"),
     investmentDividendList: document.getElementById("investmentDividendList"),
     appPageTitle: document.getElementById("appPageTitle"),
+    refreshViewBtn: document.getElementById("refreshViewBtn"),
     widgetActivityBtn: document.getElementById("widgetActivityBtn"),
     widgetActivityModal: document.getElementById("widgetActivityModal"),
     widgetActivityTitle: document.getElementById("widgetActivityTitle"),
@@ -879,6 +880,7 @@ spentForBtn:document.getElementById("spentForBtn"),
     loungeCalculatedValue: document.getElementById("loungeCalculatedValue"),
     loungeBenefitType: document.getElementById("loungeBenefitType"),
     loungeCardFilter: document.getElementById("loungeCardFilter"),
+    loungeSortBy: document.getElementById("loungeSortBy"),
     loungeBenefitLabel: document.getElementById("loungeBenefitLabel"),
     loungeBenefitValue: document.getElementById("loungeBenefitValue"),
     saveLoungeBenefitBtn: document.getElementById("saveLoungeBenefitBtn"),
@@ -1127,6 +1129,7 @@ document.addEventListener("keydown", (e) => {
   els.openIntlTravelBtn?.addEventListener("click", () => showView("intlTravel"));
   els.openInterestIncomeBtn?.addEventListener("click", () => showView("interestIncome"));
   els.openInvestmentsBtn?.addEventListener("click", () => showView("investments"));
+  els.refreshViewBtn?.addEventListener("click", refreshCurrentView);
   els.widgetActivityBtn?.addEventListener("click", openWidgetActivityModal);
   els.closeWidgetActivityBtn?.addEventListener("click", closeWidgetActivityModal);
   els.closeWidgetActivityFooterBtn?.addEventListener("click", closeWidgetActivityModal);
@@ -1415,6 +1418,7 @@ document.addEventListener("keydown", (e) => {
   els.clearLoungeBenefitBtn?.addEventListener("click", resetLoungeBenefitForm);
   els.loungeCardFilter?.addEventListener("change", () => { loungeAllExpanded = false; renderLoungeVisits(); });
   els.loungeTypeFilter?.addEventListener("change", () => { loungeAllExpanded = false; renderLoungeVisits(); });
+  els.loungeSortBy?.addEventListener("change", () => { loungeAllExpanded = false; renderLoungeVisits(); });
   els.addLoungeLimitBtn?.addEventListener("click", () => openLoungeLimitForm());
   els.viewLoungeLimitsBtn?.addEventListener("click", openLoungeLimitsPopup);
   els.closeLoungeLimitEntryBtn?.addEventListener("click", closeLoungeLimitEntryModal);
@@ -8926,6 +8930,22 @@ function isLoungeBenefitVisit(visit) {
   return visit?.loungeType === "Domestic" || visit?.loungeType === "International";
 }
 
+function getLoungeVisitBenefitLabel(visit = {}) {
+  const labels = {
+    Domestic: "Domestic Lounge",
+    International: "International Lounge",
+    Domestic_Golf: "Domestic Golf",
+    International_Golf: "International Golf",
+    Domestic_Restaurant: "Domestic Restaurant",
+    International_Restaurant: "International Restaurant",
+    Domestic_Spa: "Domestic Spa",
+    International_Spa: "International Spa",
+    Meet_Greet: "Meet & Greet",
+    Airport_Transfer: "Airport Transfer",
+  };
+  return labels[visit.loungeType] || visit.loungeType || "Other Benefit";
+}
+
 function getLoungeUsageRecords(cardId, accessMethods) {
   const methodSet = new Set(accessMethods.filter(Boolean));
   return state.loungeVisits
@@ -10694,12 +10714,21 @@ function renderLoungeVisits() {
 
   const filterValue = els.loungeCardFilter?.value || "all";
   const typeFilterValue = els.loungeTypeFilter?.value || "all";
+  const sortBy = els.loungeSortBy?.value || "date";
 
   const visibleVisits = state.loungeVisits
     .slice()
     .filter((visit) => filterValue === "all" || formatCardName(getCardById(visit.cardId)) === filterValue)
     .filter((visit) => typeFilterValue === "all" || visit.loungeType === typeFilterValue)
-    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+    .sort((a, b) => {
+      if (sortBy === "card") {
+        return formatCardName(getCardById(a.cardId)).localeCompare(formatCardName(getCardById(b.cardId)), "en-IN", { sensitivity: "base" });
+      }
+      if (sortBy === "benefit") {
+        return getLoungeVisitBenefitLabel(a).localeCompare(getLoungeVisitBenefitLabel(b), "en-IN", { sensitivity: "base" });
+      }
+      return new Date(b.date || 0) - new Date(a.date || 0);
+    });
 
   if (!visibleVisits.length) {
     els.loungeTable.appendChild(
@@ -10737,14 +10766,7 @@ function renderLoungeVisits() {
             |
             ${escapeHtml(visit.loungeType)}
             |
-            ${escapeHtml(
-              visit.loungeType?.includes("Golf") ? "Golf" :
-              visit.loungeType?.includes("Restaurant") ? "Restaurant" :
-              visit.loungeType?.includes("Spa") ? "Spa" :
-              (/meet\s*&\s*greet/i.test(visit.loungeType || "") || (visit.loungeType || "").toLowerCase().includes("meet")) ? "Meet & Greet" :
-              (visit.loungeType || "").toLowerCase().includes("transfer") ? "Airport Transfer" :
-              visit.loungeType === "International" ? "International Lounge" : "Airport Lounge"
-            )}
+            ${escapeHtml(getLoungeVisitBenefitLabel(visit))}
           </span>
         </div>
 
@@ -11458,7 +11480,7 @@ function renderInvestmentCompanyOptions(selected = "") {
   if (!els.investmentDividendCompany) return;
   const companies = normalizeInvestmentCompanies(state.investmentCompanies, state.investments);
   state.investmentCompanies = companies;
-  els.investmentDividendCompany.innerHTML = `<option value="">Select company</option>${companies.map((company) => `<option value="${escapeAttribute(company)}">${escapeHtml(company)}</option>`).join("")}`;
+  els.investmentDividendCompany.innerHTML = `<option value="" selected>Please Select</option>${companies.map((company) => `<option value="${escapeAttribute(company)}">${escapeHtml(company)}</option>`).join("")}`;
   if (companies.includes(selected)) els.investmentDividendCompany.value = selected;
 }
 
@@ -11495,7 +11517,7 @@ async function addInvestmentCompany(event) {
   recordInvestmentActivity("added", `Added stock company ${name}.`);
   await saveState();
   if (els.investmentCompanyName) els.investmentCompanyName.value = "";
-  renderInvestmentCompanyOptions(name);
+  renderInvestmentsWidget();
   showToast("Stock company added.");
 }
 
@@ -11700,6 +11722,30 @@ function render() {
     renderVisibleView(state.currentView, false);
   } finally {
     renderDerivedCache = null;
+  }
+}
+
+async function refreshCurrentView(event) {
+  event?.preventDefault?.();
+  const button = els.refreshViewBtn;
+  if (!button || button.disabled) return;
+
+  button.disabled = true;
+  button.setAttribute("aria-busy", "true");
+  const stateBeforeRefresh = createPersistentStateSnapshot();
+
+  try {
+    await loadState();
+    render();
+    showToast("View refreshed with saved data.");
+  } catch (error) {
+    console.error("Unable to refresh the current view", error);
+    restorePersistentStateSnapshot(stateBeforeRefresh);
+    render();
+    showToast("Could not refresh this view. Please try again.");
+  } finally {
+    button.disabled = false;
+    button.removeAttribute("aria-busy");
   }
 }
 
