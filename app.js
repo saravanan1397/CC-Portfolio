@@ -145,6 +145,9 @@ const els = {};
 const activeSaveOperations = new Set();
 let appInitializationPromise = null;
 let appIsReady = false;
+let portfolioSaveQueue = Promise.resolve();
+let pendingPortfolioSaves = 0;
+let portfolioSaveStatusTimer = null;
 // Reuse expensive point/fee calculations while a single render is building
 // several views and summaries. The cache is cleared as soon as that render
 // finishes, so it cannot make state changes stale.
@@ -486,9 +489,11 @@ async function waitForFirebaseReady() {
 function initializePortfolioApp() {
   if (appInitializationPromise) return appInitializationPromise;
 
-  appInitializationPromise = (async () => {
-    await waitForFirebaseReady();
+  const initialization = (async () => {
     cacheElements();
+    setPortfolioLoadStatus("Connecting to your portfolio...");
+    await waitForFirebaseReady();
+    setPortfolioLoadStatus("Loading your saved data...");
     await loadState();
     renderIssuerOptions();
     bindEvents();
@@ -496,11 +501,21 @@ function initializePortfolioApp() {
     resetForm();
     resetIncomeEntryForm();
     resetInvestmentEntryForm();
-    render();
     appIsReady = true;
+    setPortfolioLoadStatus("Portfolio ready.");
   })();
 
-  return appInitializationPromise;
+  appInitializationPromise = initialization;
+  initialization.catch(() => {
+    if (appInitializationPromise === initialization) appInitializationPromise = null;
+    setPortfolioLoadStatus("Could not load your portfolio. Try unlocking again.");
+  });
+  return initialization;
+}
+
+function setPortfolioLoadStatus(message) {
+  const status = document.getElementById("portfolioLoadStatus");
+  if (status) status.textContent = message;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -591,6 +606,7 @@ function cacheElements() {
     investmentDividendList: document.getElementById("investmentDividendList"),
     appPageTitle: document.getElementById("appPageTitle"),
     refreshViewBtn: document.getElementById("refreshViewBtn"),
+    saveStatus: document.getElementById("saveStatus"),
     widgetActivityBtn: document.getElementById("widgetActivityBtn"),
     widgetActivityModal: document.getElementById("widgetActivityModal"),
     widgetActivityTitle: document.getElementById("widgetActivityTitle"),
@@ -1694,45 +1710,75 @@ async function loadState() {
 }
 
 async function saveState(options = {}) {
-  console.log("🔥 saveState triggered");
+  pendingPortfolioSaves += 1;
+  clearTimeout(portfolioSaveStatusTimer);
+  updatePortfolioSaveStatus("Saving...", "saving");
 
-  await waitForFirebaseReady();
-  const { doc, setDoc } = window.firebaseFns;
-  const nextActivitySnapshot = createActivitySnapshot();
+  const saveOperation = portfolioSaveQueue.catch(() => {}).then(async () => {
+    await waitForFirebaseReady();
+    const { doc, setDoc } = window.firebaseFns;
+    const nextActivitySnapshot = createActivitySnapshot();
 
-  if (!activitySnapshot) {
-    activitySnapshot = nextActivitySnapshot;
-  } else if (!options.skipActivity) {
-    const changes = collectWidgetActivityChanges(activitySnapshot, nextActivitySnapshot);
-    if (changes.length) {
-      state.activityLog = [...changes, ...state.activityLog]
-        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
-        .slice(0, 500);
+    if (!activitySnapshot) {
+      activitySnapshot = nextActivitySnapshot;
+    } else if (!options.skipActivity) {
+      const changes = collectWidgetActivityChanges(activitySnapshot, nextActivitySnapshot);
+      if (changes.length) {
+        state.activityLog = [...changes, ...state.activityLog]
+          .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+          .slice(0, 500);
+      }
     }
-  }
 
-  await setDoc(doc(window.db, "portfolio", "userData"), {
-    currency: state.currency,
-    cards: state.cards,
-    swipes: state.swipes,
-    rpSpends: state.rpSpends,
-    pprManualPoints: state.pprManualPoints,
-    pprPartnerTransfers: state.pprPartnerTransfers,
-    loungeVisits: state.loungeVisits,
-    loungeCardLimits: state.loungeCardLimits,
-    intlTravelTrips: state.intlTravelTrips,
-    interestLedger: state.interestLedger,
-    incomeBanks: state.incomeBanks,
-    investments: state.investments,
-    investmentCompanies: state.investmentCompanies,
-    interestLedgerSeedVersion: state.interestLedgerSeedVersion,
-    activityLog: state.activityLog,
-    aiTrainer: state.aiTrainer,
+    await setDoc(doc(window.db, "portfolio", "userData"), {
+      currency: state.currency,
+      cards: state.cards,
+      swipes: state.swipes,
+      rpSpends: state.rpSpends,
+      pprManualPoints: state.pprManualPoints,
+      pprPartnerTransfers: state.pprPartnerTransfers,
+      loungeVisits: state.loungeVisits,
+      loungeCardLimits: state.loungeCardLimits,
+      intlTravelTrips: state.intlTravelTrips,
+      interestLedger: state.interestLedger,
+      incomeBanks: state.incomeBanks,
+      investments: state.investments,
+      investmentCompanies: state.investmentCompanies,
+      interestLedgerSeedVersion: state.interestLedgerSeedVersion,
+      activityLog: state.activityLog,
+      aiTrainer: state.aiTrainer,
+    });
+
+    activitySnapshot = nextActivitySnapshot;
   });
 
-  activitySnapshot = nextActivitySnapshot;
+  portfolioSaveQueue = saveOperation;
 
-  console.log("✅ Saved to Firebase");
+  try {
+    await saveOperation;
+    if (pendingPortfolioSaves === 1) updatePortfolioSaveStatus("Saved", "saved");
+  } catch (error) {
+    updatePortfolioSaveStatus("Save failed", "error");
+    throw error;
+  } finally {
+    pendingPortfolioSaves = Math.max(0, pendingPortfolioSaves - 1);
+    if (pendingPortfolioSaves > 0) {
+      updatePortfolioSaveStatus("Saving...", "saving");
+    } else {
+      portfolioSaveStatusTimer = window.setTimeout(() => {
+        if (els.saveStatus?.dataset.saveState === "saved") {
+          updatePortfolioSaveStatus("", "");
+        }
+      }, 4000);
+    }
+  }
+}
+
+function updatePortfolioSaveStatus(message, status) {
+  if (!els.saveStatus) return;
+  els.saveStatus.textContent = message;
+  if (status) els.saveStatus.dataset.saveState = status;
+  else delete els.saveStatus.dataset.saveState;
 }
 
 const widgetActivityMeta = {

@@ -11,7 +11,7 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <meta name="theme-color" content="#080d14" />
-    <link rel="stylesheet" href="styles.css?v=20261002-greeting-half-size-v24" />
+    <link rel="stylesheet" href="styles.css?v=20261003-load-save-v1" />
     <title>Credit Card Portfolio P/L</title>
     <style>
       /* Remove cursor overrides - let browser handle it naturally */
@@ -207,6 +207,13 @@
         font-weight: 700;
       }
 
+      #portfolioLoadStatus {
+        min-height: 18px;
+        margin: 12px 0 0;
+        color: #b7c9d8;
+        font-size: 0.82rem;
+      }
+
       @media (max-width: 980px) {
         #lockScreen .pin-card {
           margin-right: 0;
@@ -272,6 +279,7 @@
     <h2>Enter PIN</h2>
     <input id="pinInput" type="password" maxlength="4" placeholder="PIN" aria-label="PIN" inputmode="numeric" autocomplete="off" />
     <button class="pin-button" type="button" onclick="checkPin()">Unlock Portfolio</button>
+    <p id="portfolioLoadStatus" role="status" aria-live="polite">Connecting to your portfolio...</p>
     <p id="pinError">Incorrect PIN. Please try again.</p>
   </section>
 </div>
@@ -344,7 +352,7 @@
     });
 </script>
 
-    <script defer src="app.js?v=20261002-dashboard-summary-inline-v1"></script>
+    <script defer src="app.js?v=20261003-load-save-v1"></script>
   </head>
 
 
@@ -377,6 +385,7 @@
             </svg>
             <span>Refresh</span>
           </button>
+          <span id="saveStatus" class="portfolio-save-status" role="status" aria-live="polite"></span>
           <button class="widget-activity-button" type="button" id="widgetActivityBtn" title="Recent updates" aria-label="View recent updates" style="display:none;">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />

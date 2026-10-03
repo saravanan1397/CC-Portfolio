@@ -374,6 +374,25 @@ h3 {
   stroke-linejoin: round;
 }
 
+.portfolio-save-status {
+  min-width: 54px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.portfolio-save-status[data-save-state="saving"] {
+  color: var(--warning);
+}
+
+.portfolio-save-status[data-save-state="saved"] {
+  color: var(--profit);
+}
+
+.portfolio-save-status[data-save-state="error"] {
+  color: var(--loss);
+}
+
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
