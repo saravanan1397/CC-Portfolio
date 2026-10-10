@@ -148,6 +148,8 @@ let appIsReady = false;
 let portfolioSaveQueue = Promise.resolve();
 let pendingPortfolioSaves = 0;
 let portfolioSaveStatusTimer = null;
+let stopRealtimeSync = null;
+let deferredRealtimeData = null;
 // Reuse expensive point/fee calculations while a single render is building
 // several views and summaries. The cache is cleared as soon as that render
 // finishes, so it cannot make state changes stale.
@@ -502,6 +504,7 @@ function initializePortfolioApp() {
     resetIncomeEntryForm();
     resetInvestmentEntryForm();
     appIsReady = true;
+    startRealtimeSync();
     setPortfolioLoadStatus("Portfolio ready.");
   })();
 
@@ -716,6 +719,7 @@ function cacheElements() {
     aiCommandForm: document.getElementById("aiCommandForm"),
     aiCommandInput: document.getElementById("aiCommandInput"),
     aiCommandRunBtn: document.getElementById("aiCommandRunBtn"),
+    trainStatementBtn: document.getElementById("trainStatementBtn"),
     openPortfolioBtn: document.getElementById("openPortfolioBtn"),
     openSwipesBtn: document.getElementById("openSwipesBtn"),
     openRpSpendsBtn: document.getElementById("openRpSpendsBtn"),
@@ -1042,6 +1046,7 @@ function bindEvents() {
   });
 
   els.aiCommandForm?.addEventListener("submit", handleAiCommandSubmit);
+  els.trainStatementBtn?.addEventListener("click", openStatementTrainingModal);
   els.aiCommandInput?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
@@ -1765,6 +1770,7 @@ async function saveState(options = {}) {
     if (pendingPortfolioSaves > 0) {
       updatePortfolioSaveStatus("Saving...", "saving");
     } else {
+      applyDeferredRealtimeUpdate();
       portfolioSaveStatusTimer = window.setTimeout(() => {
         if (els.saveStatus?.dataset.saveState === "saved") {
           updatePortfolioSaveStatus("", "");
@@ -4143,6 +4149,18 @@ function normalizeAiTrainer(trainer) {
 
   return {
     examples: examples.slice(-200),
+    statementProfiles: Array.isArray(trainer?.statementProfiles)
+      ? trainer.statementProfiles.map((profile) => ({
+          id: String(profile?.id || createId()),
+          cardId: String(profile?.cardId || "").trim(),
+          fileName: String(profile?.fileName || "").trim(),
+          fileType: String(profile?.fileType || "").trim(),
+          fileSize: toNumber(profile?.fileSize),
+          earnRules: String(profile?.earnRules || "").trim(),
+          exclusions: String(profile?.exclusions || "").trim(),
+          createdAt: profile?.createdAt || new Date().toISOString(),
+        })).filter((profile) => profile.cardId && profile.fileName).slice(-100)
+      : [],
     updatedAt: trainer?.updatedAt || "",
   };
 }
@@ -5118,9 +5136,64 @@ function showAiSearchResults(query) {
   document.getElementById("aiSearchCloseBtn")?.addEventListener("click", () => closeAiModal());
 }
 
+function openStatementTrainingModal() {
+  const cardOptions = state.cards.map((card) => `<option value="${escapeAttribute(card.id)}">${escapeHtml(formatCardName(card))}</option>`).join("");
+  if (!cardOptions) {
+    showToast("Add the card first, then upload its statement.");
+    return;
+  }
+  openAiModal({
+    mode: "statementTraining",
+    title: "Train from statement",
+    subtitle: "Set up monthly statement learning for one card. The statement file is used locally and is not saved to your portfolio database.",
+    bodyHtml: `
+      <div class="statement-training-form">
+        <label class="field"><span>Card <em>Required</em></span><select id="statementTrainingCard"><option value="">Select card</option>${cardOptions}</select></label>
+        <label class="field"><span>Statement file <em>Required</em></span><input id="statementTrainingFile" type="file" accept="application/pdf,image/*,.csv,.xlsx,.xls" /></label>
+        <label class="field"><span>Point earning rules</span><textarea id="statementTrainingRules" rows="3" maxlength="1200" placeholder="e.g. 2 points per INR 100; 5X dining; monthly cap"></textarea></label>
+        <label class="field"><span>Excluded transactions</span><textarea id="statementTrainingExclusions" rows="3" maxlength="1200" placeholder="e.g. fuel, rent, wallet loads, government payments"></textarea></label>
+      </div>
+    `,
+    footerHtml: `<button type="button" class="ghost-button" data-statement-training-close>Cancel</button><button type="button" class="primary-button" data-statement-training-save>Save training profile</button>`,
+  });
+  document.querySelector("[data-statement-training-save]")?.addEventListener("click", () => {
+    saveStatementTrainingProfile().catch((error) => { console.error(error); showToast("Could not save the training profile."); });
+  });
+  document.querySelector("[data-statement-training-close]")?.addEventListener("click", () => closeAiModal());
+}
+
+async function saveStatementTrainingProfile() {
+  const cardId = document.getElementById("statementTrainingCard")?.value || "";
+  const file = document.getElementById("statementTrainingFile")?.files?.[0];
+  if (!cardId || !file) {
+    showToast("Select a card and statement file.");
+    return;
+  }
+  const profile = {
+    id: createId(), cardId, fileName: file.name, fileType: file.type || "unknown", fileSize: file.size,
+    earnRules: document.getElementById("statementTrainingRules")?.value || "",
+    exclusions: document.getElementById("statementTrainingExclusions")?.value || "",
+    createdAt: new Date().toISOString(),
+  };
+  state.aiTrainer.statementProfiles = [...(state.aiTrainer.statementProfiles || []).filter((item) => item.cardId !== cardId), profile];
+  state.aiTrainer.updatedAt = profile.createdAt;
+  await saveState();
+  closeAiModal();
+  showToast("Statement training profile saved.");
+}
+
 function handleAiModalBodyClick(event) {
   const button = event.target.closest("button");
   if (!button) return;
+
+  if (button.dataset.statementTrainingSave !== undefined) {
+    saveStatementTrainingProfile().catch((error) => { console.error(error); showToast("Could not save the training profile."); });
+    return;
+  }
+  if (button.dataset.statementTrainingClose !== undefined) {
+    closeAiModal();
+    return;
+  }
 
   if (button.dataset.aiFill && document.getElementById("aiPromptInput")) {
     const input = document.getElementById("aiPromptInput");
@@ -12959,38 +13032,60 @@ function importPortfolio(event) {
 
 
 
+function applyRealtimePortfolioData(data) {
+  state.currency = data.currency || "INR";
+  state.cards = (data.cards || []).map(normalizeCard);
+  state.swipes = (data.swipes || []).map(normalizeSwipe);
+  state.rpSpends = (data.rpSpends || []).map(normalizeRpSpend);
+  state.pprManualPoints = (data.pprManualPoints || data.manualPprPoints || []).map(normalizePprManualPoint);
+  state.pprPartnerTransfers = (data.pprPartnerTransfers || []).map(normalizePprPartnerTransfer);
+  state.loungeVisits = (data.loungeVisits || []).map(normalizeLoungeVisit);
+  state.loungeCardLimits = (data.loungeCardLimits || data.loungeLimits || []).map(normalizeLoungeCardLimit);
+  state.intlTravelTrips = (data.intlTravelTrips || data.intlTrips || []).map(normalizeIntlTravelTrip);
+  state.interestLedger = (data.interestLedger || data.incomeLedger || []).map(normalizeIncomeLedgerEntry).filter(Boolean);
+  state.incomeBanks = normalizeIncomeBanks(data.incomeBanks, state.interestLedger);
+  state.investments = (data.investments || []).map(normalizeInvestmentEntry).filter(Boolean);
+  state.investmentCompanies = normalizeInvestmentCompanies(data.investmentCompanies, state.investments);
+  state.interestLedgerSeedVersion = String(data.interestLedgerSeedVersion || "");
+  state.activityLog = (data.activityLog || []).map(normalizeActivityEntry).filter(Boolean);
+  state.aiTrainer = normalizeAiTrainer(data.aiTrainer);
+  migrateLegacyPointsRedeemedBenefitsToRpSpends();
+  removeDuplicateLegacyRpSpends();
+  ensureWelcomeBenefitPointFields();
+  ensureInterestLedgerSeed();
+  syncLoungeBenefitsFromVisits();
+  if (!state.activityLog.length) state.activityLog = buildInitialActivityLog();
+  activitySnapshot = createActivitySnapshot();
+}
+
+function applyDeferredRealtimeUpdate() {
+  if (!deferredRealtimeData || pendingPortfolioSaves > 0 || activeSaveOperations.size > 0) return;
+  const data = deferredRealtimeData;
+  deferredRealtimeData = null;
+  applyRealtimePortfolioData(data);
+  if (appIsReady) render();
+}
+
 function startRealtimeSync() {
-  const { doc } = window.firebaseFns;
+  stopRealtimeSync?.();
+  const { doc, onSnapshot } = window.firebaseFns;
+  if (typeof onSnapshot !== "function") {
+    console.error("Real-time portfolio sync is unavailable.");
+    return;
+  }
 
-  onSnapshot(doc(window.db, "portfolio", "userData"), (snap) => {
-    if (snap.exists()) {
-      const data = snap.data();
-
-      state.currency = data.currency || "INR";
-      state.cards = (data.cards || []).map(normalizeCard);
-      state.swipes = (data.swipes || []).map(normalizeSwipe);
-      state.rpSpends = (data.rpSpends || []).map(normalizeRpSpend);
-      state.pprManualPoints = (data.pprManualPoints || data.manualPprPoints || []).map(normalizePprManualPoint);
-      state.pprPartnerTransfers = (data.pprPartnerTransfers || []).map(normalizePprPartnerTransfer);
-      state.loungeVisits = (data.loungeVisits || []).map(normalizeLoungeVisit);
-      state.loungeCardLimits = (data.loungeCardLimits || data.loungeLimits || []).map(normalizeLoungeCardLimit);
-      state.intlTravelTrips = (data.intlTravelTrips || data.intlTrips || []).map(normalizeIntlTravelTrip);
-      state.interestLedger = (data.interestLedger || data.incomeLedger || []).map(normalizeIncomeLedgerEntry).filter(Boolean);
-      state.incomeBanks = normalizeIncomeBanks(data.incomeBanks, state.interestLedger);
-      state.interestLedgerSeedVersion = String(data.interestLedgerSeedVersion || "");
-      state.activityLog = (data.activityLog || []).map(normalizeActivityEntry).filter(Boolean);
-      migrateLegacyPointsRedeemedBenefitsToRpSpends();
-      removeDuplicateLegacyRpSpends();
-      ensureWelcomeBenefitPointFields();
-      ensureInterestLedgerSeed();
-      syncLoungeBenefitsFromVisits();
-      if (!state.activityLog.length) state.activityLog = buildInitialActivityLog();
-      activitySnapshot = createActivitySnapshot();
-
-      console.log("🔄 Real-time update", state.cards);
-
-      render();
+  stopRealtimeSync = onSnapshot(doc(window.db, "portfolio", "userData"), (snap) => {
+    if (!snap.exists()) return;
+    const data = snap.data();
+    if (pendingPortfolioSaves > 0 || activeSaveOperations.size > 0) {
+      deferredRealtimeData = data;
+      return;
     }
+    applyRealtimePortfolioData(data);
+    console.log("🔄 Real-time portfolio update received");
+    if (appIsReady) render();
+  }, (error) => {
+    console.error("Real-time portfolio sync failed", error);
   });
 }
 

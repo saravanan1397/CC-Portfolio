@@ -11,7 +11,7 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <meta name="theme-color" content="#080d14" />
-    <link rel="stylesheet" href="styles.css?v=20261003-load-save-v1" />
+    <link rel="stylesheet" href="styles.css?v=20261004-investments-layout-v1" />
     <title>Credit Card Portfolio P/L</title>
     <style>
       /* Remove cursor overrides - let browser handle it naturally */
@@ -289,7 +289,7 @@
     <!-- Firebase code with Authentication for Firestore Security Rules -->
      <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   const firebaseConfig = {
@@ -309,7 +309,7 @@
   // firebaseReady before it loads data or enables any save controls.
   window.db = db;
   window.auth = auth;
-  window.firebaseFns = { doc, setDoc, getDoc };
+  window.firebaseFns = { doc, setDoc, getDoc, onSnapshot };
 
   let resolveFirebaseReady;
   let rejectFirebaseReady;
@@ -352,7 +352,7 @@
     });
 </script>
 
-    <script defer src="app.js?v=20261003-load-save-v1"></script>
+    <script defer src="app.js?v=20261010-realtime-sync-v1"></script>
   </head>
 
 
@@ -585,6 +585,7 @@
                   <button type="button" class="ai-chip" data-ai-sample="Show Axis Atlas spends">Axis Atlas spends</button>
                   <button type="button" class="ai-chip" data-ai-sample="Show Axis Atlas unredeemed points">Unredeemed points</button>
                   <button type="button" class="ai-chip" data-ai-sample="Add a 25000 business full swipe on Axis Atlas for insurance in FY 26-27">Add card spend</button>
+                  <button type="button" class="ai-chip" id="trainStatementBtn">Train from statement</button>
                   <button type="button" class="ai-chip" data-ai-sample="Transfer 2500 Axis Atlas points to Accor at 1:2 value 10000">Add partner redemption</button>
                   <button type="button" class="ai-chip" data-ai-sample="Update the 25000 Axis Atlas spend for insurance to 28000">Update card spend</button>
                 </div>
