@@ -1694,23 +1694,9 @@ function ensureInterestLedgerSeed() {
 
 async function loadState() {
   try {
-    const { doc, getDoc, setDoc } = window.firebaseFns;
+    const { getDoc } = window.firebaseFns;
     const portfolioRef = getPortfolioDocumentRef();
-    let snap = await getDoc(portfolioRef);
-
-    // Copy the old shared portfolio once into this signed-in user's private
-    // document. All subsequent reads and saves use only the private document.
-    if (!snap.exists()) {
-      const legacySnap = await getDoc(doc(window.db, "portfolio", "userData"));
-      if (legacySnap.exists()) {
-        await setDoc(portfolioRef, {
-          ...legacySnap.data(),
-          ownerId: window.firebaseAuthUser.uid,
-          migratedFromLegacyAt: new Date().toISOString(),
-        });
-        snap = await getDoc(portfolioRef);
-      }
-    }
+    const snap = await getDoc(portfolioRef);
 
     if (snap.exists()) {
       const data = snap.data();
