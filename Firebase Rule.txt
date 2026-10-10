@@ -8,6 +8,19 @@ service cloud.firestore {
 }
 
 
+
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    math /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+
+
   const firebaseConfig = {
     apiKey: "AIzaSyAeWDg6WyZQshKc1Hks_AWOVJ7I4_gWe_U",
     authDomain: "credit-card-portfolio-d04db.firebaseapp.com",

@@ -16113,6 +16113,14 @@ body[data-view="interestIncome"] #interestIncomeView {
     #05070a !important;
 }
 
+body[data-view="investments"] #investmentsView {
+  width: calc(100% - 192px) !important;
+  min-height: calc(100vh - 72px) !important;
+  margin: 0 0 0 192px !important;
+  padding: 28px 24px 60px !important;
+  overflow: visible !important;
+}
+
 #interestIncomeView .income-ledger-panel {
   width: 100% !important;
   max-width: none !important;
@@ -16527,6 +16535,11 @@ body[data-view="interestIncome"] #interestIncomeView {
     margin-left: 74px !important;
   }
 
+  body[data-view="investments"] #investmentsView {
+    width: calc(100% - 74px) !important;
+    margin-left: 74px !important;
+  }
+
   #interestIncomeView .income-render-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -16543,6 +16556,14 @@ body[data-view="interestIncome"] #interestIncomeView {
 
 @media (max-width: 720px) {
   body[data-view="interestIncome"] #interestIncomeView {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: calc(100vh - 60px) !important;
+    margin-left: 0 !important;
+    padding: 18px 12px calc(92px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  body[data-view="investments"] #investmentsView {
     width: 100% !important;
     min-width: 0 !important;
     min-height: calc(100vh - 60px) !important;
@@ -16853,6 +16874,23 @@ body[data-view="interestIncome"] #interestIncomeView {
 
 body[data-view="investments"] #investmentsView {
   background: radial-gradient(circle at 85% 10%, rgba(236, 178, 68, 0.16), transparent 30%), linear-gradient(180deg, rgba(11, 9, 5, 0.82), rgba(5, 8, 13, 0.95)) !important;
+}
+
+@media (min-width: 981px) {
+  body[data-view="investments"] #investmentsView {
+    box-sizing: border-box !important;
+    width: calc(100% - 192px) !important;
+    margin-left: 192px !important;
+    padding-left: 24px !important;
+  }
+
+  body[data-view="investments"] #investmentsView .investments-panel {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
 }
 
 .investments-panel { max-width: 1560px; margin: 0 auto; }
@@ -17858,4 +17896,115 @@ body[data-view]:not([data-view="dashboard"]) .control-band,
 #interestIncomeView,
 #investmentsView {
   border-radius: 0 !important;
+}
+
+/* Compact, polished controls on the private portfolio sign-in screen. */
+#lockScreen #authEmail,
+#lockScreen #authPassword {
+  display: block !important;
+  width: min(100%, 320px) !important;
+  height: 48px !important;
+  margin: 0 auto 9px !important;
+  padding: 0 14px !important;
+  border: 1px solid rgba(147, 197, 190, 0.26) !important;
+  border-radius: 9px !important;
+  background: rgba(4, 14, 20, 0.72) !important;
+  color: #f2f6f7 !important;
+  font-size: 0.96rem !important;
+  font-weight: 550 !important;
+  letter-spacing: normal !important;
+  text-align: left !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.16) !important;
+}
+
+#lockScreen #authEmail::placeholder,
+#lockScreen #authPassword::placeholder {
+  color: rgba(207, 219, 222, 0.58) !important;
+  font-weight: 500 !important;
+  opacity: 1;
+}
+
+#lockScreen #authEmail:focus,
+#lockScreen #authPassword:focus {
+  border-color: rgba(82, 211, 187, 0.78) !important;
+  background: rgba(4, 14, 20, 0.9) !important;
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.13) !important;
+}
+
+body #lockScreen button.pin-button:not(#addSwipeBtn) {
+  display: block !important;
+  width: min(100%, 300px) !important;
+  min-height: 44px !important;
+  margin: 9px auto 0 !important;
+  padding: 0 16px !important;
+  border: 1px solid rgba(236, 196, 117, 0.56) !important;
+  border-radius: 10px !important;
+  background: linear-gradient(180deg, #cba75d, #a9753d) !important;
+  color: #17130d !important;
+  font-size: 0.9rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em !important;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.18) !important;
+}
+
+body #lockScreen button.pin-button:hover:not(:disabled):not(#addSwipeBtn) {
+  border-color: rgba(246, 215, 151, 0.82) !important;
+  background: linear-gradient(180deg, #d5b66f, #b58249) !important;
+  color: #17130d !important;
+  box-shadow: 0 7px 17px rgba(0, 0, 0, 0.23) !important;
+  transform: translateY(-1px);
+}
+
+#lockScreen .pin-card {
+  border-color: rgba(183, 221, 220, 0.28) !important;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.025) 52%),
+    rgba(5, 18, 26, 0.14) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 24px 64px rgba(0, 0, 0, 0.24) !important;
+  backdrop-filter: blur(20px) saturate(145%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(145%) !important;
+}
+
+#lockScreen h2 {
+  margin-bottom: 18px !important;
+  color: #f5f2e9 !important;
+  font-family: Georgia, "Times New Roman", serif !important;
+  font-size: clamp(2rem, 4.4vw, 2.6rem) !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.035em !important;
+  line-height: 1.12 !important;
+}
+
+#lockScreen #authEmail,
+#lockScreen #authPassword {
+  border-color: rgba(210, 234, 232, 0.32) !important;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.015)),
+    rgba(5, 17, 24, 0.12) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 5px 14px rgba(0, 0, 0, 0.1) !important;
+  backdrop-filter: blur(14px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(140%) !important;
+}
+
+#lockScreen #authEmail:focus,
+#lockScreen #authPassword:focus {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.035)),
+    rgba(5, 17, 24, 0.2) !important;
+}
+
+body #lockScreen button.pin-button:not(#addSwipeBtn) {
+  border-color: rgba(255, 239, 199, 0.56) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), transparent 42%),
+    linear-gradient(180deg, rgba(235, 201, 126, 0.46), rgba(166, 111, 55, 0.38)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    0 6px 16px rgba(0, 0, 0, 0.14) !important;
+  backdrop-filter: blur(14px) saturate(135%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(135%) !important;
 }

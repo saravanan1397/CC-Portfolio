@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // A signed-in user can access only the document named with their own UID.
+    match /portfolios/{userId} {
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.data.ownerId == request.auth.uid;
+      allow read, update, delete: if request.auth != null
+                                  && request.auth.uid == userId
+                                  && resource.data.ownerId == request.auth.uid;
+    }
+
+    // The old public document must not remain accessible after the one-time
+    // migration into the private account is complete.
+    match /portfolio/{documentId} {
+      allow read, write: if false;
+    }
+  }
+}

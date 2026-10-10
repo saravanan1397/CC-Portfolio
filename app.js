@@ -150,6 +150,12 @@ let pendingPortfolioSaves = 0;
 let portfolioSaveStatusTimer = null;
 let stopRealtimeSync = null;
 let deferredRealtimeData = null;
+let syncedPortfolioSnapshot = null;
+const portfolioPersistedFields = [
+  "currency", "cards", "swipes", "rpSpends", "pprManualPoints", "pprPartnerTransfers",
+  "loungeVisits", "loungeCardLimits", "intlTravelTrips", "interestLedger", "incomeBanks",
+  "investments", "investmentCompanies", "interestLedgerSeedVersion", "activityLog", "aiTrainer",
+];
 // Reuse expensive point/fee calculations while a single render is building
 // several views and summaries. The cache is cleared as soon as that render
 // finishes, so it cannot make state changes stale.
@@ -488,6 +494,12 @@ async function waitForFirebaseReady() {
   return window.firebaseReady;
 }
 
+function getPortfolioDocumentRef() {
+  const userId = window.firebaseAuthUser?.uid;
+  if (!userId) throw new Error("Sign in before accessing the portfolio.");
+  return window.firebaseFns.doc(window.db, "portfolios", userId);
+}
+
 function initializePortfolioApp() {
   if (appInitializationPromise) return appInitializationPromise;
 
@@ -523,11 +535,11 @@ function setPortfolioLoadStatus(message) {
 
 document.addEventListener("DOMContentLoaded", () => {
   initLoginWaterAnimation();
-  initializePortfolioApp().then(() => {
-    if (sessionStorage.getItem("unlocked") === "true") revealUnlockedPortfolio();
-  }).catch((error) => {
-    console.error("Unable to initialize the portfolio", error);
-    showPortfolioConnectionError();
+  if (window.firebaseAuthUser) openAuthenticatedPortfolio();
+  window.addEventListener("portfolioauthchanged", (event) => {
+    if (event.detail?.user && sessionStorage.getItem("unlocked") === "true") {
+      openAuthenticatedPortfolio();
+    }
   });
 });
 
@@ -1011,6 +1023,23 @@ function createPersistentStateSnapshot() {
     aiTrainer: state.aiTrainer,
     activitySnapshot,
   });
+}
+
+function havePersistedValuesChanged(before, after) {
+  return JSON.stringify(before) !== JSON.stringify(after);
+}
+
+function getChangedPortfolioFields(snapshot) {
+  if (!syncedPortfolioSnapshot) return portfolioPersistedFields.slice();
+  return portfolioPersistedFields.filter((field) =>
+    havePersistedValuesChanged(syncedPortfolioSnapshot[field], snapshot[field])
+  );
+}
+
+function markPortfolioFieldsSynced(snapshot, fields = portfolioPersistedFields) {
+  const next = syncedPortfolioSnapshot ? clonePersistedValue(syncedPortfolioSnapshot) : {};
+  fields.forEach((field) => { next[field] = clonePersistedValue(snapshot[field]); });
+  syncedPortfolioSnapshot = next;
 }
 
 function restorePersistentStateSnapshot(snapshot) {
@@ -1665,9 +1694,23 @@ function ensureInterestLedgerSeed() {
 
 async function loadState() {
   try {
-    const { doc, getDoc } = window.firebaseFns;
+    const { doc, getDoc, setDoc } = window.firebaseFns;
+    const portfolioRef = getPortfolioDocumentRef();
+    let snap = await getDoc(portfolioRef);
 
-    const snap = await getDoc(doc(window.db, "portfolio", "userData"));
+    // Copy the old shared portfolio once into this signed-in user's private
+    // document. All subsequent reads and saves use only the private document.
+    if (!snap.exists()) {
+      const legacySnap = await getDoc(doc(window.db, "portfolio", "userData"));
+      if (legacySnap.exists()) {
+        await setDoc(portfolioRef, {
+          ...legacySnap.data(),
+          ownerId: window.firebaseAuthUser.uid,
+          migratedFromLegacyAt: new Date().toISOString(),
+        });
+        snap = await getDoc(portfolioRef);
+      }
+    }
 
     if (snap.exists()) {
       const data = snap.data();
@@ -1688,6 +1731,9 @@ async function loadState() {
       state.interestLedgerSeedVersion = String(data.interestLedgerSeedVersion || "");
       state.activityLog = (data.activityLog || []).map(normalizeActivityEntry).filter(Boolean);
       state.aiTrainer = normalizeAiTrainer(data.aiTrainer);
+      // Keep the exact cloud version as the merge baseline before any local
+      // migrations add or repair data.
+      markPortfolioFieldsSynced(createPersistentStateSnapshot());
       const migratedLegacyRp = migrateLegacyPointsRedeemedBenefitsToRpSpends();
       const removedDuplicateLegacyRp = removeDuplicateLegacyRpSpends();
       const migratedWelcomePoints = ensureWelcomeBenefitPointFields();
@@ -1721,7 +1767,7 @@ async function saveState(options = {}) {
 
   const saveOperation = portfolioSaveQueue.catch(() => {}).then(async () => {
     await waitForFirebaseReady();
-    const { doc, setDoc } = window.firebaseFns;
+    const { setDoc } = window.firebaseFns;
     const nextActivitySnapshot = createActivitySnapshot();
 
     if (!activitySnapshot) {
@@ -1735,24 +1781,16 @@ async function saveState(options = {}) {
       }
     }
 
-    await setDoc(doc(window.db, "portfolio", "userData"), {
-      currency: state.currency,
-      cards: state.cards,
-      swipes: state.swipes,
-      rpSpends: state.rpSpends,
-      pprManualPoints: state.pprManualPoints,
-      pprPartnerTransfers: state.pprPartnerTransfers,
-      loungeVisits: state.loungeVisits,
-      loungeCardLimits: state.loungeCardLimits,
-      intlTravelTrips: state.intlTravelTrips,
-      interestLedger: state.interestLedger,
-      incomeBanks: state.incomeBanks,
-      investments: state.investments,
-      investmentCompanies: state.investmentCompanies,
-      interestLedgerSeedVersion: state.interestLedgerSeedVersion,
-      activityLog: state.activityLog,
-      aiTrainer: state.aiTrainer,
-    });
+    const stateSnapshot = createPersistentStateSnapshot();
+    const changedFields = getChangedPortfolioFields(stateSnapshot);
+    if (changedFields.length) {
+      const payload = Object.fromEntries(changedFields.map((field) => [field, stateSnapshot[field]]));
+      await setDoc(getPortfolioDocumentRef(), {
+        ...payload,
+        ownerId: window.firebaseAuthUser.uid,
+      }, { merge: true });
+      markPortfolioFieldsSynced(stateSnapshot, changedFields);
+    }
 
     activitySnapshot = nextActivitySnapshot;
   });
@@ -13056,6 +13094,7 @@ function applyRealtimePortfolioData(data) {
   syncLoungeBenefitsFromVisits();
   if (!state.activityLog.length) state.activityLog = buildInitialActivityLog();
   activitySnapshot = createActivitySnapshot();
+  markPortfolioFieldsSynced(createPersistentStateSnapshot());
 }
 
 function applyDeferredRealtimeUpdate() {
@@ -13068,13 +13107,13 @@ function applyDeferredRealtimeUpdate() {
 
 function startRealtimeSync() {
   stopRealtimeSync?.();
-  const { doc, onSnapshot } = window.firebaseFns;
+  const { onSnapshot } = window.firebaseFns;
   if (typeof onSnapshot !== "function") {
     console.error("Real-time portfolio sync is unavailable.");
     return;
   }
 
-  stopRealtimeSync = onSnapshot(doc(window.db, "portfolio", "userData"), (snap) => {
+  stopRealtimeSync = onSnapshot(getPortfolioDocumentRef(), (snap) => {
     if (!snap.exists()) return;
     const data = snap.data();
     if (pendingPortfolioSaves > 0 || activeSaveOperations.size > 0) {
@@ -16003,8 +16042,6 @@ function escapeAttribute(value) {
 }
 
 
-const APP_PIN = "1397"; // 🔥 change this
-
 function revealUnlockedPortfolio() {
   if (!appIsReady) return;
   document.getElementById("lockScreen").style.display = "none";
@@ -16019,49 +16056,82 @@ function showPortfolioConnectionError() {
   error.style.display = "block";
 }
 
-async function checkPin() {
-  const inputElement = document.getElementById("pinInput");
-  const input = inputElement?.value;
-  const unlockButton = document.querySelector("#lockScreen .pin-button");
+function readableAuthError(error) {
+  const code = String(error?.code || "");
+  if (code.includes("invalid-credential") || code.includes("wrong-password") || code.includes("user-not-found")) return "Incorrect email or password.";
+  if (code.includes("email-already-in-use")) return "An account already exists for this email. Please sign in.";
+  if (code.includes("weak-password")) return "Use a password with at least 6 characters.";
+  if (code.includes("operation-not-allowed")) return "Enable Email/Password sign-in in Firebase Authentication first.";
+  return "Could not sign in. Please try again.";
+}
 
-  if (input === APP_PIN) {
+async function openAuthenticatedPortfolio() {
+  try {
+    await initializePortfolioApp();
+    revealUnlockedPortfolio();
+  } catch (error) {
+    console.error("Unable to open private portfolio", error);
+    sessionStorage.removeItem("unlocked");
+    showPortfolioConnectionError();
+  }
+}
+
+async function authenticatePortfolio(createAccount = false) {
+  const email = String(document.getElementById("authEmail")?.value || "").trim();
+  const password = document.getElementById("authPassword")?.value || "";
+  const unlockButton = document.querySelector("#lockScreen .pin-button");
+  const errorMessage = document.getElementById("pinError");
+  if (!email || !password) {
+    if (errorMessage) {
+      errorMessage.textContent = "Enter your email and password.";
+      errorMessage.style.display = "block";
+    }
+    return;
+  }
+
+  if (!window.portfolioAuth) {
+    if (errorMessage) {
+      errorMessage.textContent = "Authentication is still loading. Please try again in a moment.";
+      errorMessage.style.display = "block";
+    }
+    return;
+  }
+
+  if (unlockButton) {
+    unlockButton.disabled = true;
+    unlockButton.textContent = createAccount ? "Creating…" : "Signing in…";
+  }
+  try {
+    if (createAccount) await window.portfolioAuth.createAccount(email, password);
+    else await window.portfolioAuth.signIn(email, password);
     sessionStorage.setItem("unlocked", "true");
-    if (unlockButton) {
-      unlockButton.disabled = true;
-      unlockButton.textContent = "Opening…";
+    if (errorMessage) errorMessage.style.display = "none";
+    await openAuthenticatedPortfolio();
+  } catch (error) {
+    console.error("Portfolio authentication failed", error);
+    if (errorMessage) {
+      errorMessage.textContent = readableAuthError(error);
+      errorMessage.style.display = "block";
     }
-    try {
-      await initializePortfolioApp();
-      revealUnlockedPortfolio();
-    } catch (error) {
-      console.error("Unable to unlock portfolio", error);
-      sessionStorage.removeItem("unlocked");
-      showPortfolioConnectionError();
-    } finally {
-      if (unlockButton?.isConnected) {
-        unlockButton.disabled = false;
-        unlockButton.textContent = "Unlock Portfolio";
-      }
-    }
-  } else {
-    const error = document.getElementById("pinError");
-    if (error) {
-      error.textContent = "Incorrect PIN. Please try again.";
-      error.style.display = "block";
+  } finally {
+    if (unlockButton?.isConnected) {
+      unlockButton.disabled = false;
+      unlockButton.textContent = "Sign in";
     }
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  const input = document.getElementById("pinInput");
+function checkPin() { return authenticatePortfolio(false); }
+function createPortfolioAccount() { return authenticatePortfolio(true); }
 
-  if (input) {
+document.addEventListener("DOMContentLoaded", () => {
+  [document.getElementById("authEmail"), document.getElementById("authPassword")].filter(Boolean).forEach((input) => {
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         checkPin();
       }
     });
-  }
+  });
 });
 
 function updateSortColor() {
@@ -16092,7 +16162,10 @@ function lockApp() {
   document.getElementById("lockScreen").style.display = "flex";
 
   // reset input
-  document.getElementById("pinInput").value = "";
+  const email = document.getElementById("authEmail");
+  const password = document.getElementById("authPassword");
+  if (email) email.value = "";
+  if (password) password.value = "";
   document.getElementById("pinError").style.display = "none";
 }
 

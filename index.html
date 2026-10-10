@@ -156,7 +156,8 @@
         line-height: 1;
       }
 
-      #pinInput {
+      #authEmail,
+      #authPassword {
         width: 100%;
         height: 54px;
         padding: 12px 16px;
@@ -172,7 +173,8 @@
         transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
       }
 
-      #pinInput:focus {
+      #authEmail:focus,
+      #authPassword:focus {
         border-color: #67e8f9;
         background: rgba(15, 23, 42, 0.96);
         box-shadow: 0 0 0 4px rgba(103, 232, 249, 0.12);
@@ -246,7 +248,8 @@
           padding: 18px;
         }
 
-        #pinInput {
+        #authEmail,
+        #authPassword {
           height: 50px;
           font-size: 1.18rem;
           letter-spacing: 0.42em;
@@ -274,13 +277,14 @@
     <source src="assets/dashboard/login-ocean-water-v1.webm?v=20260922-stable-villa-v2" type="video/webm">
   </video>
   <button class="login-video-play" type="button" hidden aria-label="Play ocean background">Play ocean</button>
-  <section class="pin-card" aria-label="Portfolio unlock">
-    <p class="pin-eyebrow">Credit Card Portfolio</p>
-    <h2>Enter PIN</h2>
-    <input id="pinInput" type="password" maxlength="4" placeholder="PIN" aria-label="PIN" inputmode="numeric" autocomplete="off" />
-    <button class="pin-button" type="button" onclick="checkPin()">Unlock Portfolio</button>
-    <p id="portfolioLoadStatus" role="status" aria-live="polite">Connecting to your portfolio...</p>
-    <p id="pinError">Incorrect PIN. Please try again.</p>
+  <section class="pin-card" aria-label="Personal Portfolio sign in">
+    <h2>Personal Portfolio</h2>
+    <input id="authEmail" type="email" placeholder="Email address" aria-label="Email address" autocomplete="email" />
+    <input id="authPassword" type="password" placeholder="Password" aria-label="Password" autocomplete="current-password" />
+    <button class="pin-button" type="button" onclick="checkPin()">Sign in</button>
+    <button class="pin-button" type="button" onclick="createPortfolioAccount()">Create account</button>
+    <p id="portfolioLoadStatus" role="status" aria-live="polite">Sign in with the same account on every device.</p>
+    <p id="pinError">Could not sign in. Please try again.</p>
   </section>
 </div>
 
@@ -290,7 +294,7 @@
      <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAeWDg6WyZQshKc1Hks_AWOVJ7I4_gWe_U",
@@ -313,46 +317,30 @@
 
   let resolveFirebaseReady;
   let rejectFirebaseReady;
-  let stopAuthObserver = () => {};
+  window.firebaseAuthUser = null;
   window.firebaseReady = new Promise((resolve, reject) => {
     resolveFirebaseReady = resolve;
     rejectFirebaseReady = reject;
   });
   window.dispatchEvent(new Event("portfoliofirebaseready"));
 
-  // Security rule requires: request.auth.uid != null. A restored anonymous
-  // session may arrive before signInAnonymously resolves, so observe both paths.
-  stopAuthObserver = onAuthStateChanged(auth, (user) => {
-    if (!user) return;
-    console.log("✅ User authenticated. Firestore is ready.");
-    stopAuthObserver();
-    resolveFirebaseReady(user);
-  }, (error) => {
-    stopAuthObserver();
-    rejectFirebaseReady(error);
-  });
+  onAuthStateChanged(auth, (user) => {
+    window.firebaseAuthUser = user || null;
+    window.dispatchEvent(new CustomEvent("portfolioauthchanged", { detail: { user: window.firebaseAuthUser } }));
+    if (user) {
+      console.log("✅ Private portfolio account authenticated.");
+      resolveFirebaseReady(user);
+    }
+  }, (error) => rejectFirebaseReady(error));
 
-  signInAnonymously(auth).catch((error) => {
-      stopAuthObserver();
-      rejectFirebaseReady(error);
-      console.error("❌ Anonymous authentication failed:", error.message);
-      console.error("Make sure Anonymous sign-in is enabled in Firebase Console > Authentication > Sign-in method");
-      
-      // Show error to user
-      const lockScreen = document.getElementById("lockScreen");
-      if (lockScreen) {
-        lockScreen.innerHTML = `
-          <div style="text-align:center; color:#ef4444;">
-            <h2>Authentication Error</h2>
-            <p>${error.message}</p>
-            <p style="font-size:0.875rem; margin-top:16px;">Please enable Anonymous sign-in in Firebase Console.</p>
-          </div>
-        `;
-      }
-    });
+  window.portfolioAuth = {
+    signIn: (email, password) => signInWithEmailAndPassword(auth, email, password),
+    createAccount: (email, password) => createUserWithEmailAndPassword(auth, email, password),
+    signOut: () => signOut(auth),
+  };
 </script>
 
-    <script defer src="app.js?v=20261010-realtime-sync-v1"></script>
+    <script defer src="app.js?v=20261010-private-account-v3"></script>
   </head>
 
 
