@@ -305,6 +305,7 @@
     appId: "1:459587513450:web:b93829e8cb1d57f4516e13"
   };
 
+
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const auth = getAuth(app);
@@ -340,7 +341,7 @@
   };
 </script>
 
-    <script defer src="app.js?v=20261010-private-account-v4"></script>
+    <script defer src="app.js?v=20261011-firebase-only-portfolio-data-v2"></script>
   </head>
 
 
@@ -561,7 +562,7 @@
                     <input
                       id="aiCommandInput"
                       type="search"
-                      placeholder="Show Axis Atlas unredeemed points or add a partner redemption"
+                      placeholder="Search your card points or add a partner redemption"
                       autocomplete="off"
                     />
                   </label>
@@ -570,12 +571,12 @@
                 <div class="ai-assist-hints" aria-label="Suggested prompts">
                   <button type="button" class="ai-chip" data-ai-sample="Amex points">Amex points</button>
                   <button type="button" class="ai-chip" data-ai-sample="Atlas fee">Atlas fee</button>
-                  <button type="button" class="ai-chip" data-ai-sample="Show Axis Atlas spends">Axis Atlas spends</button>
-                  <button type="button" class="ai-chip" data-ai-sample="Show Axis Atlas unredeemed points">Unredeemed points</button>
-                  <button type="button" class="ai-chip" data-ai-sample="Add a 25000 business full swipe on Axis Atlas for insurance in FY 26-27">Add card spend</button>
+                  <button type="button" class="ai-chip" data-ai-sample="Show my card spends">Card spends</button>
+                  <button type="button" class="ai-chip" data-ai-sample="Show my unredeemed points">Unredeemed points</button>
+                  <button type="button" class="ai-chip" data-ai-sample="Help me add a card spend">Add card spend</button>
                   <button type="button" class="ai-chip" id="trainStatementBtn">Train from statement</button>
-                  <button type="button" class="ai-chip" data-ai-sample="Transfer 2500 Axis Atlas points to Accor at 1:2 value 10000">Add partner redemption</button>
-                  <button type="button" class="ai-chip" data-ai-sample="Update the 25000 Axis Atlas spend for insurance to 28000">Update card spend</button>
+                  <button type="button" class="ai-chip" data-ai-sample="Help me add a partner points transfer">Add partner redemption</button>
+                  <button type="button" class="ai-chip" data-ai-sample="Help me update a card spend">Update card spend</button>
                 </div>
               </section>
 
@@ -1947,7 +1948,7 @@
                 <div class="field-row">
                   <label class="field">
                     <span>Card name</span>
-                    <input id="cardName" type="text" placeholder="HDFC Infinia" autocomplete="off" required />
+                    <input id="cardName" type="text" placeholder="Card name" autocomplete="off" required />
                   </label>
                 </div>
                 <div class="field-row">

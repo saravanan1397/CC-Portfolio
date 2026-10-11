@@ -1,5 +1,3 @@
-const storageKey = "credit-card-portfolio-v1";
-
 const benefitTypes = [
   "Welcome Benefit (Points)",
   "Welcome Benefit (Monetary)",
@@ -38,49 +36,6 @@ const issuerBankOptions = [
   "Yes Bank",
   ];
 
-const sampleCards = [
-  {
-    id: "sample-premium",
-    name: "Premium Travel Card",
-    issuer: "Example Bank",
-    annualFee: 12500,
-    taxFee: 2250,
-    targetValue: 14750,
-    notes: "High fee card; keep only if travel benefits are used.",
-    benefits: [
-      { id: "b1", type: "Lounge", label: "Lounge Access", amount: 8000, valueType: "cash" },
-      { id: "b2", type: "Voucher", label: "Travel Voucher", amount: 6000, valueType: "cash" },
-      { id: "b3", type: "Unredeemed Points", label: "Pending Points", amount: 3500, valueType: "points" },
-    ],
-  },
-  {
-    id: "sample-cashback",
-    name: "Cashback Card",
-    issuer: "Daily Spend Bank",
-    annualFee: 999,
-    taxFee: 180,
-    targetValue: 1179,
-    notes: "Used for groceries and utilities.",
-    benefits: [
-      { id: "b4", type: "Cashback / Credit", label: "Monthly Cashback", amount: 7800, valueType: "cash" },
-      { id: "b5", type: "Cashback / Credit", label: "Utility Offer", amount: 1200, valueType: "cash" },
-    ],
-  },
-  {
-    id: "sample-fuel",
-    name: "Fuel Card",
-    issuer: "Metro Finance",
-    annualFee: 499,
-    taxFee: 90,
-    targetValue: 589,
-    notes: "Low fee keeper if surcharge waiver continues.",
-    benefits: [
-      { id: "b6", type: "Cashback / Credit", label: "Fuel Surcharge Waiver", amount: 2100, valueType: "cash" },
-      { id: "b7", type: "Milestone", label: "Spend Milestone", amount: 750, valueType: "cash" },
-    ],
-  },
-];
-
 const state = {
   currency: "INR",
   cards: [],
@@ -95,10 +50,10 @@ const state = {
   incomeBanks: [],
   investments: [],
   investmentCompanies: [],
-  interestLedgerSeedVersion: "",
   activityLog: [],
   aiTrainer: {
     examples: [],
+    cardEarningRates: [],
     updatedAt: "",
   },
   search: "",
@@ -154,7 +109,7 @@ let syncedPortfolioSnapshot = null;
 const portfolioPersistedFields = [
   "currency", "cards", "swipes", "rpSpends", "pprManualPoints", "pprPartnerTransfers",
   "loungeVisits", "loungeCardLimits", "intlTravelTrips", "interestLedger", "incomeBanks",
-  "investments", "investmentCompanies", "interestLedgerSeedVersion", "activityLog", "aiTrainer",
+  "investments", "investmentCompanies", "activityLog", "aiTrainer",
 ];
 // Reuse expensive point/fee calculations while a single render is building
 // several views and summaries. The cache is cleared as soon as that render
@@ -1018,7 +973,6 @@ function createPersistentStateSnapshot() {
     incomeBanks: state.incomeBanks,
     investments: state.investments,
     investmentCompanies: state.investmentCompanies,
-    interestLedgerSeedVersion: state.interestLedgerSeedVersion,
     activityLog: state.activityLog,
     aiTrainer: state.aiTrainer,
     activitySnapshot,
@@ -1487,8 +1441,6 @@ document.addEventListener("keydown", (e) => {
   window.addEventListener("scroll", updateScrollTopButton, { passive: true });
 }
 
-const INTEREST_LEDGER_SEED_VERSION = "spreadsheet-through-q3-2026-v1";
-
 function normalizeIncomeBankKey(value) {
   return String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN");
 }
@@ -1625,73 +1577,6 @@ function recordInvestmentActivity(action, message) {
   state.activityLog = state.activityLog.filter(Boolean).slice(0, 500);
 }
 
-function getInterestLedgerSeedEntries() {
-  const interest = [
-    ["DBS", 2024, "Q4", 7065],
-    ["HDFC", 2025, "Q1", 343],
-    ["HDFC", 2025, "Q2", 712],
-    ["HDFC", 2025, "Q3", 341],
-    ["HDFC", 2025, "Q4", 150],
-    ["DBS", 2025, "Q1", 3219],
-    ["DBS", 2025, "Q3", 3689],
-    ["DBS", 2025, "Q4", 2479],
-    ["TMB", 2025, "Q2", 123],
-    ["TMB", 2025, "Q3", 105],
-    ["IDFC", 2025, "Q1", 10],
-    ["IDFC", 2025, "Q2", 62],
-    ["IDFC", 2025, "Q3", 455],
-    ["IDFC", 2025, "Q4", 1061],
-    ["BOB", 2025, "Q2", 20],
-    ["HDFC", 2026, "Q1", 23],
-    ["HDFC", 2026, "Q2", 10],
-    ["DBS", 2026, "Q1", 2301],
-    ["DBS", 2026, "Q2", 3555],
-    ["IDFC", 2026, "Q1", 1439],
-    ["IDFC", 2026, "Q2", 1107],
-    ["IDFC", 2026, "Q3", 966],
-  ].map(([bankName, year, quarter, amount], index) => normalizeIncomeLedgerEntry({
-    id: `income-seed-interest-${index + 1}`,
-    kind: "interest",
-    bankName,
-    year,
-    quarter,
-    frequency: "quarterly",
-    amount,
-    description: "Imported from Accounts workbook",
-    imported: true,
-    createdAt: `${year}-${quarter === "Q1" ? "03-31" : quarter === "Q2" ? "06-30" : quarter === "Q3" ? "09-30" : "12-31"}T12:00:00.000Z`,
-  }));
-
-  const adjustments = [
-    { id: "income-seed-misc-1", kind: "misc", source: "HDFC Sweep in FD", amount: 2128 },
-    { id: "income-seed-misc-2", kind: "misc", source: "AMEX Excess cash", amount: 1395 },
-    { id: "income-seed-misc-3", kind: "misc", source: "Standard Chartered", amount: 6000 },
-    { id: "income-seed-spend-1", kind: "spend", scope: "overall", amount: 9141.35, description: "Aviation Tag" },
-    { id: "income-seed-spend-2", kind: "spend", scope: "overall", amount: 4107, description: "Aviation Tag" },
-  ].map((entry, index) => normalizeIncomeLedgerEntry({
-    ...entry,
-    imported: true,
-    createdAt: `2026-09-0${index + 1}T12:00:00.000Z`,
-  }));
-
-  return [...interest, ...adjustments].filter(Boolean);
-}
-
-function ensureInterestLedgerSeed() {
-  if (state.interestLedgerSeedVersion === INTEREST_LEDGER_SEED_VERSION) return false;
-
-  const existingIds = new Set(state.interestLedger.map((entry) => entry.id));
-  getInterestLedgerSeedEntries().forEach((entry) => {
-    if (!existingIds.has(entry.id)) state.interestLedger.push(entry);
-  });
-  state.incomeBanks = normalizeIncomeBanks(
-    [...state.incomeBanks, "HDFC", "DBS", "TMB", "IDFC", "BOB"],
-    state.interestLedger
-  );
-  state.interestLedgerSeedVersion = INTEREST_LEDGER_SEED_VERSION;
-  return true;
-}
-
 async function loadState() {
   try {
     const { getDoc } = window.firebaseFns;
@@ -1714,7 +1599,6 @@ async function loadState() {
       state.incomeBanks = normalizeIncomeBanks(data.incomeBanks, state.interestLedger);
       state.investments = (data.investments || []).map(normalizeInvestmentEntry).filter(Boolean);
       state.investmentCompanies = normalizeInvestmentCompanies(data.investmentCompanies, state.investments);
-      state.interestLedgerSeedVersion = String(data.interestLedgerSeedVersion || "");
       state.activityLog = (data.activityLog || []).map(normalizeActivityEntry).filter(Boolean);
       state.aiTrainer = normalizeAiTrainer(data.aiTrainer);
       // Keep the exact cloud version as the merge baseline before any local
@@ -1723,20 +1607,18 @@ async function loadState() {
       const migratedLegacyRp = migrateLegacyPointsRedeemedBenefitsToRpSpends();
       const removedDuplicateLegacyRp = removeDuplicateLegacyRpSpends();
       const migratedWelcomePoints = ensureWelcomeBenefitPointFields();
-      const seededInterestLedger = ensureInterestLedgerSeed();
       syncLoungeBenefitsFromVisits();
       if (!state.activityLog.length) {
         state.activityLog = buildInitialActivityLog();
       }
       activitySnapshot = createActivitySnapshot();
-      if (migratedLegacyRp || removedDuplicateLegacyRp || migratedWelcomePoints || seededInterestLedger) {
+      if (migratedLegacyRp || removedDuplicateLegacyRp || migratedWelcomePoints) {
         await saveState({ skipActivity: true });
       }
 
       console.log("✅ Data loaded from Firebase", state.cards);
     } else {
       console.log("⚠️ No data found in Firebase");
-      ensureInterestLedgerSeed();
       activitySnapshot = createActivitySnapshot();
       await saveState({ skipActivity: true });
     }
@@ -4173,6 +4055,13 @@ function normalizeAiTrainer(trainer) {
 
   return {
     examples: examples.slice(-200),
+    cardEarningRates: Array.isArray(trainer?.cardEarningRates)
+      ? trainer.cardEarningRates.map((rate) => ({
+          cardName: String(rate?.cardName || "").trim(),
+          baseRate: String(rate?.baseRate || "").trim(),
+          acceleratedRate: String(rate?.acceleratedRate || "").trim(),
+        })).filter((rate) => rate.cardName && rate.baseRate).slice(0, 100)
+      : [],
     statementProfiles: Array.isArray(trainer?.statementProfiles)
       ? trainer.statementProfiles.map((profile) => ({
           id: String(profile?.id || createId()),
@@ -6424,7 +6313,7 @@ function renderDashboard() {
   }
 
   if (els.dashboardGreetingLead) {
-    els.dashboardGreetingLead.textContent = `${greeting}, Saravanan.`;
+    els.dashboardGreetingLead.textContent = `${greeting}.`;
   }
 
   if (els.dashboardNetValue) {
@@ -12986,14 +12875,9 @@ function exportPortfolio() {
     intlTravelTrips: state.intlTravelTrips,
     interestLedger: state.interestLedger,
     incomeBanks: state.incomeBanks,
-    interestLedgerSeedVersion: state.interestLedgerSeedVersion,
     activityLog: state.activityLog,
+    aiTrainer: state.aiTrainer,
   };
-  try {
-    localStorage.setItem(storageKey + "-backup", JSON.stringify(payload));
-  } catch (e) {
-    console.warn("Could not save local backup", e);
-  }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -13003,7 +12887,7 @@ function exportPortfolio() {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-  showToast("Portfolio exported and saved locally.");
+  showToast("Portfolio exported.");
 }
 
 function importPortfolio(event) {
@@ -13027,12 +12911,11 @@ function importPortfolio(event) {
       state.intlTravelTrips = (data.intlTravelTrips || data.intlTrips || []).map(normalizeIntlTravelTrip);
       state.interestLedger = (data.interestLedger || data.incomeLedger || []).map(normalizeIncomeLedgerEntry).filter(Boolean);
       state.incomeBanks = normalizeIncomeBanks(data.incomeBanks, state.interestLedger);
-      state.interestLedgerSeedVersion = String(data.interestLedgerSeedVersion || "");
       state.activityLog = (data.activityLog || []).map(normalizeActivityEntry).filter(Boolean);
+      if (data.aiTrainer) state.aiTrainer = normalizeAiTrainer(data.aiTrainer);
       migrateLegacyPointsRedeemedBenefitsToRpSpends();
       removeDuplicateLegacyRpSpends();
       ensureWelcomeBenefitPointFields();
-      ensureInterestLedgerSeed();
       syncLoungeBenefitsFromVisits();
       if (!state.activityLog.length) state.activityLog = buildInitialActivityLog();
       const importedAt = new Date().toISOString();
@@ -13070,13 +12953,11 @@ function applyRealtimePortfolioData(data) {
   state.incomeBanks = normalizeIncomeBanks(data.incomeBanks, state.interestLedger);
   state.investments = (data.investments || []).map(normalizeInvestmentEntry).filter(Boolean);
   state.investmentCompanies = normalizeInvestmentCompanies(data.investmentCompanies, state.investments);
-  state.interestLedgerSeedVersion = String(data.interestLedgerSeedVersion || "");
   state.activityLog = (data.activityLog || []).map(normalizeActivityEntry).filter(Boolean);
   state.aiTrainer = normalizeAiTrainer(data.aiTrainer);
   migrateLegacyPointsRedeemedBenefitsToRpSpends();
   removeDuplicateLegacyRpSpends();
   ensureWelcomeBenefitPointFields();
-  ensureInterestLedgerSeed();
   syncLoungeBenefitsFromVisits();
   if (!state.activityLog.length) state.activityLog = buildInitialActivityLog();
   activitySnapshot = createActivitySnapshot();
