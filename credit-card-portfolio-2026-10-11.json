@@ -1,5 +1,5 @@
 {
-  "exportedAt": "2026-10-11T19:01:50.958Z",
+  "exportedAt": "2026-10-11T19:05:09.577Z",
   "currency": "INR",
   "cards": [
     {
@@ -46,7 +46,8 @@
           "valueType": "cash",
           "label": "Earned Points Redeemed",
           "amount": 0,
-          "pointsAmount": 4816
+          "pointsAmount": 4816,
+          "addedAt": ""
         },
         {
           "id": "lounge-37e991e3-d9a3-4187-afc8-f96e2273df0f-Domestic",
@@ -108,6 +109,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 33291,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 34791
         },
         {
@@ -116,7 +119,8 @@
           "valueType": "cash",
           "label": "Earned Points Redeemed",
           "amount": 0,
-          "pointsAmount": 1500
+          "pointsAmount": 1500,
+          "addedAt": ""
         }
       ]
     },
@@ -150,6 +154,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 90655,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 90655
         }
       ]
@@ -175,6 +181,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 300,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 17800
         },
         {
@@ -183,7 +191,8 @@
           "valueType": "cash",
           "label": "Points Redeemed",
           "amount": 3500,
-          "pointsAmount": 17500
+          "pointsAmount": 17500,
+          "addedAt": ""
         }
       ]
     },
@@ -217,6 +226,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 8904,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 8904
         }
       ]
@@ -242,6 +253,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 194,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 1044
         },
         {
@@ -250,7 +263,8 @@
           "valueType": "cash",
           "label": "Points Redeemed",
           "amount": 0,
-          "pointsAmount": 850
+          "pointsAmount": 850,
+          "addedAt": ""
         }
       ]
     },
@@ -275,6 +289,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 370,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 370
         }
       ]
@@ -300,6 +316,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 1196,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 1196
         }
       ]
@@ -343,6 +361,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 3462,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 12840
         },
         {
@@ -351,7 +371,8 @@
           "valueType": "cash",
           "label": "Points Redeemed",
           "amount": 2344.5,
-          "pointsAmount": 9378
+          "pointsAmount": 9378,
+          "addedAt": ""
         }
       ]
     },
@@ -376,6 +397,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 5722,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 49525
         },
         {
@@ -384,7 +407,8 @@
           "valueType": "cash",
           "label": "Points Redeemed",
           "amount": 43803,
-          "pointsAmount": 43803
+          "pointsAmount": 43803,
+          "addedAt": ""
         },
         {
           "id": "lounge-74e4ca1a-700a-4df8-b740-ab55dbc19454-Domestic",
@@ -423,7 +447,8 @@
           "valueType": "cash",
           "label": "Points Redeemed",
           "amount": 2425,
-          "pointsAmount": 9700
+          "pointsAmount": 9700,
+          "addedAt": ""
         }
       ]
     },
@@ -448,7 +473,8 @@
           "valueType": "cash",
           "label": "Points Redeemed",
           "amount": 124.5,
-          "pointsAmount": 498
+          "pointsAmount": 498,
+          "addedAt": ""
         }
       ]
     },
@@ -524,7 +550,8 @@
           "valueType": "cash",
           "label": "Points Redeemed",
           "amount": 500,
-          "pointsAmount": 1528
+          "pointsAmount": 1528,
+          "addedAt": ""
         },
         {
           "id": "lounge-876dfe31-e68c-4e19-9686-9f9f965cee87-International",
@@ -588,6 +615,8 @@
           "valueType": "points",
           "label": "Unredeemed Points",
           "amount": 5640,
+          "pointsAmount": 0,
+          "addedAt": "",
           "originalPoints": 5640
         }
       ]
@@ -6656,22 +6685,6 @@
       "updatedAt": "2026-06-30T12:00:00.000Z"
     },
     {
-      "id": "income-seed-interest-22",
-      "kind": "interest",
-      "bankName": "IDFC",
-      "source": "",
-      "scope": "overall",
-      "frequency": "quarterly",
-      "year": 2026,
-      "quarter": "Q3",
-      "amount": 966,
-      "description": "Imported from Accounts workbook",
-      "notes": "",
-      "imported": true,
-      "createdAt": "2026-09-30T12:00:00.000Z",
-      "updatedAt": "2026-09-30T12:00:00.000Z"
-    },
-    {
       "id": "income-seed-misc-1",
       "kind": "misc",
       "bankName": "",
@@ -6776,12 +6789,12 @@
       "frequency": "monthly",
       "year": 2026,
       "quarter": "Q3",
-      "amount": 299,
+      "amount": 1265,
       "description": "",
       "notes": "",
       "imported": false,
       "createdAt": "2026-10-01T11:26:49.165Z",
-      "updatedAt": "2026-10-01T11:26:49.165Z"
+      "updatedAt": "2026-10-11T19:05:02.279Z"
     },
     {
       "id": "ad25e3a6-450a-42c1-890d-cf73b558d802",
@@ -6809,6 +6822,20 @@
   ],
   "interestLedgerSeedVersion": "spreadsheet-through-q3-2026-v1",
   "activityLog": [
+    {
+      "id": "e58d6da4-fc34-4e63-9f2c-82790abe5dd6",
+      "widget": "interestIncome",
+      "action": "deleted",
+      "message": "Deleted interest for IDFC Q3 2026: INR 966.",
+      "createdAt": "2026-10-11T19:05:06.390Z"
+    },
+    {
+      "id": "861522f0-3bc2-4b04-b034-526a35b057a5",
+      "widget": "interestIncome",
+      "action": "updated",
+      "message": "Updated interest for IDFC Q3 2026: INR 299 → INR 1,265.",
+      "createdAt": "2026-10-11T19:05:02.287Z"
+    },
     {
       "id": "b13b4073-a3f4-4627-8d92-91a5be58c9d4",
       "widget": "swipes",
