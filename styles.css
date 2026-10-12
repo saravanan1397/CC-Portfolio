@@ -17990,7 +17990,7 @@ body #lockScreen button.pin-button:hover:not(:disabled):not(#addSwipeBtn) {
 
 #aiAssistModal[data-mode="statementTraining"] .statement-training-form {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -17998,6 +17998,23 @@ body #lockScreen button.pin-button:hover:not(:disabled):not(#addSwipeBtn) {
 #aiAssistModal[data-mode="statementTraining"] .statement-parser-actions,
 #aiAssistModal[data-mode="statementTraining"] .statement-parse-preview {
   min-width: 0;
+}
+
+#aiAssistModal[data-mode="statementTraining"] .statement-training-form > .field {
+  align-content: start;
+}
+
+#aiAssistModal[data-mode="statementTraining"] .statement-training-form > .field > span {
+  min-height: 34px;
+  display: flex;
+  align-items: flex-start;
+}
+
+#aiAssistModal[data-mode="statementTraining"] #statementTrainingFile {
+  box-sizing: border-box;
+  min-height: 46px;
+  height: 46px;
+  padding: 8px 10px;
 }
 
 #aiAssistModal[data-mode="statementTraining"] .statement-parser-actions,
