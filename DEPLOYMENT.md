@@ -16,11 +16,13 @@ If you use `credit-card-portfolio-site.zip`, unzip it first and drag the extract
 Use this if you want version history and easier future updates.
 
 1. Create a GitHub repository.
-2. Upload `index.html`, `styles.css`, `app.js`, and `.nojekyll`.
+2. Upload `index.html`, `styles.css`, `app.js`, the complete `pdf-editor` folder, and `.nojekyll`.
 3. In the repository, go to Settings > Pages.
 4. Select the branch and root folder, then save.
 
 GitHub will publish a public website URL for the repository.
+
+The Tools section embeds the PDF editor from `pdf-editor/index.html`, so keep that folder alongside the portfolio files when deploying. The editor loads PDF.js and pdf-lib from CDNs and therefore needs an internet connection. Password removal requires the PDF's existing password and rebuilds pages as images; selectable text and links are not preserved.
 
 If you see a GitHub Pages 404, check that Pages is enabled from Settings > Pages, the selected branch is `main`, the selected folder is `/(root)`, and the URL uses the exact repository name.
 

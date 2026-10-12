@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#10151d">
+    <title>Paperplane — PDF editor</title>
+    <link rel="stylesheet" href="styles.css">
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <a class="brand" href="./" aria-label="Paperplane PDF editor home">
+          <span class="brand-mark" aria-hidden="true">P</span>
+          <span>paperplane<span class="brand-light"> / pdf</span></span>
+        </a>
+        <div class="header-actions">
+          <span class="privacy-note"><span class="privacy-dot"></span> Files stay on your device</span>
+          <button class="button button-primary" id="downloadButton" type="button" disabled>
+            <span aria-hidden="true">↓</span> Download PDF
+          </button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="sidebar" aria-label="Document pages">
+          <div class="sidebar-heading">
+            <div>
+              <h1>Pages</h1>
+              <p id="pageCount">Open a PDF to get started</p>
+            </div>
+            <button class="icon-button" id="addPdfButton" type="button" aria-label="Open a PDF" title="Open a PDF">＋</button>
+            <input id="fileInput" type="file" accept="application/pdf,.pdf" hidden>
+          </div>
+          <ol class="page-list" id="pageList" aria-label="PDF pages"></ol>
+          <div class="sidebar-empty" id="sidebarEmpty">
+            <span class="empty-icon" aria-hidden="true">↥</span>
+            <strong>Your pages appear here</strong>
+            <span>Drag pages to change their order.</span>
+          </div>
+          <div class="sidebar-footer">
+            <span class="status-indicator"></span>
+            <span>Private, local editing</span>
+          </div>
+        </aside>
+
+        <section class="editor" aria-label="PDF editor">
+          <div class="document-bar">
+            <div class="document-name">
+              <span class="document-icon" aria-hidden="true">PDF</span>
+              <span id="fileName">No document open</span>
+            </div>
+            <div class="page-navigation">
+              <button class="icon-button" id="previousButton" type="button" aria-label="Previous page" title="Previous page" disabled>‹</button>
+              <span id="pagePosition">— / —</span>
+              <button class="icon-button" id="nextButton" type="button" aria-label="Next page" title="Next page" disabled>›</button>
+            </div>
+          </div>
+
+          <div class="toolbar" role="toolbar" aria-label="PDF editing tools">
+            <div class="tool-group">
+              <button class="tool-button" id="rotateButton" type="button" disabled title="Rotate the current page 90° clockwise">
+                <span aria-hidden="true">⟳</span><span>Rotate</span>
+              </button>
+              <button class="tool-button danger-tool" id="deleteButton" type="button" disabled title="Delete the current page">
+                <span aria-hidden="true">⌫</span><span>Delete page</span>
+              </button>
+            </div>
+            <span class="toolbar-divider" aria-hidden="true"></span>
+            <div class="tool-group">
+              <button class="tool-button mode-button" id="textModeButton" type="button" disabled title="Click on the page to place text">
+                <span aria-hidden="true">T</span><span>Add text</span>
+              </button>
+              <label class="text-options" for="annotationText">
+                <input id="annotationText" type="text" maxlength="200" placeholder="Type text to add" aria-label="Text to add to the PDF" disabled>
+                <input id="textSize" type="number" min="6" max="96" value="16" aria-label="Text size in points" disabled>
+                <span>pt</span>
+              </label>
+              <button class="tool-button mode-button" id="eraseModeButton" type="button" disabled title="Drag over a printed page number to cover it">
+                <span aria-hidden="true">▱</span><span>Cover page number</span>
+              </button>
+              <button class="tool-button" id="unlockModeButton" type="button" title="Remove a PDF password using a password you know">
+                <span aria-hidden="true">⌑</span><span>Remove password</span>
+              </button>
+            </div>
+          </div>
+
+          <form class="unlock-panel" id="unlockPanel" hidden>
+            <div class="unlock-copy">
+              <strong>Unlock a PDF you’re authorized to edit</strong>
+              <span>Enter its current password. The unlocked copy is rebuilt from page images, so selectable text and links won’t be preserved.</span>
+            </div>
+            <label class="unlock-file-button" for="unlockFileInput">Choose PDF</label>
+            <input id="unlockFileInput" type="file" accept="application/pdf,.pdf" hidden>
+            <span class="unlock-file-name" id="unlockFileName">No file selected</span>
+            <label class="unlock-password">
+              <span class="visually-hidden">Current PDF password</span>
+              <input id="unlockPassword" type="password" autocomplete="current-password" placeholder="Current PDF password" required>
+            </label>
+            <button class="unlock-submit" id="unlockSubmit" type="submit">Unlock &amp; download</button>
+            <button class="unlock-close" id="unlockClose" type="button" aria-label="Close password removal tool">×</button>
+          </form>
+
+          <div class="notice" id="notice" role="status" aria-live="polite">
+            <span class="notice-icon" aria-hidden="true">i</span>
+            <span>Covering a printed number hides it visually; it does not securely remove the underlying PDF content.</span>
+            <button class="notice-close" id="dismissNotice" type="button" aria-label="Dismiss notice">×</button>
+          </div>
+
+          <div class="canvas-area" id="canvasArea">
+            <div class="welcome-card" id="welcomeCard">
+              <div class="welcome-art" aria-hidden="true">
+                <div class="paper-sheet"><span></span><span></span><span></span><span></span></div>
+                <div class="paper-badge">PDF</div>
+              </div>
+              <h2>A little less paperwork.</h2>
+              <p>Open a PDF to rearrange pages, add a note, or cover printed page numbers.</p>
+              <button class="button button-primary" id="chooseFileButton" type="button">Choose a PDF</button>
+              <span class="drop-hint">or drop a PDF anywhere in this window</span>
+            </div>
+            <div class="page-stage" id="pageStage" hidden>
+              <canvas id="pdfCanvas" aria-label="PDF page preview"></canvas>
+              <div class="selection-box" id="selectionBox" hidden></div>
+            </div>
+            <div class="empty-document" id="emptyDocument" hidden>
+              <span aria-hidden="true">▧</span>
+              <strong>All pages removed</strong>
+              <p>Open another PDF to continue editing.</p>
+              <button class="button button-secondary" id="reopenButton" type="button">Open a PDF</button>
+            </div>
+            <div class="loading-state" id="loadingState" hidden>
+              <span class="spinner"></span>
+              <span id="loadingMessage">Opening your PDF…</span>
+            </div>
+          </div>
+
+          <footer class="editor-footer">
+            <span id="editorHint">Your PDF is processed locally in this browser.</span>
+            <span>Paperplane PDF <span class="footer-separator">·</span> Simple tools, no upload</span>
+          </footer>
+        </section>
+      </main>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </div>
+  </body>
+</html>

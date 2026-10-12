@@ -13278,7 +13278,8 @@ body[data-view="intlTravel"] .topbar .ghost-button {
 body[data-view="portfolio"], body[data-view="swipes"],
 body[data-view="rpSpends"], body[data-view="ppr"],
 body[data-view="lounge"], body[data-view="intlTravel"],
-body[data-view="interestIncome"], body[data-view="investments"] {
+body[data-view="interestIncome"], body[data-view="investments"],
+body[data-view="tools"] {
   --render-gold: #f0b84d;
   --render-green: #59dbad;
   --render-red: #ff7180;
@@ -13294,7 +13295,8 @@ body[data-view="ppr"] .widget-v2-sidebar,
 body[data-view="lounge"] .widget-v2-sidebar,
 body[data-view="intlTravel"] .widget-v2-sidebar,
 body[data-view="interestIncome"] .widget-v2-sidebar,
-body[data-view="investments"] .widget-v2-sidebar {
+body[data-view="investments"] .widget-v2-sidebar,
+body[data-view="tools"] .widget-v2-sidebar {
   display: flex;
   position: fixed;
   z-index: 3500;
@@ -13371,7 +13373,8 @@ body[data-view]:not([data-view="dashboard"]) #backFromIntlTravelBtn { display: n
 body[data-view="portfolio"] #portfolioView, body[data-view="swipes"] #swipesView,
 body[data-view="rpSpends"] #rpSpendsView, body[data-view="ppr"] #pprView,
 body[data-view="lounge"] #loungeView, body[data-view="intlTravel"] #intlTravelView,
-body[data-view="investments"] #investmentsView {
+body[data-view="investments"] #investmentsView,
+body[data-view="tools"] #toolsView {
   width: calc(100% - 192px) !important; min-height: calc(100vh - 72px) !important; height: auto !important;
   margin: 0 0 0 192px !important; padding: 28px 24px 60px !important; overflow: visible !important;
   background: radial-gradient(circle at 79% 0%,rgba(34,98,151,.12),transparent 25%), radial-gradient(circle at 16% 15%,rgba(224,161,52,.055),transparent 20%), #05070a !important;
@@ -18007,4 +18010,316 @@ body #lockScreen button.pin-button:not(#addSwipeBtn) {
     0 6px 16px rgba(0, 0, 0, 0.14) !important;
   backdrop-filter: blur(14px) saturate(135%) !important;
   -webkit-backdrop-filter: blur(14px) saturate(135%) !important;
+}
+
+/* Standalone tools view inside the portfolio workspace. */
+#toolsView {
+  width: 100%;
+  min-height: calc(100vh - 100px);
+  padding: clamp(22px, 4vw, 48px);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background:
+    radial-gradient(ellipse at 15% 0%, rgba(45, 212, 191, 0.08), transparent 42%),
+    linear-gradient(180deg, rgba(17, 24, 35, 0.97), rgba(9, 14, 21, 0.98));
+}
+
+#toolsView .tools-page {
+  width: min(100%, 1050px);
+  margin: 0 auto;
+}
+
+#toolsView .tools-page-heading {
+  margin-bottom: 23px;
+}
+
+#toolsView .tools-eyebrow {
+  color: #77d9c3;
+  font-size: 0.69rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+#toolsView .tools-page-heading h2 {
+  margin: 10px 0 6px;
+  color: #f2f6f8;
+  font-size: clamp(1.6rem, 3vw, 2.15rem);
+  letter-spacing: -0.045em;
+}
+
+#toolsView .tools-page-heading p,
+#toolsView .tools-results-heading p,
+#toolsView .tools-editor-heading p {
+  margin: 0;
+  color: #99a7b5;
+  font-size: 0.86rem;
+}
+
+#toolsView .tools-search {
+  display: flex;
+  height: 54px;
+  align-items: center;
+  gap: 13px;
+  padding: 0 15px;
+  border: 1px solid #354454;
+  border-radius: 11px;
+  background: rgba(9, 15, 23, 0.92);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.16);
+}
+
+#toolsView .tools-search:focus-within {
+  border-color: #55bba4;
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.11);
+}
+
+#toolsView .tools-search svg {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: #8fa0af;
+  stroke-linecap: round;
+  stroke-width: 1.7;
+}
+
+#toolsView .tools-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #f0f5f8;
+  font-size: 0.92rem;
+}
+
+#toolsView .tools-search input::placeholder {
+  color: #778594;
+}
+
+#toolsView .tools-search kbd {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #35414e;
+  border-radius: 6px;
+  color: #91a0ad;
+  font-size: 14px;
+}
+
+#toolsView .tools-results-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 31px 0 12px;
+}
+
+#toolsView .tools-results-heading h3,
+#toolsView .tools-editor-heading h3 {
+  margin: 0 0 4px;
+  color: #edf2f6;
+  font-size: 1rem;
+}
+
+#toolsView .tools-results-heading p {
+  font-size: 0.73rem;
+}
+
+#toolsView .tools-local-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid #2a493f;
+  border-radius: 999px;
+  background: #17251f;
+  color: #a9d8c6;
+  font-size: 0.69rem;
+}
+
+#toolsView .tools-local-badge span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #77d9ad;
+}
+
+#toolsView .tools-results {
+  display: grid;
+  gap: 10px;
+}
+
+#toolsView .tool-service-card {
+  display: grid;
+  min-height: 105px;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 15px;
+  padding: 16px;
+  border: 1px solid #293643;
+  border-radius: 11px;
+  background: linear-gradient(125deg, rgba(24, 33, 44, 0.98), rgba(17, 24, 33, 0.96));
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+
+#toolsView .tool-service-card:hover {
+  transform: translateY(-1px);
+  border-color: #436056;
+}
+
+#toolsView .tool-service-card[hidden],
+#toolsView .tools-no-results[hidden],
+#toolsView .tools-editor-panel[hidden] {
+  display: none !important;
+}
+
+#toolsView .tool-service-icon {
+  display: grid;
+  width: 40px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid #5b3b3d;
+  border-radius: 9px;
+  background: #352226;
+  color: #f39a91;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+#toolsView .tool-service-icon-lock {
+  border-color: #455e52;
+  background: #20352d;
+  color: #9de2bf;
+  font-size: 1.3rem;
+}
+
+#toolsView .tool-service-copy {
+  min-width: 0;
+}
+
+#toolsView .tool-service-copy h4 {
+  margin: 0 0 4px;
+  color: #e8eef3;
+  font-size: 0.92rem;
+}
+
+#toolsView .tool-service-copy p {
+  margin: 0;
+  color: #99a7b5;
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+#toolsView .tool-tags {
+  display: inline-block;
+  margin-top: 7px;
+  color: #79cdb8;
+  font-size: 0.65rem;
+}
+
+#toolsView .tool-service-action {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 9px;
+  padding: 0 10px;
+  border: 1px solid #3a524b;
+  border-radius: 7px;
+  background: #1c302b;
+  color: #bcebd9;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+#toolsView .tool-service-action:hover {
+  border-color: #5a947e;
+  background: #244038;
+}
+
+#toolsView .tools-no-results {
+  padding: 30px 14px;
+  border: 1px dashed #374352;
+  border-radius: 10px;
+  color: #a2adba;
+  font-size: 0.84rem;
+  text-align: center;
+}
+
+#toolsView .tools-editor-panel {
+  overflow: hidden;
+  margin-top: 28px;
+  border: 1px solid #35424f;
+  border-radius: 12px;
+  background: #11171f;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22);
+}
+
+#toolsView .tools-editor-heading {
+  display: flex;
+  min-height: 66px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid #2b3541;
+}
+
+#toolsView .tools-editor-heading h3 {
+  font-size: 0.9rem;
+}
+
+#toolsView .tools-editor-heading p {
+  font-size: 0.72rem;
+}
+
+#toolsView .tools-close-editor {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #384553;
+  border-radius: 7px;
+  background: #1c2530;
+  color: #bdc7d1;
+  font-size: 1.25rem;
+}
+
+#toolsView .tools-editor-panel iframe {
+  display: block;
+  width: 100%;
+  height: min(820px, 78vh);
+  min-height: 510px;
+  border: 0;
+  background: #10151d;
+}
+
+@media (max-width: 760px) {
+  body[data-view="tools"] #toolsView {
+    width: 100% !important;
+    min-height: calc(100vh - 90px);
+    margin: 0 !important;
+    padding: 21px 13px;
+  }
+
+  #toolsView .tool-service-card {
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 11px;
+    padding: 12px;
+  }
+
+  #toolsView .tool-service-icon {
+    width: 35px;
+    height: 39px;
+  }
+
+  #toolsView .tool-service-action {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  #toolsView .tools-editor-panel iframe {
+    min-height: 620px;
+    height: 78vh;
+  }
 }

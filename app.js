@@ -19,6 +19,148 @@ const defaultManualBenefitType = "Cashback / Statement Credit";
 const rpRedeemedBenefitPrefix = "rp-redeemed-";
 const partnerProgramPlatformValue = "Hotel/Airline Partners";
 const welcomeBenefitPointsType = "Welcome Benefit (Points)";
+const cardEarningRates = [
+  {
+    cardName: "Axis Atlas",
+    baseRate: { type: "points_per_spend", rewardUnit: "EDGE Miles", points: 2, spendAmount: 100, rounding: "unconfirmed" },
+    acceleratedRates: [{
+      label: "Own airline or hotel booking site",
+      status: "needs_confirmation",
+      rate: { type: "points_per_spend", rewardUnit: "EDGE Miles", points: 5, spendAmount: 100, rounding: "unconfirmed" },
+      condition: { type: "merchant", description: "Eligible spend on own airline or hotel booking site" },
+    }],
+    unresolved: ["Confirm rounding, caps, and exclusions."],
+  },
+  {
+    cardName: "Axis Horizon",
+    baseRate: { type: "points_per_spend", rewardUnit: "EDGE Miles", points: 2, spendAmount: 100, rounding: "unconfirmed" },
+    acceleratedRates: [{
+      label: "Own airline or hotel booking site",
+      status: "needs_confirmation",
+      rate: { type: "points_per_spend", rewardUnit: "EDGE Miles", points: 5, spendAmount: 100, rounding: "unconfirmed" },
+      condition: { type: "merchant", description: "Eligible spend on own airline or hotel booking site" },
+    }],
+    unresolved: ["Confirm rounding, caps, and exclusions."],
+  },
+  {
+    cardName: "Axis Magnus RuPay",
+    baseRate: { type: "points_per_spend", rewardUnit: "EDGE RP", points: 12, spendAmount: 200, rounding: "unconfirmed" },
+    acceleratedRates: [
+      {
+        label: "Eligible monthly spend above ₹1.5 lakh",
+        status: "needs_confirmation",
+        rate: { type: "points_per_spend", rewardUnit: "EDGE RP", points: 35, spendAmount: 200, rounding: "unconfirmed" },
+        condition: { type: "monthly_threshold", description: "Above ₹1.5 lakh monthly eligible spend; confirm threshold application", threshold: 150000, period: "monthly" },
+      },
+      {
+        label: "Eligible Travel EDGE spend",
+        status: "needs_confirmation",
+        rate: { type: "points_per_spend", rewardUnit: "EDGE RP", points: 60, spendAmount: 200, rounding: "unconfirmed" },
+        condition: { type: "merchant", description: "Eligible Travel EDGE spend; confirm interaction with other accelerated rates" },
+      },
+    ],
+    unresolved: ["Confirm threshold logic, overlap/precedence of accelerated rates, rounding, caps, and exclusions."],
+  },
+  {
+    cardName: "HDFC Marriott Bonvoy",
+    baseRate: { type: "points_per_spend", rewardUnit: "Marriott points", points: 2, spendAmount: 150, rounding: "unconfirmed" },
+    acceleratedRates: [
+      {
+        label: "Travel, dining, and entertainment",
+        status: "needs_confirmation",
+        rate: { type: "points_per_spend", rewardUnit: "Marriott points", points: 4, spendAmount: 150, rounding: "unconfirmed" },
+        condition: { type: "category", description: "Eligible travel, dining, and entertainment transactions" },
+      },
+      {
+        label: "Participating Marriott properties",
+        status: "needs_confirmation",
+        rate: { type: "points_per_spend", rewardUnit: "Marriott points", points: 8, spendAmount: 150, rounding: "unconfirmed" },
+        condition: { type: "merchant", description: "Participating Marriott properties" },
+      },
+    ],
+    unresolved: ["Confirm eligible categories, participating properties, rounding, caps, and exclusions."],
+  },
+  {
+    cardName: "HDFC Tata Neu Infinity",
+    baseRate: { type: "percent_of_spend", rewardUnit: "NeuCoins", percent: 1.5, rounding: "unconfirmed" },
+    acceleratedRates: [{
+      label: "Tata Neu and partner purchases",
+      status: "needs_confirmation",
+      rate: { type: "percent_of_spend", rewardUnit: "NeuCoins", percent: 5, rounding: "unconfirmed" },
+      condition: { type: "merchant", description: "Eligible Tata Neu and partner purchases" },
+    }],
+    unresolved: ["Confirm NeuCoin calculation/rounding, eligible partner list, caps, and exclusions."],
+  },
+  {
+    cardName: "Amex Platinum Travel",
+    baseRate: { type: "points_per_spend", rewardUnit: "Membership Rewards points", points: 1, spendAmount: 50, rounding: "unconfirmed" },
+    acceleratedRates: [{
+      label: "Reward Multiplier purchases",
+      status: "needs_confirmation",
+      rate: { type: "points_per_spend", rewardUnit: "Membership Rewards points", points: 3, spendAmount: 50, rounding: "unconfirmed" },
+      condition: { type: "merchant", description: "Eligible Reward Multiplier purchases" },
+    }],
+    unresolved: ["Confirm eligible Reward Multiplier merchants, rounding, caps, and exclusions."],
+  },
+  {
+    cardName: "IndusInd Tiger",
+    baseRate: { type: "points_per_spend", rewardUnit: "Reward Points", points: 1, spendAmount: 100, rounding: "unconfirmed" },
+    acceleratedRates: [{
+      label: "Highest anniversary-year spend slab",
+      status: "needs_confirmation",
+      rate: { type: "points_per_spend", rewardUnit: "Reward Points", points: 6, spendAmount: 100, rounding: "unconfirmed" },
+      condition: { type: "anniversary_year_spend_slab", description: "Highest anniversary-year spend slab; thresholds not provided", period: "anniversary_year" },
+    }],
+    unresolved: ["Provide anniversary-year spend slab thresholds and qualification rules; confirm rounding and exclusions."],
+  },
+  {
+    cardName: "HSBC Platinum",
+    baseRate: { type: "points_per_spend", rewardUnit: "Reward Points", points: 2, spendAmount: 150, rounding: "unconfirmed" },
+    acceleratedRates: [
+      {
+        label: "Eligible travel bookings",
+        status: "needs_confirmation",
+        rate: { type: "multiplier", rewardUnit: "base Reward Points", multiplier: 6, rounding: "unconfirmed" },
+        condition: { type: "category", description: "Up to 6x on eligible travel bookings; confirm multiplier calculation" },
+      },
+      {
+        label: "Eligible Apple purchases through HSBC portal",
+        status: "needs_confirmation",
+        rate: { type: "multiplier", rewardUnit: "base Reward Points", multiplier: 5, rounding: "unconfirmed" },
+        condition: { type: "merchant", description: "Eligible Apple purchases through HSBC portal; confirm multiplier calculation" },
+      },
+    ],
+    unresolved: ["Confirm multiplier calculation, eligible transactions, rounding, caps, and exclusions."],
+  },
+  {
+    cardName: "ICICI Coral RuPay",
+    baseRate: { type: "points_per_spend", rewardUnit: "Reward Points", points: 2, spendAmount: 100, rounding: "unconfirmed" },
+    acceleratedRates: [],
+    unresolved: ["Spend-milestone bonus thresholds and points were not provided; confirm rounding and exclusions."],
+  },
+  {
+    cardName: "IDFC FIRST Select",
+    baseRate: { type: "points_per_spend", rewardUnit: "Reward Points", points: 3, spendAmount: 200, rounding: "unconfirmed" },
+    acceleratedRates: [{
+      label: "Eligible incremental spend and specified categories",
+      status: "needs_confirmation",
+      rate: { type: "points_per_spend", rewardUnit: "Reward Points", points: 10, spendAmount: 200, rounding: "unconfirmed" },
+      condition: { type: "category_or_incremental_spend", description: "Eligible incremental spend and specified categories; definitions not provided" },
+    }],
+    unresolved: ["Provide qualifying categories and define incremental spend; confirm rounding and caps."],
+  },
+  {
+    cardName: "Federal Bank Imperio",
+    baseRate: { type: "points_per_spend", rewardUnit: "Federal Reward Points", points: 1, spendAmount: 150, rounding: "unconfirmed" },
+    acceleratedRates: [],
+    unresolved: ["No accelerated rate was verified; confirm rounding, caps, and exclusions."],
+  },
+];
+
+function getCardEarningRate(cardName) {
+  const normalizedName = String(cardName || "").trim().toLocaleLowerCase("en-IN");
+  return cardEarningRates.find((entry) => entry.cardName.toLocaleLowerCase("en-IN") === normalizedName) || null;
+}
 
 // Unique issuer banks extracted from the supplied card names. Existing short
 // labels are normalized to these display values when cards are loaded.
@@ -53,7 +195,6 @@ const state = {
   activityLog: [],
   aiTrainer: {
     examples: [],
-    cardEarningRates: [],
     updatedAt: "",
   },
   search: "",
@@ -541,6 +682,7 @@ function cacheElements() {
     categoryBars: document.getElementById("categoryBars"),
     toast: document.getElementById("toast"),
     dashboardView: document.getElementById("dashboardView"),
+    toolsView: document.getElementById("toolsView"),
     portfolioView: document.getElementById("portfolioView"),
     swipesView: document.getElementById("swipesView"),
     rpSpendsView: document.getElementById("rpSpendsView"),
@@ -549,6 +691,15 @@ function cacheElements() {
     intlTravelView: document.getElementById("intlTravelView"),
     interestIncomeView: document.getElementById("interestIncomeView"),
     investmentsView: document.getElementById("investmentsView"),
+    toolsSearchInput: document.getElementById("toolsSearchInput"),
+    toolsResults: document.getElementById("toolsResults"),
+    toolsResultCount: document.getElementById("toolsResultCount"),
+    toolsNoResults: document.getElementById("toolsNoResults"),
+    toolsEditorPanel: document.getElementById("toolsEditorPanel"),
+    toolsPdfEditor: document.getElementById("toolsPdfEditor"),
+    toolsEditorTitle: document.getElementById("toolsEditorTitle"),
+    toolsEditorDescription: document.getElementById("toolsEditorDescription"),
+    closeToolsEditor: document.getElementById("closeToolsEditor"),
     investmentEntryForm: document.getElementById("investmentEntryForm"),
     investmentEditingId: document.getElementById("investmentEditingId"),
     investmentEntryType: document.getElementById("investmentEntryType"),
@@ -1003,6 +1154,17 @@ function restorePersistentStateSnapshot(snapshot) {
 }
 
 function bindEvents() {
+  els.toolsSearchInput?.addEventListener("input", renderToolsSearchResults);
+  els.toolsResults?.addEventListener("click", (event) => {
+    const button = event.target.closest?.("[data-open-pdf-tool]");
+    if (!button) return;
+    openPdfTool(button.dataset.openPdfTool);
+  });
+  els.closeToolsEditor?.addEventListener("click", () => {
+    if (els.toolsPdfEditor) els.toolsPdfEditor.src = "about:blank";
+    if (els.toolsEditorPanel) els.toolsEditorPanel.hidden = true;
+  });
+
   els.searchInput.addEventListener("input", () => {
     state.search = els.searchInput.value.trim().toLowerCase();
     // collapse expanded list when new query typed
@@ -3600,6 +3762,7 @@ function showView(view) {
   removeLoadMoreIn(els.intlTravelExpenseTable);
 
   if (els.dashboardView) els.dashboardView.style.display = nextView === "dashboard" ? "block" : "none";
+  if (els.toolsView) els.toolsView.style.display = nextView === "tools" ? "block" : "none";
   if (els.portfolioView) els.portfolioView.style.display = nextView === "portfolio" ? "block" : "none";
   if (els.swipesView) els.swipesView.style.display = nextView === "swipes" ? "block" : "none";
   if (els.rpSpendsView) els.rpSpendsView.style.display = nextView === "rpSpends" ? "block" : "none";
@@ -4055,13 +4218,6 @@ function normalizeAiTrainer(trainer) {
 
   return {
     examples: examples.slice(-200),
-    cardEarningRates: Array.isArray(trainer?.cardEarningRates)
-      ? trainer.cardEarningRates.map((rate) => ({
-          cardName: String(rate?.cardName || "").trim(),
-          baseRate: String(rate?.baseRate || "").trim(),
-          acceleratedRate: String(rate?.acceleratedRate || "").trim(),
-        })).filter((rate) => rate.cardName && rate.baseRate).slice(0, 100)
-      : [],
     statementProfiles: Array.isArray(trainer?.statementProfiles)
       ? trainer.statementProfiles.map((profile) => ({
           id: String(profile?.id || createId()),
@@ -6111,7 +6267,7 @@ function initUiEnhancements() {
 }
 
 function getViews() {
-  return [els.dashboardView, els.portfolioView, els.swipesView, els.rpSpendsView, els.pprView, els.loungeView, els.intlTravelView, els.interestIncomeView, els.investmentsView].filter(Boolean);
+  return [els.dashboardView, els.toolsView, els.portfolioView, els.swipesView, els.rpSpendsView, els.pprView, els.loungeView, els.intlTravelView, els.interestIncomeView, els.investmentsView].filter(Boolean);
 }
 
 function handleDashboardStudioAction(event) {
@@ -6144,6 +6300,7 @@ function handleDashboardStudioAction(event) {
 function syncActiveViewClasses() {
   const viewMap = {
     dashboard: els.dashboardView,
+    tools: els.toolsView,
     portfolio: els.portfolioView,
     swipes: els.swipesView,
     rpSpends: els.rpSpendsView,
@@ -6178,6 +6335,7 @@ function animateActiveView(view) {
 
   const viewEl = {
     dashboard: els.dashboardView,
+    tools: els.toolsView,
     portfolio: els.portfolioView,
     swipes: els.swipesView,
     rpSpends: els.rpSpendsView,
@@ -6269,7 +6427,41 @@ function setWidgetValueState(element, value) {
 }
 
 function normalizeViewName(view) {
-  return ["dashboard", "portfolio", "swipes", "rpSpends", "ppr", "lounge", "intlTravel", "interestIncome", "investments"].includes(view) ? view : "dashboard";
+  return ["dashboard", "tools", "portfolio", "swipes", "rpSpends", "ppr", "lounge", "intlTravel", "interestIncome", "investments"].includes(view) ? view : "dashboard";
+}
+
+function renderToolsSearchResults() {
+  if (!els.toolsResults || !els.toolsSearchInput) return;
+  const query = els.toolsSearchInput.value.trim().toLocaleLowerCase();
+  const cards = [...els.toolsResults.querySelectorAll("[data-tool-card]")];
+  let visibleCount = 0;
+
+  cards.forEach((card) => {
+    const matches = !query || `${card.dataset.search || ""} ${card.textContent}`.toLocaleLowerCase().includes(query);
+    card.hidden = !matches;
+    if (matches) visibleCount += 1;
+  });
+
+  if (els.toolsResultCount) {
+    els.toolsResultCount.textContent = query
+      ? `${visibleCount} ${visibleCount === 1 ? "service" : "services"} found`
+      : "Available tools";
+  }
+  if (els.toolsNoResults) els.toolsNoResults.hidden = visibleCount > 0;
+}
+
+function openPdfTool(tool) {
+  if (!els.toolsPdfEditor || !els.toolsEditorPanel) return;
+  const isUnlock = tool === "unlock";
+  if (els.toolsEditorTitle) els.toolsEditorTitle.textContent = isUnlock ? "Remove PDF password" : "PDF editor";
+  if (els.toolsEditorDescription) {
+    els.toolsEditorDescription.textContent = isUnlock
+      ? "Unlock a PDF using a password you already know."
+      : "Rotate, reorder, or delete pages, add text, or cover page numbers.";
+  }
+  els.toolsPdfEditor.src = `pdf-editor/index.html?tool=${encodeURIComponent(isUnlock ? "unlock" : "edit")}`;
+  els.toolsEditorPanel.hidden = false;
+  els.toolsEditorPanel.scrollIntoView({ behavior: shouldReduceMotion() ? "auto" : "smooth", block: "start" });
 }
 
 function renderDashboard() {
@@ -11818,6 +12010,8 @@ function renderVisibleView(view = state.currentView, includeDropdowns = false) {
       case "investments":
         renderInvestmentsWidget();
         break;
+      case "tools":
+        break;
       case "dashboard":
       default:
         renderDashboard();
@@ -15539,6 +15733,8 @@ function handlePprDetailsAction(event) {
 
 function getViewTitle(view) {
   switch (normalizeViewName(view)) {
+    case "tools":
+      return "Tools";
     case "portfolio":
       return "Card Portfolio";
     case "swipes":
