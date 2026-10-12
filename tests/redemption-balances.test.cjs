@@ -8,9 +8,12 @@ const vm = require('node:vm');
 const code = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
 function app() {
   const ctx = vm.createContext({ console, Intl, Date, Math,
+    document: { addEventListener() {} },
     state: { cards: [], rpSpends: [], pprManualPoints: [], pprPartnerTransfers: [] },
     renderDerivedCache: null, partnerProgramPlatformValue: 'Hotel/Airline Partners',
     welcomeBenefitPointsType: 'Welcome Benefit (Points)', rpRedeemedBenefitPrefix: 'rp-redeemed-',
+    benefitTypes: ['Welcome Benefit (Points)', 'Welcome Benefit (Monetary)', 'Points Redeemed', 'Unredeemed Points',
+      'Cashback / Statement Credit', 'Milestone Voucher', 'Milestone Points'],
     crypto: require('node:crypto').webcrypto,
   });
   for (const match of code.matchAll(/^(?:async )?function \w+\(/gm)) {
@@ -63,6 +66,16 @@ test('existing alias and card credits share one balance without duplicate displa
   assert.equal(a.getUnredeemedSourceBalance(a.state.rpSpends[0]), 0);
   assert.equal(a.getUnredeemedSourceBalance(a.state.rpSpends[1]), 500);
 });
+test('manually reviewed statement point source contributes to that card Unredeemed Points', () => {
+  const a = fixture([]);
+  const source = a.normalizeRpSpend({ ...credit('neu', 824, 'statement-review'),
+    statementImportId: 'statement-hash', statementPeriod: '2026-10-01 – 2026-10-31' });
+  a.state.rpSpends.push(source);
+  assert.equal(source.statementImportId, 'statement-hash');
+  assert.equal(a.getCardUnredeemedPoints(a.state.cards[0]), 824);
+  a.syncRpRedeemedBenefitsFromSpends();
+  assert.equal(a.getCardUnredeemedPoints(a.state.cards[0]), 824);
+});
 test('chosen Neu Plus does not debit Neu Infinity', () => {
   const a = fixture([credit('Neucoins'), { ...credit('Neucoins', 500, 'pluscredit'), neucoinsSourceCardId: 'plus' },
     { ...debit(), neucoinsSourceCardId: 'plus' }], [card(), { ...card('plus'), name: 'Tata Neu Plus' }]);
@@ -77,6 +90,104 @@ test('Welcome/Earned allocation and greyed cards preserve source balances', () =
   assert.equal(a.getUnredeemedSourceBalance(a.state.rpSpends[0]), 950);
   assert.equal(a.getCardPointAllocation(c).welcomeRemainingPoints, 350);
 });
+test('Milestone Points add to card points and redemptions debit the combined balance', () => {
+  const c = { ...card(), benefits: [{ id: 'milestone', type: 'Milestone Points', valueType: 'points', amount: 2500 }] };
+  const a = fixture([credit('neu', 1000), debit('neu', 700)], [c]);
+  const allocation = a.getCardPointAllocation(c);
+  assert.equal(allocation.normalPoints, 1000);
+  assert.equal(allocation.milestonePoints, 2500);
+  assert.equal(allocation.normalRedeemedPoints, 700);
+  assert.equal(allocation.milestoneRemainingPoints, 2500);
+  assert.equal(a.getCardUnredeemedPoints(c), 2800);
+  assert.equal(a.getCardTotals(c).points, 2800);
+  const sourceAvailability = a.getRpPointSourceAvailability(c, null);
+  assert.equal(sourceAvailability.earnedPoints, 300);
+  assert.equal(sourceAvailability.milestonePoints, 2500);
+  assert.equal(sourceAvailability.earnedRedeemablePoints, 2800);
+  assert.equal(sourceAvailability.totalPoints, 2800);
+  assert.equal(a.getActivityCardNormalUnredeemedPoints({ cards: [c], rpSpends: a.state.rpSpends }, 'neu'), 2800);
+  a.syncRpRedeemedBenefitsFromSpends();
+  assert.equal(a.getCardUnredeemedPoints(a.state.cards[0]), 2800);
+});
+test('popup source balances display welcome, milestone, and regular earned separately', () => {
+  const c = { ...card(), benefits: [
+    { id: 'welcome', type: 'Welcome Benefit (Points)', pointsAmount: 2500 },
+    { id: 'milestone', type: 'Milestone Points', valueType: 'points', amount: 2500 },
+  ] };
+  const a = fixture([credit('neu', 37500)], [c]);
+  const availability = a.getRpPointSourceAvailability(c, null);
+  assert.equal(availability.welcomePoints, 2500);
+  assert.equal(availability.milestonePoints, 2500);
+  assert.equal(availability.earnedPoints, 37500);
+  assert.equal(availability.earnedRedeemablePoints, 40000);
+  assert.equal(availability.totalPoints, 42500);
+});
+test('RP Spends unredeemed source row sums earned, welcome, and milestone balances', () => {
+  const c = { ...card(), benefits: [
+    { id: 'welcome', type: 'Welcome Benefit (Points)', pointsAmount: 2500 },
+    { id: 'milestone', type: 'Milestone Points', valueType: 'points', amount: 2500 },
+  ] };
+  const source = credit('neu', 37500);
+  const a = fixture([source], [c]);
+  assert.equal(a.getRpSpendDisplayPoints(source), 42500);
+  assert.deepEqual(Array.from(a.getRpUnredeemedBenefitLabels(c)), ['Welcome Benefits', 'Milestone Points']);
+});
+test('RP Spends source label lists only the one remaining point benefit', () => {
+  const c = { ...card(), benefits: [{ id: 'milestone', type: 'Milestone Points', valueType: 'points', amount: 2500 }] };
+  const a = fixture([], [c]);
+  assert.deepEqual(Array.from(a.getRpUnredeemedBenefitLabels(c)), ['Milestone Points']);
+});
+test('welcome and earned redeemed points render as separate point categories', () => {
+  const c = { ...card(), benefits: [
+    { id: 'welcome', type: 'Welcome Benefit (Points)', valueType: 'cash', amount: 0, pointsAmount: 2500 },
+    { id: 'milestone', type: 'Milestone Points', valueType: 'points', amount: 2500 },
+  ] };
+  const redemption = debit('neu', 4249);
+  redemption.pointsValue = 0;
+  const a = fixture([credit('neu', 40000), redemption], [c]);
+  a.syncRpRedeemedBenefitsFromSpends();
+  const html = a.formatCardBenefitsHtml(a.state.cards[0]);
+  const allocation = a.getCardPointAllocation(a.state.cards[0]);
+  assert.match(html, /Welcome Benefit \(Points\) \| Redeemed/);
+  assert.match(html, /Earned Points Redeemed \| Points/);
+  assert.doesNotMatch(html, /Points Redeemed \| Monetary/);
+  assert.match(html, /Milestone Points \| Unredeemed/);
+  assert.match(html, /Milestone Points Unredeemed/);
+  assert.match(html, /38251 pts/);
+  assert.equal(allocation.normalRemainingPoints, 38251);
+  assert.equal(allocation.milestoneRemainingPoints, 2500);
+  assert.equal(allocation.totalUnredeemedPoints, 40751);
+  assert.match(html, /2500 pts/);
+  assert.match(html, /1749 pts/);
+  assert.doesNotMatch(html, /<span class="benefit-line-name"[^>]*>2500<\/span>/);
+  assert.ok(html.indexOf('Welcome Benefit (Points) | Redeemed') < html.indexOf('Milestone Points | Redeemed'));
+  assert.ok(html.indexOf('Milestone Points | Redeemed') < html.indexOf('Welcome Benefit (Points) | Unredeemed'));
+  assert.ok(html.indexOf('Welcome Benefit (Points) | Unredeemed') < html.indexOf('Milestone Points | Unredeemed'));
+  assert.ok(html.indexOf('Milestone Points | Unredeemed') < html.indexOf('Unredeemed Points | Points'));
+});
+test('legacy milestone vouchers stay monetary and new milestone points normalize as points', () => {
+  const a = app();
+  const c = a.normalizeCard({ id: 'legacy', benefits: [
+    { id: 'voucher', type: 'Milestone / Voucher', valueType: 'cash', amount: 5000 },
+    { id: 'legacy-points', type: 'Milestone / Voucher', valueType: 'points', amount: 2000 },
+    { id: 'milestone-points', type: 'Milestone Points', valueType: 'cash', amount: 1000 },
+  ] });
+  assert.deepEqual(Array.from(c.benefits, benefit => [benefit.type, benefit.valueType]), [
+    ['Milestone Voucher', 'cash'],
+    ['Milestone Voucher', 'cash'],
+    ['Milestone Points', 'points'],
+  ]);
+  a.state.cards = [c];
+  assert.equal(a.getCardUnredeemedPoints(c), 1000);
+  assert.equal(a.getCardTotals(c).benefits, 7000);
+});
+  test('numeric milestone label is retained as points when its saved amount is empty', () => {
+    const c = { ...card(), benefits: [{ id: 'milestone', type: 'Milestone Points', valueType: 'points', label: '2500', amount: 0 }] };
+    const a = fixture([], [c]);
+    assert.equal(a.getMilestoneBenefitPoints(c.benefits[0]), 2500);
+    assert.equal(a.getCardUnredeemedPoints(c), 2500);
+    assert.equal(a.formatBenefitValue(c.benefits[0]), '2500 pts');
+  });
 test('ordinary redemptions debit at zero monetary value, edits/deletes restore balance', () => {
   const a = fixture([credit(), { ...debit('neu'), pointsValue: 0 }]);
   checkBalances(a, 800);
@@ -85,6 +196,29 @@ test('ordinary redemptions debit at zero monetary value, edits/deletes restore b
   checkBalances(a, 900);
   a.state.rpSpends.pop();
   checkBalances(a, 1000);
+});
+test('investment records prefer the entered date over the saved timestamp', () => {
+  const a = app();
+  const gold = a.normalizeInvestmentEntry({ kind: 'gold', date: '2024-03-10', createdAt: '2025-01-01T00:00:00Z' });
+  const dividend = a.normalizeInvestmentEntry({ kind: 'dividend', companyName: 'Infosys', date: '2024-04-15', createdAt: '2025-01-01T00:00:00Z' });
+  assert.equal(a.getInvestmentRecordDate(gold), '2024-03-10');
+  assert.equal(a.getInvestmentRecordDate(dividend), '2024-04-15');
+  assert.equal(a.getInvestmentRecordDate({ createdAt: '2025-01-01T00:00:00Z' }), '2025-01-01');
+});
+test('dividend breakdown groups company names and reflects newly added records', () => {
+  const a = app();
+  a.state.investments = [
+    { kind: 'dividend', companyName: 'Acme Ltd', amount: 100 },
+    { kind: 'dividend', companyName: ' acme   ltd ', amount: 50 },
+    { kind: 'dividend', companyName: 'Beta Corp', amount: 225 },
+    { kind: 'gold', companyName: 'Acme Ltd', amount: 999 },
+  ];
+  assert.deepEqual(JSON.parse(JSON.stringify(a.getDividendTotalsByCompany())), [
+    { companyName: 'Acme Ltd', amount: 150 },
+    { companyName: 'Beta Corp', amount: 225 },
+  ]);
+  a.state.investments.push({ kind: 'dividend', companyName: 'Acme Ltd', amount: 25 });
+  assert.equal(a.getDividendTotalsByCompany()[0].amount, 175);
 });
 test('standalone platform remaining balance handles multiple credits', () => {
   const a = fixture([credit('Voucher', 300), credit('Voucher', 700, 'c2'), debit('Voucher', 450)], []);
@@ -221,4 +355,65 @@ test('gross cash benefits remain separate from Net P/L after fees', () => {
   assert.equal(totals.fees, 1980);
   assert.equal(totals.net, 1020);
   assert.equal(totals.cashBenefitsNet, 1020);
+});
+
+test('portfolio writes are serialized so earlier saves cannot finish after newer saves', async () => {
+  const a = app();
+  a.state = {
+    currency: 'INR', cards: ['first'], swipes: [], rpSpends: [], pprManualPoints: [],
+    pprPartnerTransfers: [], loungeVisits: [], loungeCardLimits: [], intlTravelTrips: [],
+    interestLedger: [], incomeBanks: [], investments: [], investmentCompanies: [],
+    interestLedgerSeedVersion: '', activityLog: [], aiTrainer: {},
+  };
+  a.activitySnapshot = null;
+  a.portfolioSaveQueue = Promise.resolve();
+  a.pendingPortfolioSaves = 0;
+  a.deferredRealtimeData = null;
+  a.syncedPortfolioSnapshot = null;
+  a.portfolioPersistedFields = ['currency', 'cards', 'swipes', 'rpSpends', 'pprManualPoints',
+    'pprPartnerTransfers', 'loungeVisits', 'loungeCardLimits', 'intlTravelTrips', 'interestLedger',
+    'incomeBanks', 'investments', 'investmentCompanies', 'activityLog', 'aiTrainer'];
+  a.portfolioSaveStatusTimer = null;
+  a.clearTimeout = () => {};
+  a.els = { saveStatus: { textContent: '', dataset: {} } };
+
+  let signalFirstWrite;
+  let releaseFirstWrite;
+  const firstWriteStarted = new Promise((resolve) => { signalFirstWrite = resolve; });
+  const writes = [];
+  let activeWrites = 0;
+  let maximumActiveWrites = 0;
+  a.window = {
+    firebaseAuthUser: { uid: 'test-user' },
+    db: {},
+    firebaseReady: Promise.resolve(),
+    setTimeout: () => 0,
+    firebaseFns: {
+      doc: () => 'portfolio/userData',
+      setDoc: async (_document, payload) => {
+        activeWrites += 1;
+        maximumActiveWrites = Math.max(maximumActiveWrites, activeWrites);
+        writes.push(payload.cards.slice());
+        if (writes.length === 1) {
+          signalFirstWrite();
+          await new Promise((resolve) => { releaseFirstWrite = resolve; });
+        }
+        activeWrites -= 1;
+      },
+    },
+  };
+  a.waitForFirebaseReady = async () => {};
+  a.createActivitySnapshot = () => ({});
+  a.collectWidgetActivityChanges = () => [];
+
+  const firstSave = a.saveState();
+  await firstWriteStarted;
+  a.state.cards = ['second'];
+  const secondSave = a.saveState();
+  releaseFirstWrite();
+  await Promise.all([firstSave, secondSave]);
+
+  assert.equal(maximumActiveWrites, 1);
+  assert.deepEqual(JSON.parse(JSON.stringify(writes)), [['first'], ['second']]);
+  assert.equal(a.els.saveStatus.textContent, 'Saved');
 });

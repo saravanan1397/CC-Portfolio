@@ -209,6 +209,7 @@ const state = {
 let draftBenefits = [];
 let draftPreviousAnnualFees = [];
 let draftFutureAnnualFees = [];
+let draftStatementCategoryRules = [];
 let toastTimer = null;
 let loungeChartInstance = null;
 let chartJsLoadPromise = null;
@@ -218,6 +219,7 @@ let aiPendingIntent = null;
 let aiPendingResolver = null;
 let aiCommandQueue = Promise.resolve();
 let pointsModalReturnView = null;
+let statementParseSession = null;
 let intlTravelDetailTripId = "";
 let intlTravelEditorReturnTripId = "";
 let intlTravelEditingExpenseId = "";
@@ -837,7 +839,6 @@ function cacheElements() {
     aiCommandForm: document.getElementById("aiCommandForm"),
     aiCommandInput: document.getElementById("aiCommandInput"),
     aiCommandRunBtn: document.getElementById("aiCommandRunBtn"),
-    trainStatementBtn: document.getElementById("trainStatementBtn"),
     openPortfolioBtn: document.getElementById("openPortfolioBtn"),
     openSwipesBtn: document.getElementById("openSwipesBtn"),
     openRpSpendsBtn: document.getElementById("openRpSpendsBtn"),
@@ -1191,7 +1192,9 @@ function bindEvents() {
   });
 
   els.aiCommandForm?.addEventListener("submit", handleAiCommandSubmit);
-  els.trainStatementBtn?.addEventListener("click", openStatementTrainingModal);
+  document.querySelectorAll("[data-statement-upload]").forEach((button) => {
+    button.addEventListener("click", openStatementTrainingModal);
+  });
   els.aiCommandInput?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
@@ -1277,6 +1280,11 @@ document.addEventListener("keydown", (e) => {
   els.benefitRows.addEventListener("input", updateDraftBenefit);
   els.benefitRows.addEventListener("change", updateDraftBenefit);
   els.benefitRows.addEventListener("click", removeBenefitDraft);
+  document.getElementById("statementBaseRateType")?.addEventListener("change", updateStatementBaseRateFields);
+  document.getElementById("addStatementEarningRuleBtn")?.addEventListener("click", addStatementCategoryRule);
+  document.getElementById("statementEarningRuleRows")?.addEventListener("input", updateStatementCategoryRule);
+  document.getElementById("statementEarningRuleRows")?.addEventListener("change", updateStatementCategoryRule);
+  document.getElementById("statementEarningRuleRows")?.addEventListener("click", removeStatementCategoryRule);
   els.cardsTable.addEventListener("click", handleCardAction);
   els.memberSince.addEventListener("change", togglePreviousFeeField);
   els.previousFeeDate?.addEventListener("change", loadSelectedPreviousFee);
@@ -2383,6 +2391,16 @@ function normalizeCard(card) {
     futureAnnualFees: normalizeFutureAnnualFees(card),
     targetValue: toNumber(card.targetValue),
     notes: card.notes || "",
+    statementEarningRules: normalizeStatementEarningRules(
+      card.statementEarningRules && (
+        card.statementEarningRules.basePoints > 0
+        || card.statementEarningRules.baseSpend > 0
+        || card.statementEarningRules.categories?.length
+        || card.statementEarningRules.exclusions?.length
+      )
+        ? card.statementEarningRules
+        : getDefaultStatementEarningRules(card.name)
+    ),
     benefits: Array.isArray(card.benefits)
       ? card.benefits.map((benefit) => {
           const isLegacyMilestone = benefit.type === "Milestone / Voucher";
@@ -2406,6 +2424,76 @@ function normalizeCard(card) {
             : {}),
           };
         })
+      : [],
+  };
+}
+
+function getDefaultStatementEarningRules(cardName) {
+  const catalogEntry = getCardEarningRate(cardName);
+  if (!catalogEntry) return {};
+
+  const baseRate = catalogEntry.baseRate || {};
+  const basePoints = baseRate.type === "percent_of_spend"
+    ? toNumber(baseRate.percent)
+    : toNumber(baseRate.points);
+  const baseSpend = baseRate.type === "points_per_spend" ? toNumber(baseRate.spendAmount) : 0;
+
+  return {
+    baseRateType: baseRate.type || "points_per_spend",
+    basePoints,
+    baseSpend,
+    categories: (catalogEntry.acceleratedRates || []).map((accelerated, index) => {
+      const rate = accelerated.rate || {};
+      const acceleratedPoints = rate.type === "percent_of_spend"
+        ? toNumber(rate.percent)
+        : rate.type === "multiplier"
+          ? basePoints * toNumber(rate.multiplier)
+          : toNumber(rate.points);
+      const acceleratedSpend = rate.type === "points_per_spend"
+        ? toNumber(rate.spendAmount)
+        : rate.type === "multiplier"
+          ? baseSpend
+          : 0;
+      const effectiveRateType = rate.type === "multiplier" ? baseRate.type : (rate.type || baseRate.type);
+      const multiplier = basePoints > 0 ? acceleratedPoints / basePoints : 0;
+      return {
+        id: `catalog-${String(cardName || "card").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${index + 1}`,
+        match: `Acc Rewards - ${accelerated.label || `Rule ${index + 1}`}`,
+        multiplier,
+        rateType: effectiveRateType || "points_per_spend",
+        ratePoints: acceleratedPoints,
+        rateSpend: acceleratedSpend,
+        fullRate: true,
+        capSpend: 0,
+        capPoints: 0,
+        capPeriod: "statement",
+      };
+    }),
+    exclusions: [],
+  };
+}
+
+function normalizeStatementEarningRules(rules) {
+  return {
+    baseRateType: rules?.baseRateType === "percent_of_spend" ? "percent_of_spend" : "points_per_spend",
+    basePoints: Math.max(0, toNumber(rules?.basePoints)),
+    baseSpend: Math.max(0, toNumber(rules?.baseSpend)),
+    categories: Array.isArray(rules?.categories)
+      ? rules.categories.map((rule) => ({
+          id: String(rule?.id || createId()),
+          match: String(rule?.match || "").trim(),
+          multiplier: Math.max(0, toNumber(rule?.multiplier)),
+          rateType: rule?.rateType === "percent_of_spend" ? "percent_of_spend" : "points_per_spend",
+          ratePoints: Math.max(0, toNumber(rule?.ratePoints)),
+          rateSpend: Math.max(0, toNumber(rule?.rateSpend)),
+          fullRate: rule?.fullRate === true,
+          capSpend: Math.max(0, toNumber(rule?.capSpend)),
+          capPoints: Math.max(0, toNumber(rule?.capPoints)),
+          capPeriod: ["statement", "month", "year"].includes(rule?.capPeriod) ? rule.capPeriod : "statement",
+        })).filter((rule) => rule.match)
+      : [],
+    exclusions: Array.isArray(rules?.exclusions)
+      ? rules.exclusions.map((keyword) => String(keyword || "").trim()).filter(Boolean)
       : [],
   };
 }
@@ -2679,6 +2767,8 @@ function normalizeRpSpend(spend) {
     pointsReceived: autoPointsReceived,
     pointsReceivedProvided: spend.pointsReceivedProvided === true || hasPointsReceivedField,
     redeemedAt: spend.redeemedAt || spend.redemptionUpdatedAt || "",
+    statementImportId: String(spend.statementImportId || "").trim(),
+    statementPeriod: String(spend.statementPeriod || "").trim(),
     createdAt: spend.createdAt || new Date().toISOString(),
   };
 }
@@ -5208,57 +5298,681 @@ function showAiSearchResults(query) {
 function openStatementTrainingModal() {
   const cardOptions = state.cards.map((card) => `<option value="${escapeAttribute(card.id)}">${escapeHtml(formatCardName(card))}</option>`).join("");
   if (!cardOptions) {
-    showToast("Add the card first, then upload its statement.");
+    showToast("Add the card first, then parse its statement.");
     return;
   }
+  statementParseSession = null;
   openAiModal({
     mode: "statementTraining",
-    title: "Train from statement",
-    subtitle: "Set up monthly statement learning for one card. The statement file is used locally and is not saved to your portfolio database.",
+    title: "Parse card statement",
+    subtitle: "Review eligible transactions, verify the card-specific point estimate, then add reviewed points to this card’s Unredeemed Points. Transactions are never added to Swipes.",
     bodyHtml: `
       <div class="statement-training-form">
         <label class="field"><span>Card <em>Required</em></span><select id="statementTrainingCard"><option value="">Select card</option>${cardOptions}</select></label>
-        <label class="field"><span>Statement file <em>Required</em></span><input id="statementTrainingFile" type="file" accept="application/pdf,image/*,.csv,.xlsx,.xls" /></label>
-        <label class="field"><span>Point earning rules</span><textarea id="statementTrainingRules" rows="3" maxlength="1200" placeholder="e.g. 2 points per INR 100; 5X dining; monthly cap"></textarea></label>
-        <label class="field"><span>Excluded transactions</span><textarea id="statementTrainingExclusions" rows="3" maxlength="1200" placeholder="e.g. fuel, rent, wallet loads, government payments"></textarea></label>
+        <label class="field"><span>Statement file <em>Required</em></span><input id="statementTrainingFile" type="file" accept="application/pdf,.pdf" /><small>Searchable PDF statements only. Scanned PDFs and other formats are not supported yet.</small></label>
+        <label class="field"><span>Previous statement reward balance (optional)</span><input id="statementPreviousRewardBalance" type="number" min="0" step="1" placeholder="Enter the prior closing points balance" /></label>
+        <div class="statement-parser-actions"><button type="button" class="primary-button" id="parseStatementBtn">Parse for review</button><span id="statementParseStatus" role="status" aria-live="polite">The PDF is read on this device. Only reviewed point totals are saved; the document is not stored.</span></div>
+        <section class="statement-parse-preview" id="statementParsePreview" hidden aria-live="polite"></section>
       </div>
     `,
-    footerHtml: `<button type="button" class="ghost-button" data-statement-training-close>Cancel</button><button type="button" class="primary-button" data-statement-training-save>Save training profile</button>`,
+    footerHtml: `<button type="button" class="ghost-button" data-statement-training-close>Close</button>`,
   });
-  document.querySelector("[data-statement-training-save]")?.addEventListener("click", () => {
-    saveStatementTrainingProfile().catch((error) => { console.error(error); showToast("Could not save the training profile."); });
+  document.getElementById("statementTrainingCard")?.addEventListener("change", () => {
+    statementParseSession = null;
+    const preview = document.getElementById("statementParsePreview");
+    const status = document.getElementById("statementParseStatus");
+    if (preview) {
+      preview.hidden = true;
+      preview.replaceChildren();
+    }
+    if (status) status.textContent = "Card changed. Parse the statement again to use that card’s earning rules.";
+  });
+  document.getElementById("statementTrainingFile")?.addEventListener("change", () => {
+    statementParseSession = null;
+    const preview = document.getElementById("statementParsePreview");
+    const status = document.getElementById("statementParseStatus");
+    if (preview) {
+      preview.hidden = true;
+      preview.replaceChildren();
+    }
+    if (status) status.textContent = "Ready to parse locally. Credits, GST, EMI Principal, Processing Fee, and this card’s configured exclusions will be excluded.";
+  });
+  document.getElementById("statementPreviousRewardBalance")?.addEventListener("input", () => {
+    if (statementParseSession) renderStatementParsePreview();
+  });
+  document.getElementById("parseStatementBtn")?.addEventListener("click", () => {
+    parseStatementFromTrainingModal().catch((error) => {
+      console.error("Unable to parse card statement", error);
+      const status = document.getElementById("statementParseStatus");
+      if (status) status.textContent = error.message || "Could not parse this statement.";
+    });
   });
   document.querySelector("[data-statement-training-close]")?.addEventListener("click", () => closeAiModal());
 }
 
-async function saveStatementTrainingProfile() {
+function openAiSearchModal() {
+  openAiModal({
+    mode: "search",
+    title: "AI search",
+    subtitle: "Search your portfolio. This view is read-only.",
+    bodyHtml: `
+      <form id="aiSearchModalForm" class="ai-search-modal-form">
+        <label class="field" for="aiSearchModalInput">
+          <span>Search your cards, points, or recorded activity</span>
+          <input id="aiSearchModalInput" type="search" autocomplete="off" placeholder="e.g. unredeemed points on Axis Atlas" />
+        </label>
+        <p id="aiSearchModalStatus" role="status" aria-live="polite"></p>
+      </form>
+    `,
+    footerHtml: `<button type="button" class="ghost-button" data-ai-search-close>Close</button><button type="submit" class="primary-button" form="aiSearchModalForm">Search</button>`,
+  });
+  const form = document.getElementById("aiSearchModalForm");
+  const input = document.getElementById("aiSearchModalInput");
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const query = input?.value.trim() || "";
+    const status = document.getElementById("aiSearchModalStatus");
+    if (!query) {
+      if (status) status.textContent = "Enter a search query.";
+      input?.focus();
+      return;
+    }
+    const intent = interpretAiIntent(query);
+    if (intent.action !== "search") {
+      if (status) status.textContent = "AI search is read-only. Enter a question about existing portfolio data.";
+      input?.focus();
+      return;
+    }
+    closeAiModal();
+    try {
+      await processAiReadOnlyCommand(intent);
+    } catch (error) {
+      console.error("AI search failed", error);
+      showToast(error.message || "Could not complete the search.");
+    }
+  });
+  document.querySelector("[data-ai-search-close]")?.addEventListener("click", () => closeAiModal());
+  input?.focus();
+}
+
+let statementPdfJsPromise = null;
+
+function loadStatementPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (statementPdfJsPromise) return statementPdfJsPromise;
+
+  statementPdfJsPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    script.async = true;
+    script.addEventListener("load", () => {
+      if (!window.pdfjsLib) {
+        reject(new Error("The local PDF parser did not initialize."));
+        return;
+      }
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      resolve(window.pdfjsLib);
+    }, { once: true });
+    script.addEventListener("error", () => {
+      statementPdfJsPromise = null;
+      reject(new Error("Could not load the local PDF parser. Check your internet connection and retry."));
+    }, { once: true });
+    document.head.appendChild(script);
+  });
+
+  return statementPdfJsPromise;
+}
+
+function parseCardStatementItems(items) {
+  const rowsByPageAndY = new Map();
+  items.forEach((item) => {
+    const text = String(item.text || "").trim();
+    if (!text) return;
+    const y = Math.round(Number(item.y) * 2) / 2;
+    const page = Number(item.page) || 1;
+    const key = `${page}:${y}`;
+    if (!rowsByPageAndY.has(key)) rowsByPageAndY.set(key, []);
+    rowsByPageAndY.get(key).push({ x: Number(item.x) || 0, y, page, text });
+  });
+
+  const lines = [...rowsByPageAndY.values()]
+    .map((rowItems) => ({ page: rowItems[0].page, y: rowItems[0].y, items: rowItems.sort((a, b) => a.x - b.x) }))
+    .sort((a, b) => a.page - b.page || b.y - a.y);
+  const transactions = [];
+
+  lines.forEach((line) => {
+    const dateItem = line.items.find((item) => item.x < 70 && /^\d{2}[/-]\d{2}[/-]\d{4}$/.test(item.text));
+    if (!dateItem) return;
+
+    const amountItem = line.items.find((item) => /\b\d[\d,]*\.\d{2}\s*(?:Cr|Dr)\b/i.test(item.text));
+    if (!amountItem) return;
+    const amountMatch = amountItem.text.match(/([\d,]+\.\d{2})\s*(Cr|Dr)\b/i);
+    if (!amountMatch) return;
+
+    const transactionDate = parseStatementDate(dateItem.text);
+    if (!transactionDate) return;
+
+    const description = line.items
+      .filter((item) => item.x >= 70 && item.x < 350)
+      .map((item) => item.text)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!description) return;
+
+    const bankCategory = line.items
+      .filter((item) => item.x >= 350 && item.x < 510)
+      .map((item) => item.text)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const direction = amountMatch[2].toLocaleUpperCase();
+    const amount = Number(amountMatch[1].replace(/,/g, ""));
+    const mandatoryExclusion = getStatementTransactionExclusion(description, direction);
+
+    transactions.push({
+      date: transactionDate,
+      description,
+      bankCategory,
+      amount,
+      direction,
+      include: !mandatoryExclusion,
+      exclusionReason: mandatoryExclusion,
+      page: Number(line.items[0]?.page) || 0,
+    });
+  });
+
+  const rewardBalance = parseStatementRewardBalance(items);
+  return {
+    transactions,
+    rewardBalance,
+    statementPeriod: parseStatementPeriod(items),
+  };
+}
+
+function getStatementRuleExclusion(transaction, earningRules) {
+  const mandatory = getStatementTransactionExclusion(transaction.description, transaction.direction);
+  if (mandatory) return mandatory;
+  const searchable = `${transaction.bankCategory || ""} ${transaction.description || ""}`.toLocaleLowerCase();
+  const keyword = earningRules.exclusions.find((entry) => searchable.includes(entry.toLocaleLowerCase()));
+  return keyword ? `Card exclusion: ${keyword}` : "";
+}
+
+function matchStatementCategoryRule(transaction, earningRules) {
+  const searchable = `${transaction.bankCategory || ""} ${transaction.description || ""}`.toLocaleLowerCase();
+  return earningRules.categories.find((rule) => searchable.includes(rule.match.toLocaleLowerCase())) || null;
+}
+
+function getStatementCapPeriodKey(date, capPeriod) {
+  if (capPeriod === "month") return String(date || "").slice(0, 7);
+  if (capPeriod === "year") return String(date || "").slice(0, 4);
+  return "statement";
+}
+
+function calculateStatementRewardPoints(transactions, rawEarningRules) {
+  const earningRules = normalizeStatementEarningRules(rawEarningRules);
+  const ruleUsage = new Map();
+  let totalPoints = 0;
+  const rows = Array(transactions.length);
+  const chronologicalTransactions = transactions
+    .map((transaction, index) => ({ transaction, index }))
+    .sort((a, b) => a.transaction.date.localeCompare(b.transaction.date) || a.index - b.index);
+
+  chronologicalTransactions.forEach(({ transaction, index }) => {
+    const exclusionReason = getStatementRuleExclusion(transaction, earningRules);
+    if (!transaction.include || exclusionReason || transaction.direction !== "DR") {
+      rows[index] = { points: 0, basePoints: 0, bonusPoints: 0, exclusionReason };
+      return;
+    }
+    if (
+      earningRules.basePoints <= 0
+      || (earningRules.baseRateType === "points_per_spend" && earningRules.baseSpend <= 0)
+    ) {
+      rows[index] = { points: null, basePoints: null, bonusPoints: null, exclusionReason: "" };
+      return;
+    }
+
+    const calculateRatePoints = (amount) => earningRules.baseRateType === "percent_of_spend"
+      ? amount * earningRules.basePoints / 100
+      : Math.floor(amount / earningRules.baseSpend) * earningRules.basePoints;
+    const basePoints = calculateRatePoints(transaction.amount);
+    const accRewardsOnly = transaction.earningRuleId === "acc_rewards";
+    const categoryRule = accRewardsOnly
+      ? earningRules.categories.find((rule) => /\bacc\s+rewards?\b/i.test(rule.match))
+      : earningRules.categories.find((rule) => rule.id === transaction.earningRuleId);
+    if (accRewardsOnly && (!categoryRule || categoryRule.multiplier <= 1)) {
+      rows[index] = { points: null, basePoints: null, bonusPoints: null, exclusionReason: "Acc Rewards rule not configured" };
+      return;
+    }
+    let bonusPoints = 0;
+    if (categoryRule && categoryRule.multiplier > 1) {
+      const capPeriodKey = `${categoryRule.id}:${getStatementCapPeriodKey(transaction.date, categoryRule.capPeriod)}`;
+      const usage = ruleUsage.get(capPeriodKey) || { spend: 0, points: 0 };
+      const remainingSpend = categoryRule.capSpend > 0
+        ? Math.max(0, categoryRule.capSpend - usage.spend)
+        : transaction.amount;
+      const acceleratedSpend = Math.min(transaction.amount, remainingSpend);
+      const acceleratedRatePoints = categoryRule.ratePoints > 0
+        ? (categoryRule.rateType === "percent_of_spend"
+          ? acceleratedSpend * categoryRule.ratePoints / 100
+          : categoryRule.rateSpend > 0
+            ? Math.floor(acceleratedSpend / categoryRule.rateSpend) * categoryRule.ratePoints
+            : 0)
+        : null;
+      const rawBonus = acceleratedRatePoints === null
+        ? calculateRatePoints(acceleratedSpend) * (categoryRule.multiplier - 1)
+        : acceleratedRatePoints;
+      const remainingBonus = categoryRule.capPoints > 0
+        ? Math.max(0, categoryRule.capPoints - usage.points)
+        : rawBonus;
+      bonusPoints = Math.floor(Math.min(rawBonus, remainingBonus));
+      ruleUsage.set(capPeriodKey, {
+        spend: usage.spend + acceleratedSpend,
+        points: usage.points + bonusPoints,
+      });
+    }
+    // Acc Rewards is an exclusive rule: keep only the configured accelerated
+    // reward points and do not add the base-rate points for that transaction.
+    const points = Math.floor(categoryRule?.fullRate
+      ? bonusPoints
+      : accRewardsOnly
+        ? bonusPoints
+        : basePoints + bonusPoints);
+    totalPoints += points;
+    rows[index] = { points, basePoints: Math.floor(basePoints), bonusPoints, exclusionReason: "" };
+  });
+
+  return { totalPoints, rows };
+}
+
+function getStatementTransactionExclusion(description, direction) {
+  if (direction === "CR") return "Cr credit or reversal";
+  if (/\bGST\b/i.test(description)) return "GST";
+  if (/\bEMI\s+PRINCIPAL\b/i.test(description)) return "EMI Principal";
+  if (/\bPROCESSING\s+FEE\b/i.test(description)) return "Processing Fee";
+  return "";
+}
+
+function parseStatementDate(value) {
+  const match = String(value || "").match(/^(\d{2})[/-](\d{2})[/-](\d{4})$/);
+  if (!match) return "";
+  const [, day, month, year] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  if (date.getFullYear() !== Number(year) || date.getMonth() !== Number(month) - 1 || date.getDate() !== Number(day)) return "";
+  return `${year}-${month}-${day}`;
+}
+
+function parseStatementRewardBalance(items) {
+  const heading = items.find((item) =>
+    Number(item.x) < 160
+    && /edge/i.test(item.text || "")
+    && /(points|reward)/i.test(item.text || "")
+  );
+  if (!heading) return null;
+
+  const nearby = items.filter((item) => Number(item.y) < Number(heading.y)
+    && Number(item.y) >= Number(heading.y) - 42
+    && (!heading.page || !item.page || Number(item.page) === Number(heading.page)));
+  const pointCandidates = nearby
+    .filter((item) => Number(item.x) >= 35 && Number(item.x) < 105)
+    .map((item) => String(item.text || "").replace(/,/g, "").match(/^\s*(\d{1,8})\s*$/))
+    .filter(Boolean)
+    .map((match) => Number(match[1]));
+  const dateCandidates = nearby
+    .filter((item) => Number(item.x) >= 100 && Number(item.x) < 170)
+    .map((item) => parseStatementDate(String(item.text || "").replace(/-/g, "/")))
+    .filter(Boolean);
+
+  if (!pointCandidates.length) return null;
+  return {
+    points: pointCandidates[0],
+    date: dateCandidates[0] || "",
+  };
+}
+
+function parseStatementPeriod(items) {
+  const text = items.map((item) => item.text || "").join(" ");
+  const match = text.match(/(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})/);
+  if (!match) return "";
+  return `${parseStatementDate(match[1])} – ${parseStatementDate(match[2])}`;
+}
+
+function createStatementImportId(cardId, parsedStatement) {
+  const statementText = [
+    cardId,
+    parsedStatement.statementPeriod,
+    ...parsedStatement.transactions.map((transaction) =>
+      [transaction.date, transaction.description, transaction.amount, transaction.direction].join("|")
+    ),
+  ].join("\n").toLocaleLowerCase();
+  let hash = 2166136261;
+  for (let index = 0; index < statementText.length; index += 1) {
+    hash ^= statementText.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `statement-${(hash >>> 0).toString(16)}`;
+}
+
+async function parseStatementFromTrainingModal() {
   const cardId = document.getElementById("statementTrainingCard")?.value || "";
   const file = document.getElementById("statementTrainingFile")?.files?.[0];
+  const button = document.getElementById("parseStatementBtn");
+  const status = document.getElementById("statementParseStatus");
+  const preview = document.getElementById("statementParsePreview");
+
   if (!cardId || !file) {
-    showToast("Select a card and statement file.");
+    if (status) status.textContent = "Select a card and statement PDF first.";
     return;
   }
-  const profile = {
-    id: createId(), cardId, fileName: file.name, fileType: file.type || "unknown", fileSize: file.size,
-    earnRules: document.getElementById("statementTrainingRules")?.value || "",
-    exclusions: document.getElementById("statementTrainingExclusions")?.value || "",
-    createdAt: new Date().toISOString(),
-  };
-  state.aiTrainer.statementProfiles = [...(state.aiTrainer.statementProfiles || []).filter((item) => item.cardId !== cardId), profile];
-  state.aiTrainer.updatedAt = profile.createdAt;
+  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    if (status) status.textContent = "The statement transaction parser currently supports searchable PDF files only.";
+    return;
+  }
+
+  button.disabled = true;
+  if (status) status.textContent = "Reading PDF text locally…";
+  if (preview) {
+    preview.hidden = true;
+    preview.replaceChildren();
+  }
+
+  try {
+    const pdfjsLib = await loadStatementPdfJs();
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const items = [];
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const textContent = await page.getTextContent();
+      textContent.items.forEach((item) => {
+        if (typeof item.str !== "string" || !item.str.trim()) return;
+        items.push({
+          text: item.str,
+          x: item.transform[4],
+          y: item.transform[5],
+          page: pageNumber,
+        });
+      });
+    }
+
+    const parsed = parseCardStatementItems(items);
+    const card = state.cards.find((entry) => entry.id === cardId);
+    const cardName = formatCardName(card);
+    if (!parsed.transactions.length) {
+      throw new Error("No dated transaction rows were found. Scanned/image-only PDFs are not supported yet.");
+    }
+
+    const earningRules = normalizeStatementEarningRules(card.statementEarningRules);
+    parsed.transactions = parsed.transactions.map((transaction) => {
+      const exclusionReason = getStatementRuleExclusion(transaction, earningRules);
+      const matchedRule = matchStatementCategoryRule(transaction, earningRules);
+      return {
+        ...transaction,
+        include: !exclusionReason && transaction.direction === "DR",
+        exclusionReason,
+        earningRuleId: matchedRule?.id || "base",
+      };
+    });
+    statementParseSession = {
+      cardId,
+      cardName,
+      earningRules,
+      fileName: file.name,
+      fileType: file.type || "application/pdf",
+      fileSize: file.size,
+      statementImportId: createStatementImportId(cardId, parsed),
+      ...parsed,
+    };
+    renderStatementParsePreview();
+    const includedCount = parsed.transactions.filter((transaction) => transaction.include).length;
+    if (status) {
+      status.textContent = `Found ${parsed.transactions.length} transaction rows; ${includedCount} debit rows are eligible for manual review. Confirmed points will update this card’s Unredeemed Points only. No Swipe records are created.`;
+    }
+  } catch (error) {
+    if (status) status.textContent = error?.name === "PasswordException"
+      ? "This PDF is password-protected. Unlock it with a password you know, then parse the unlocked copy."
+      : error.message || "Could not parse this statement.";
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function renderStatementParsePreview() {
+  const preview = document.getElementById("statementParsePreview");
+  if (!preview || !statementParseSession) return;
+
+  const modalBody = document.getElementById("aiAssistModalBody");
+  const preservedModalScrollTop = modalBody?.scrollTop || 0;
+  const preservedPageScrollY = window.scrollY || 0;
+
+  const { transactions, rewardBalance, statementPeriod } = statementParseSession;
+  const calculation = calculateStatementRewardPoints(transactions, statementParseSession.earningRules);
+  const includedTotal = transactions
+    .filter((transaction) => transaction.include)
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
+  const eligibleCount = transactions.filter((transaction) => transaction.include).length;
+  const previousBalanceInput = document.getElementById("statementPreviousRewardBalance");
+  const previousBalanceValue = previousBalanceInput?.value ?? "";
+  const previousBalance = previousBalanceValue === "" ? null : Number(previousBalanceValue);
+  const netBalanceChange = previousBalance === null || !Number.isFinite(previousBalance) || previousBalance < 0 || !rewardBalance
+    ? null
+    : rewardBalance.points - previousBalance;
+  const existingImport = state.rpSpends.some((record) => record.statementImportId === statementParseSession.statementImportId);
+  const rows = transactions.map((transaction, index) => {
+    const row = document.createElement("tr");
+
+    const includeCell = document.createElement("td");
+    const include = document.createElement("input");
+    include.type = "checkbox";
+    include.checked = transaction.include;
+    include.disabled = Boolean(transaction.exclusionReason);
+    include.setAttribute("aria-label", `Include statement transaction ${index + 1} in point review`);
+    include.addEventListener("change", () => {
+      statementParseSession.focusTransactionIndex = index;
+      statementParseSession.focusTransactionControl = "input[type=checkbox]";
+      statementParseSession.tableScrollTop = include.closest(".statement-preview-table-wrap")?.scrollTop || 0;
+      transaction.include = include.checked;
+      statementParseSession.reviewConfirmed = false;
+      renderStatementParsePreview();
+    });
+    includeCell.append(include);
+
+    const dateCell = document.createElement("td");
+    dateCell.textContent = transaction.date;
+    const descriptionCell = document.createElement("td");
+    descriptionCell.textContent = transaction.description;
+    const categoryCell = document.createElement("td");
+    const bankCategory = document.createElement("span");
+    bankCategory.textContent = transaction.bankCategory || "Uncategorised";
+    categoryCell.append(bankCategory);
+    const amountCell = document.createElement("td");
+    amountCell.textContent = `${transaction.direction === "CR" ? "+" : "−"}${formatMoney(transaction.amount)}`;
+    const ruleCell = document.createElement("td");
+    const ruleSelect = document.createElement("select");
+    ruleSelect.setAttribute("aria-label", `Point earning rule for statement transaction ${index + 1}`);
+    ruleSelect.add(new Option("Base rate", "base"));
+    ruleSelect.add(new Option("Acc Rewards", "acc_rewards"));
+    statementParseSession.earningRules.categories.forEach((rule) => {
+      ruleSelect.add(new Option(`${rule.match} (${rule.multiplier}×)`, rule.id));
+    });
+    ruleSelect.value = transaction.earningRuleId || "base";
+    // Keep the rule selector available as a manual backup even when the
+    // parser marked the transaction ineligible. The include checkbox remains
+    // disabled for hard exclusions and still controls whether points count.
+    ruleSelect.disabled = false;
+    ruleSelect.addEventListener("change", () => {
+      statementParseSession.focusTransactionIndex = index;
+      statementParseSession.focusTransactionControl = "select";
+      statementParseSession.tableScrollTop = ruleSelect.closest(".statement-preview-table-wrap")?.scrollTop || 0;
+      transaction.earningRuleId = ruleSelect.value;
+      statementParseSession.reviewConfirmed = false;
+      renderStatementParsePreview();
+    });
+    ruleCell.append(ruleSelect);
+
+    const pointCell = document.createElement("td");
+    const rowCalculation = calculation.rows[index];
+    pointCell.textContent = rowCalculation.points === null
+      ? "Rate not configured"
+      : formatPoints(rowCalculation.points);
+
+    const statusCell = document.createElement("td");
+    statusCell.textContent = transaction.exclusionReason || (transaction.include ? "Included for review" : "Skipped by review");
+    statusCell.className = transaction.exclusionReason ? "statement-excluded" : "";
+    row.append(includeCell, dateCell, descriptionCell, categoryCell, amountCell, ruleCell, pointCell, statusCell);
+    return row;
+  });
+
+  const container = document.createElement("div");
+  container.className = "statement-preview-content";
+  const summary = document.createElement("div");
+  summary.className = "statement-preview-summary";
+  const rewardText = rewardBalance
+    ? `Statement reward balance: ${formatPoints(rewardBalance.points)}${rewardBalance.date ? ` on ${rewardBalance.date}` : ""}.`
+    : "No statement reward balance was detected.";
+  let changeText = netBalanceChange === null
+    ? "Enter the prior closing balance to see net balance change; this is not gross points earned."
+    : `Net reward-balance change: ${formatPoints(netBalanceChange)}. Redemptions/adjustments may also affect this figure.`;
+  const estimatedPointsText = calculation.rows.some((row) => row.points === null)
+    ? "This card has no complete base earn rate configured."
+    : `Estimated points for included rows: ${formatPoints(calculation.totalPoints)}.`;
+  if (netBalanceChange !== null && calculation.rows.every((row) => row.points !== null)) {
+    changeText += ` Difference from net balance change: ${formatPoints(netBalanceChange - calculation.totalPoints)}.`;
+  }
+  summary.textContent = `${statementParseSession.cardName}${statementPeriod ? ` · ${statementPeriod}` : ""} · ${transactions.length} rows, ${eligibleCount} included debits · Eligible debit total ${formatMoney(includedTotal)}. ${estimatedPointsText} ${rewardText} ${changeText}`;
+
+  const note = document.createElement("p");
+  note.className = "statement-parser-note";
+  note.textContent = "Review every row and its earning rule before confirming. Points use this card’s base rate, category bonus rules, and configured cap periods; totals are rounded to whole points per transaction and may differ from issuer rounding. Credits, GST, EMI Principal, Processing Fees, and configured card exclusions cannot be included. No statement transaction is ever added to Swipes.";
+
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "statement-preview-table-wrap";
+  const table = document.createElement("table");
+  table.className = "statement-preview-table";
+  const head = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+  ["Include", "Date", "Statement description", "Bank category", "Amount", "Earning rule", "Points", "Review status"].forEach((label) => {
+    const th = document.createElement("th");
+    th.textContent = label;
+    headerRow.append(th);
+  });
+  head.append(headerRow);
+  const body = document.createElement("tbody");
+  rows.forEach((row) => body.append(row));
+  table.append(head, body);
+  tableWrap.append(table);
+  const focusIndex = statementParseSession.focusTransactionIndex;
+  const focusControl = statementParseSession.focusTransactionControl;
+
+  const applyControls = document.createElement("div");
+  applyControls.className = "statement-review-confirmation";
+  const confirmationLabel = document.createElement("label");
+  confirmationLabel.className = "statement-review-confirm-label";
+  const confirmation = document.createElement("input");
+  confirmation.type = "checkbox";
+  confirmation.id = "statementReviewConfirmed";
+  confirmation.checked = statementParseSession.reviewConfirmed === true;
+  confirmation.disabled = calculation.rows.some((row) => row.points === null) || existingImport || calculation.totalPoints <= 0;
+  confirmation.addEventListener("change", () => {
+    statementParseSession.reviewConfirmed = confirmation.checked;
+    updateStatementPointsApplyButton();
+  });
+  const confirmationText = document.createElement("span");
+  confirmationText.textContent = "I reviewed the included transactions, categories, and estimated points.";
+  confirmationLabel.append(confirmation, confirmationText);
+  const applyButton = document.createElement("button");
+  applyButton.type = "button";
+  applyButton.id = "addStatementPointsBtn";
+  applyButton.className = "primary-button";
+  applyButton.textContent = `Add ${formatPoints(calculation.totalPoints)} to Unredeemed Points`;
+  applyButton.disabled = true;
+  applyButton.addEventListener("click", () => {
+    applyReviewedStatementPoints().catch((error) => {
+      console.error("Unable to add reviewed statement points", error);
+      const status = document.getElementById("statementParseStatus");
+      if (status) status.textContent = error.message || "Could not add the reviewed statement points.";
+    });
+  });
+  applyControls.append(confirmationLabel, applyButton);
+  if (existingImport) {
+    const duplicateNote = document.createElement("p");
+    duplicateNote.className = "statement-parser-note statement-excluded";
+    duplicateNote.textContent = "These statement transactions have already been added to this card’s Unredeemed Points.";
+    applyControls.append(duplicateNote);
+  }
+
+  container.append(summary, note, tableWrap, applyControls);
+  preview.replaceChildren(container);
+  preview.hidden = false;
+
+  requestAnimationFrame(() => {
+    // Restore the dialog/page positions after the new DOM is attached. This
+    // prevents checkbox/rule changes from jumping the user to the top.
+    if (modalBody) modalBody.scrollTop = preservedModalScrollTop;
+    window.scrollTo({ top: preservedPageScrollY, left: window.scrollX || 0, behavior: "instant" });
+    if (Number.isFinite(statementParseSession?.tableScrollTop)) {
+      tableWrap.scrollTop = statementParseSession.tableScrollTop;
+    }
+    if (Number.isInteger(focusIndex) && body.children[focusIndex]) {
+      body.children[focusIndex].querySelector(focusControl || "input, select")?.focus({ preventScroll: true });
+      statementParseSession.focusTransactionIndex = null;
+      statementParseSession.focusTransactionControl = "";
+    }
+  });
+  updateStatementPointsApplyButton();
+}
+
+function updateStatementPointsApplyButton() {
+  const button = document.getElementById("addStatementPointsBtn");
+  if (!button || !statementParseSession) return;
+  const calculation = calculateStatementRewardPoints(statementParseSession.transactions, statementParseSession.earningRules);
+  const alreadyAdded = state.rpSpends.some((record) => record.statementImportId === statementParseSession.statementImportId);
+  button.textContent = `Add ${formatPoints(calculation.totalPoints)} to Unredeemed Points`;
+  button.disabled = !statementParseSession.reviewConfirmed
+    || alreadyAdded
+    || calculation.totalPoints <= 0
+    || calculation.rows.some((row) => row.points === null);
+}
+
+async function applyReviewedStatementPoints() {
+  if (!statementParseSession?.reviewConfirmed) {
+    throw new Error("Review the transactions and confirm the point estimate before adding points.");
+  }
+  if (state.rpSpends.some((record) => record.statementImportId === statementParseSession.statementImportId)) {
+    throw new Error("These statement transactions have already been added to this card.");
+  }
+  const calculation = calculateStatementRewardPoints(statementParseSession.transactions, statementParseSession.earningRules);
+  if (calculation.totalPoints <= 0 || calculation.rows.some((row) => row.points === null)) {
+    throw new Error("A complete card earning rule and at least one eligible transaction are required.");
+  }
+  const pointSource = normalizeRpSpend({
+    id: createId(),
+    purchaseId: `statement-${statementParseSession.statementImportId}`,
+    cardId: statementParseSession.cardId,
+    points: calculation.totalPoints,
+    redeemedPoints: 0,
+    unredeemedPointsRecord: true,
+    unredeemedBalanceInitialized: true,
+    redemptionModel: "split-v2",
+    statementImportId: statementParseSession.statementImportId,
+    statementPeriod: statementParseSession.statementPeriod,
+    purchasedFrom: "Statement review",
+    productName: statementParseSession.fileName,
+  });
+  state.rpSpends.push(pointSource);
+  syncRpRedeemedBenefitsFromSpends();
   await saveState();
+  const addedPoints = calculation.totalPoints;
+  statementParseSession = null;
   closeAiModal();
-  showToast("Statement training profile saved.");
+  render();
+  showToast(`Added ${formatPoints(addedPoints)} to the card’s Unredeemed Points. No Swipes were created.`);
 }
 
 function handleAiModalBodyClick(event) {
   const button = event.target.closest("button");
   if (!button) return;
 
-  if (button.dataset.statementTrainingSave !== undefined) {
-    saveStatementTrainingProfile().catch((error) => { console.error(error); showToast("Could not save the training profile."); });
-    return;
-  }
   if (button.dataset.statementTrainingClose !== undefined) {
     closeAiModal();
     return;
@@ -5318,6 +6032,7 @@ function handleAiModalBodyClick(event) {
 
 function openAiModal({ mode, title, subtitle, bodyHtml, footerHtml }) {
   aiModalMode = mode;
+  if (els.aiAssistModal) els.aiAssistModal.dataset.mode = mode || "";
   if (els.aiAssistModalTitle) els.aiAssistModalTitle.textContent = title || "AI";
   if (els.aiAssistModalSubtitle) els.aiAssistModalSubtitle.textContent = subtitle || "";
   if (els.aiAssistModalBody) {
@@ -5339,7 +6054,10 @@ function closeAiModal(result = null) {
   }
 
   aiModalMode = null;
-  if (els.aiAssistModal) els.aiAssistModal.style.display = "none";
+  if (els.aiAssistModal) {
+    els.aiAssistModal.style.display = "none";
+    delete els.aiAssistModal.dataset.mode;
+  }
   if (els.aiAssistModalBody) {
     els.aiAssistModalBody.innerHTML = "";
     els.aiAssistModalBody.onclick = null;
@@ -5351,7 +6069,10 @@ function resolveAiModal(result) {
   const resolver = aiModalResolver;
   aiModalResolver = null;
   aiModalMode = null;
-  if (els.aiAssistModal) els.aiAssistModal.style.display = "none";
+  if (els.aiAssistModal) {
+    els.aiAssistModal.style.display = "none";
+    delete els.aiAssistModal.dataset.mode;
+  }
   if (els.aiAssistModalBody) {
     els.aiAssistModalBody.innerHTML = "";
     els.aiAssistModalBody.onclick = null;
@@ -6290,10 +7011,7 @@ function handleDashboardStudioAction(event) {
   const focusTarget = event.target.closest?.("[data-dashboard-focus]");
   if (focusTarget?.dataset.dashboardFocus === "ai") {
     if (state.currentView !== "dashboard") showView("dashboard");
-    requestAnimationFrame(() => {
-      els.aiCommandInput?.scrollIntoView({ behavior: shouldReduceMotion() ? "auto" : "smooth", block: "center" });
-      els.aiCommandInput?.focus();
-    });
+    openAiSearchModal();
   }
 }
 
@@ -12813,8 +13531,33 @@ async function saveCardFromForm(event)
 {
   event.preventDefault();
   syncDraftBenefitsFromDom();
+  syncStatementCategoryRulesFromDom();
   syncPreviousFeeFromForm();
   syncFutureFeeFromForm();
+
+  const statementBasePoints = toNumber(document.getElementById("statementBasePoints")?.value);
+  const statementBaseRateType = document.getElementById("statementBaseRateType")?.value || "points_per_spend";
+  const statementBaseSpend = statementBaseRateType === "points_per_spend"
+    ? toNumber(document.getElementById("statementBaseSpend")?.value)
+    : 0;
+  const statementCategoryRules = draftStatementCategoryRules.filter((rule) =>
+    rule.match || rule.multiplier > 0 || rule.capSpend > 0 || rule.capPoints > 0
+  );
+  if (statementBaseRateType === "points_per_spend" && (statementBasePoints > 0) !== (statementBaseSpend > 0)) {
+    showToast("Enter both the base points and spend block, or leave both blank.");
+    return;
+  }
+  if (statementCategoryRules.length && (
+    statementBasePoints <= 0
+    || (statementBaseRateType === "points_per_spend" && statementBaseSpend <= 0)
+  )) {
+    showToast("Set a base earning rate before adding category accelerators.");
+    return;
+  }
+  if (statementCategoryRules.some((rule) => !rule.match || rule.multiplier <= 1)) {
+    showToast("Each category rule needs a keyword and a multiplier greater than 1.");
+    return;
+  }
 
   const editingCardId = els.editingId.value;
   const existingCard = editingCardId
@@ -12851,6 +13594,16 @@ async function saveCardFromForm(event)
     futureAnnualFees: draftFutureAnnualFees,
     targetValue: els.targetValue?.value || "",
     notes: els.notes.value.trim(),
+    statementEarningRules: {
+      baseRateType: statementBaseRateType,
+      basePoints: statementBasePoints,
+      baseSpend: statementBaseSpend,
+      categories: statementCategoryRules,
+      exclusions: String(document.getElementById("statementEarningExclusions")?.value || "")
+        .split(/[,\n]/)
+        .map((keyword) => keyword.trim())
+        .filter(Boolean),
+    },
     benefits: savedCardBenefits,
   });
 
@@ -12964,6 +13717,14 @@ function populateForm(card) {
     els.targetValue.value = card.targetValue || "";
   }
   els.notes.value = card.notes;
+  const statementRules = normalizeStatementEarningRules(card.statementEarningRules);
+  document.getElementById("statementBaseRateType").value = statementRules.baseRateType;
+  document.getElementById("statementBasePoints").value = statementRules.basePoints || "";
+  document.getElementById("statementBaseSpend").value = statementRules.baseSpend || "";
+  updateStatementBaseRateFields();
+  document.getElementById("statementEarningExclusions").value = statementRules.exclusions.join(", ");
+  draftStatementCategoryRules = statementRules.categories.map((rule) => ({ ...rule }));
+  renderStatementCategoryRuleDrafts();
 
   // ✅ set benefits FIRST
   draftBenefits = Array.isArray(card.benefits) && card.benefits.length > 0
@@ -12985,8 +13746,14 @@ function resetForm() {
   els.cardForm.reset();
   renderIssuerOptions("");
   draftBenefits = [];
+  draftStatementCategoryRules = [];
   draftPreviousAnnualFees = [];
   renderBenefitsEditor();
+  document.getElementById("statementBasePoints").value = "";
+  document.getElementById("statementBaseSpend").value = "";
+  updateStatementBaseRateFields();
+  document.getElementById("statementEarningExclusions").value = "";
+  renderStatementCategoryRuleDrafts();
   togglePreviousFeeField();
   toggleFutureFeeFields(false);
 }
@@ -12995,6 +13762,87 @@ function addBenefitDraft() {
   syncDraftBenefitsFromDom();
   draftBenefits.push(createBlankBenefit());
   renderBenefitsEditor();
+}
+
+function renderStatementCategoryRuleDrafts() {
+  const container = document.getElementById("statementEarningRuleRows");
+  if (!container) return;
+
+  container.innerHTML = draftStatementCategoryRules.map((rule, index) => `
+    <div class="statement-earning-rule" data-statement-rule-index="${index}">
+      <label class="field">
+        <span>Category / keyword</span>
+        <input type="text" data-statement-rule-field="match" value="${escapeAttribute(rule.match)}" placeholder="e.g. dining, restaurants" />
+      </label>
+      <label class="field">
+        <span>Multiplier</span>
+        <input type="number" min="1" step="0.1" data-statement-rule-field="multiplier" value="${rule.multiplier || ""}" placeholder="e.g. 5" />
+      </label>
+      <label class="field">
+        <span>Spend cap (INR)</span>
+        <input type="number" min="0" step="0.01" data-statement-rule-field="capSpend" value="${rule.capSpend || ""}" placeholder="No cap" />
+      </label>
+      <label class="field">
+        <span>Bonus-point cap</span>
+        <input type="number" min="0" step="1" data-statement-rule-field="capPoints" value="${rule.capPoints || ""}" placeholder="No cap" />
+      </label>
+      <label class="field">
+        <span>Cap reset period</span>
+        <select data-statement-rule-field="capPeriod">
+          <option value="statement"${rule.capPeriod === "statement" ? " selected" : ""}>Statement period</option>
+          <option value="month"${rule.capPeriod === "month" ? " selected" : ""}>Calendar month</option>
+          <option value="year"${rule.capPeriod === "year" ? " selected" : ""}>Calendar year</option>
+        </select>
+      </label>
+      <button type="button" class="ghost-button" data-remove-statement-rule="${index}" aria-label="Remove category earning rule">Remove</button>
+    </div>
+  `).join("");
+}
+
+function updateStatementBaseRateFields() {
+  const rateType = document.getElementById("statementBaseRateType")?.value || "points_per_spend";
+  const percentRate = rateType === "percent_of_spend";
+  const spendField = document.getElementById("statementBaseSpendField");
+  const pointsLabel = document.getElementById("statementBasePointsLabel");
+  if (spendField) spendField.hidden = percentRate;
+  if (pointsLabel) pointsLabel.textContent = percentRate ? "Rate (% of spend)" : "Points in block";
+}
+
+function syncStatementCategoryRulesFromDom() {
+  const container = document.getElementById("statementEarningRuleRows");
+  if (!container) return;
+  draftStatementCategoryRules = Array.from(container.querySelectorAll(".statement-earning-rule")).map((row) => ({
+    ...draftStatementCategoryRules[Number(row.dataset.statementRuleIndex)],
+    match: row.querySelector('[data-statement-rule-field="match"]')?.value.trim() || "",
+    multiplier: toNumber(row.querySelector('[data-statement-rule-field="multiplier"]')?.value),
+    capSpend: toNumber(row.querySelector('[data-statement-rule-field="capSpend"]')?.value),
+    capPoints: toNumber(row.querySelector('[data-statement-rule-field="capPoints"]')?.value),
+    capPeriod: row.querySelector('[data-statement-rule-field="capPeriod"]')?.value || "statement",
+  }));
+}
+
+function addStatementCategoryRule() {
+  syncStatementCategoryRulesFromDom();
+  draftStatementCategoryRules.push({ id: createId(), match: "", multiplier: 0, capSpend: 0, capPoints: 0, capPeriod: "statement" });
+  renderStatementCategoryRuleDrafts();
+}
+
+function updateStatementCategoryRule(event) {
+  const input = event.target.closest("[data-statement-rule-field]");
+  const row = input?.closest(".statement-earning-rule");
+  const index = Number(row?.dataset.statementRuleIndex);
+  if (!input || !Number.isInteger(index) || !draftStatementCategoryRules[index]) return;
+
+  const field = input.dataset.statementRuleField;
+  draftStatementCategoryRules[index][field] = ["match", "capPeriod"].includes(field) ? input.value : toNumber(input.value);
+}
+
+function removeStatementCategoryRule(event) {
+  const button = event.target.closest("[data-remove-statement-rule]");
+  if (!button) return;
+  syncStatementCategoryRulesFromDom();
+  draftStatementCategoryRules.splice(Number(button.dataset.removeStatementRule), 1);
+  renderStatementCategoryRuleDrafts();
 }
 
 function updateDraftBenefit(event) {

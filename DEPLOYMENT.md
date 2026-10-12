@@ -24,6 +24,8 @@ GitHub will publish a public website URL for the repository.
 
 The Tools section embeds the PDF editor from `pdf-editor/index.html`, so keep that folder alongside the portfolio files when deploying. The editor loads PDF.js and pdf-lib from CDNs and therefore needs an internet connection. Password removal requires the PDF's existing password and rebuilds pages as images; selectable text and links are not preserved.
 
+Statement reward review is still in progress. Per-card earning rates, category accelerators, exclusions, and cap periods can be configured from the card editor, but **Upload Statement** remains disabled until supported statement formats and reward calculations are fully verified. The planned workflow adds manually confirmed points to a card's unredeemed balance and does not create Swipe records.
+
 If you see a GitHub Pages 404, check that Pages is enabled from Settings > Pages, the selected branch is `main`, the selected folder is `/(root)`, and the URL uses the exact repository name.
 
 ## Important Data Note
