@@ -15879,6 +15879,7 @@ let pprValueModalPartnerName = null;
 let pprValueModalScope = "all";
 let pprValueModalAvailablePoints = 0;
 let pprValueModalAction = "edit";
+let pprValueModalTopUpOnly = false;
 
 function getPprPartnerUnredeemedPoints(partnerName) {
   const row = getPprSummary().unredeemedRows
@@ -15939,7 +15940,9 @@ function showPprValueModal(partnerName, currentValue = 0, scope = "all", availab
 
   const isRedeemedBatchAction = scope === "redeemed";
   const batches = isRedeemedBatchAction ? getPprRedemptionBatches(partnerName) : [];
-  if (isRedeemedBatchAction && !batches.length) {
+  const topUpOnlyRedemption = isRedeemedBatchAction && !batches.length && action !== "delete";
+  pprValueModalTopUpOnly = topUpOnlyRedemption;
+  if (isRedeemedBatchAction && !batches.length && action === "delete") {
     showToast(`No PPR-created redemption is available for ${partnerName}. Edit RP Spends redemptions in Reward Points.`);
     pprValueModalPartnerName = null;
     return;
@@ -15955,7 +15958,7 @@ function showPprValueModal(partnerName, currentValue = 0, scope = "all", availab
   }
 
   if (els.pprRedemptionBatchField) {
-    els.pprRedemptionBatchField.style.display = isRedeemedBatchAction ? "block" : "none";
+    els.pprRedemptionBatchField.style.display = isRedeemedBatchAction && !topUpOnlyRedemption ? "block" : "none";
   }
   if (els.pprRedemptionBatchSelect) {
     els.pprRedemptionBatchSelect.innerHTML = batches.map((batch, index) => (
@@ -15987,7 +15990,7 @@ function showPprValueModal(partnerName, currentValue = 0, scope = "all", availab
   }
   if (els.pprValueModalSaveBtn) {
     els.pprValueModalSaveBtn.style.display = action === "delete" ? "none" : "inline-flex";
-    els.pprValueModalSaveBtn.textContent = isRedeemedBatchAction ? "Save changes" : "Save & Distribute";
+    els.pprValueModalSaveBtn.textContent = topUpOnlyRedemption ? "Add partner points" : isRedeemedBatchAction ? "Save changes" : "Save & Distribute";
   }
 
   if (isRedeemedBatchAction) {
@@ -16049,6 +16052,7 @@ function closePprValueModal() {
   pprValueModalScope = "all";
   pprValueModalAvailablePoints = 0;
   pprValueModalAction = "edit";
+  pprValueModalTopUpOnly = false;
 }
 
 async function savePprPartnerValue() {
@@ -16090,9 +16094,11 @@ async function savePprPartnerValue() {
     }
   }
 
-  const redemptionId = els.pprRedemptionBatchSelect?.value || "";
-  const result = pprValueModalScope === "redeemed"
+  const redemptionId = els.pprRedemptionBatchSelect?.value || (topUpPoints > 0 ? createId() : "");
+  const result = pprValueModalScope === "redeemed" && !pprValueModalTopUpOnly
     ? updatePprRedemptionBatch(pprValueModalPartnerName, redemptionId, pointsToRedeem, value)
+    : pprValueModalScope === "redeemed"
+      ? { redeemedPoints: topUpPoints, redeemedValue: 0, allocations: [] }
     : distributePartnerRedeemedValue(
       pprValueModalPartnerName,
       value,
