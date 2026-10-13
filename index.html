@@ -382,8 +382,12 @@
             </svg>
           </button>
           <div class="floating-actions" aria-label="Portfolio file actions">
-            <button class="ghost-button" type="button" id="exportBtn">Export</button>
-            <button class="ghost-button" type="button" id="importBtn">Import</button>
+            <button class="ghost-button topbar-file-action" type="button" id="importBtn" aria-label="Import portfolio" title="Import portfolio">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" /></svg>
+            </button>
+            <button class="ghost-button topbar-file-action" type="button" id="exportBtn" aria-label="Export portfolio" title="Export portfolio">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M5 20h14" /></svg>
+            </button>
           </div>
           <button id="lockBtn" class="ghost-button" type="button">Logout</button>
         </div>
@@ -1433,6 +1437,15 @@
             <span>Redeemed Value (₹)</span>
             <input id="pprValueInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="e.g. 2000" style="width: 100%; padding: 8px 12px; border: 1px solid rgba(148,163,184,0.3); border-radius: 6px; background: rgba(30,41,59,0.5); color: #f1f5f9; font-size: 1rem;" />
           </label>
+
+          <div id="pprPartnerTopUpField" class="field" style="display:none; margin-bottom:20px;">
+            <span>Redeem additional points from another partner</span>
+            <div style="display:grid; grid-template-columns:minmax(0,1fr) 130px; gap:8px; margin-top:6px;">
+              <select id="pprPartnerTopUpSelect"></select>
+              <input id="pprPartnerTopUpPoints" type="number" min="0" step="1" inputmode="numeric" placeholder="Points" />
+            </div>
+            <small>These points are added to this redemption and deducted from the selected partner.</small>
+          </div>
 
           <div id="pprRedemptionPreview" class="ppr-redemption-preview" style="display:none;"></div>
           

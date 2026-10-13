@@ -17639,6 +17639,43 @@ body[data-view="intlTravel"] #intlTravelView {
   box-sizing: border-box !important;
 }
 
+/* Keep portfolio file actions visually consistent with the dashboard icon controls. */
+.topbar-file-action {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  width: 44px !important;
+  min-width: 44px !important;
+  max-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 !important;
+  border: 1px solid #2b3340 !important;
+  border-radius: 50% !important;
+  color: #b8c3d1 !important;
+  background: linear-gradient(145deg, rgba(28, 37, 49, 0.88), rgba(10, 13, 18, 0.94)) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 20px rgba(0, 0, 0, 0.22) !important;
+  text-shadow: none !important;
+}
+
+.topbar-file-action svg {
+  width: 20px !important;
+  height: 20px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 1.8 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+
+.topbar-file-action:hover:not(:disabled) {
+  border-color: rgba(110, 226, 213, 0.46) !important;
+  color: #8cebe0 !important;
+  background: linear-gradient(145deg, rgba(30, 54, 61, 0.92), rgba(10, 15, 21, 0.96)) !important;
+  transform: none !important;
+}
+
 /* Keep the JSON importer available only through the Import button. Mobile
    input sizing rules must never expose the browser's native file control. */
 #importFile {

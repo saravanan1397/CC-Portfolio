@@ -158,8 +158,28 @@ const cardEarningRates = [
 ];
 
 function getCardEarningRate(cardName) {
-  const normalizedName = String(cardName || "").trim().toLocaleLowerCase("en-IN");
-  return cardEarningRates.find((entry) => entry.cardName.toLocaleLowerCase("en-IN") === normalizedName) || null;
+  const normalizedName = String(cardName || "")
+    .trim()
+    .toLocaleLowerCase("en-IN")
+    .replace(/\s+/g, " ");
+  if (!normalizedName) return null;
+
+  const aliases = {
+    "atlas": "axis atlas",
+    "horizon": "axis horizon",
+    "magnus": "axis magnus rupay",
+    "magnus rupay": "axis magnus rupay",
+    "imperio": "federal bank imperio",
+    "platinum travel": "amex platinum travel",
+    "tata neu infinity": "hdfc tata neu infinity",
+  };
+  const lookupName = aliases[normalizedName] || normalizedName;
+  return cardEarningRates.find((entry) => {
+    const catalogName = entry.cardName.toLocaleLowerCase("en-IN");
+    return catalogName === lookupName
+      || catalogName.endsWith(` ${normalizedName}`)
+      || normalizedName.endsWith(` ${catalogName}`);
+  }) || null;
 }
 
 // Unique issuer banks extracted from the supplied card names. Existing short
@@ -790,6 +810,9 @@ function cacheElements() {
     pprRedemptionPreview: document.getElementById("pprRedemptionPreview"),
     pprRedeemPointsInput: document.getElementById("pprRedeemPointsInput"),
     pprValueInput: document.getElementById("pprValueInput"),
+    pprPartnerTopUpField: document.getElementById("pprPartnerTopUpField"),
+    pprPartnerTopUpSelect: document.getElementById("pprPartnerTopUpSelect"),
+    pprPartnerTopUpPoints: document.getElementById("pprPartnerTopUpPoints"),
     pprValueModalCancelBtn: document.getElementById("pprValueModalCancelBtn"),
     pprValueModalDeleteBtn: document.getElementById("pprValueModalDeleteBtn"),
     pprValueModalSaveBtn: document.getElementById("pprValueModalSaveBtn"),
@@ -5296,7 +5319,11 @@ function showAiSearchResults(query) {
 }
 
 function openStatementTrainingModal() {
-  const cardOptions = state.cards.map((card) => `<option value="${escapeAttribute(card.id)}">${escapeHtml(formatCardName(card))}</option>`).join("");
+  const cardOptions = state.cards
+    .slice()
+    .sort((a, b) => formatCardName(a).localeCompare(formatCardName(b), "en", { sensitivity: "base" }))
+    .map((card) => `<option value="${escapeAttribute(card.id)}">${escapeHtml(formatCardName(card))}</option>`)
+    .join("");
   if (!cardOptions) {
     showToast("Add the card first, then parse its statement.");
     return;
@@ -5483,12 +5510,77 @@ function parseCardStatementItems(items) {
     });
   });
 
+  // Issuers such as HDFC, HSBC, ICICI, and IDFC use alternate date, amount,
+  // and debit/credit conventions. Keep the original parser first, then use
+  // the flexible pass only when no rows were found.
+  if (!transactions.length) transactions.push(...parseFlexibleStatementLines(lines));
+
   const rewardBalance = parseStatementRewardBalance(items);
   return {
     transactions,
     rewardBalance,
     statementPeriod: parseStatementPeriod(items),
   };
+}
+
+function parseFlexibleStatementLines(lines) {
+  const transactions = [];
+  lines.forEach((line) => {
+    const lineText = line.items.map((item) => item.text).join(" ").replace(/\s+/g, " ").trim();
+    const dateMatch = lineText.match(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}(?:\s*[|,]?\s*\d{1,2}:\d{2})?\b|\b\d{1,2}[/-](?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[/-]\d{2,4}\b|\b\d{1,2}\s*[/-]?\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s*,?\s*\d{2,4}\b|\b\d{1,2}(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b/i);
+    if (!dateMatch) return;
+    const amountMatches = [...lineText.matchAll(/(?:₹|Rs\.?|C|r|`)?\s*([\d,]+\.\d{2})\s*(Cr|Dr|CR|DR)?\b/g)];
+    if (!amountMatches.length) return;
+    const amountMatch = amountMatches[amountMatches.length - 1];
+    const amount = Number(amountMatch[1].replace(/,/g, ""));
+    const transactionDate = parseStatementDate(dateMatch[0]);
+    if (!Number.isFinite(amount) || amount <= 0 || !transactionDate) return;
+
+    const description = lineText
+      .replace(dateMatch[0], " ")
+      .replace(amountMatch[0], " ")
+      .replace(/\b(?:CR|DR)\b/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!description || /^(?:date|transaction|statement|page|total amount due)$/i.test(description)) return;
+
+    const explicitDirection = amountMatch[2]?.toUpperCase();
+    const creditDescription = /payment|credit|refund|cashback|reversal|received|adjustment|reward redemption|transaction conversion into emi/i.test(description);
+    const direction = explicitDirection || (creditDescription ? "CR" : "DR");
+    const mandatoryExclusion = getStatementTransactionExclusion(description, direction);
+    transactions.push({
+      date: transactionDate,
+      description,
+      bankCategory: inferStatementBankCategory(description),
+      amount,
+      direction,
+      include: !mandatoryExclusion,
+      exclusionReason: mandatoryExclusion,
+      page: Number(line.items[0]?.page) || 0,
+    });
+  });
+  return deduplicateStatementTransactions(transactions);
+}
+
+function deduplicateStatementTransactions(transactions) {
+  const seen = new Set();
+  return transactions.filter((transaction) => {
+    const key = [transaction.date, transaction.description, transaction.amount, transaction.direction].join("|").toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function inferStatementBankCategory(description) {
+  const value = String(description || "").toLowerCase();
+  if (/hotel|resort|airbnb|ibibo|travel|railway|flight|air india|indigo/.test(value)) return "Travel";
+  if (/restaurant|swiggy|zomato|dining|food|starbucks|shawarma/.test(value)) return "Dining";
+  if (/hospital|medical|pharmacy|apollo/.test(value)) return "Medical";
+  if (/jewell|tanishq|titan/.test(value)) return "Jewellery";
+  if (/grocery|bazaar|supermarket/.test(value)) return "Grocery";
+  if (/utility|telecom|mobile|electric|broadband/.test(value)) return "Utility";
+  return "";
 }
 
 function getStatementRuleExclusion(transaction, earningRules) {
@@ -5588,28 +5680,48 @@ function calculateStatementRewardPoints(transactions, rawEarningRules) {
 
 function getStatementTransactionExclusion(description, direction) {
   if (direction === "CR") return "Cr credit or reversal";
-  if (/\bGST\b/i.test(description)) return "GST";
-  if (/\bEMI\s+PRINCIPAL\b/i.test(description)) return "EMI Principal";
-  if (/\bPROCESSING\s+FEE\b/i.test(description)) return "Processing Fee";
+  if (/\b(?:GST|IGST|CGST|SGST)\b|GOODS\s*&?\s*SERVICES\s*TAX/i.test(description)) return "GST";
+  if (/\bEMI\s*-?\s*(?:PRINCIPAL|PRIN|INTEREST|INT)\b/i.test(description)) return "EMI Principal/Interest";
+  if (/\b(?:PROCESSING\s+FEE|EMI\s+FEE)\b/i.test(description)) return "Processing Fee";
+  if (/\b(?:PRINCIPAL\s+DEBIT\s+ADJUSTMENT|TRANSACTION\s+CONVERSION\s+INTO\s+EMI|EMI\s+CONV)\b/i.test(description)) return "EMI adjustment/conversion";
   return "";
 }
 
 function parseStatementDate(value) {
-  const match = String(value || "").match(/^(\d{2})[/-](\d{2})[/-](\d{4})$/);
+  const raw = String(value || "").replace(/[|,]/g, " ").replace(/\s+/g, " ").trim();
+  let match = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
+  if (!match) match = raw.match(/^(\d{1,2})[/-](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[/-](\d{2,4})/i);
+  if (!match) match = raw.match(/^(\d{1,2})\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s*,?\s*(\d{2,4})/i);
+  if (!match) match = raw.match(/^(\d{1,2})(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(\d{2,4})?$/i);
   if (!match) return "";
-  const [, day, month, year] = match;
-  const date = new Date(Number(year), Number(month) - 1, Number(day));
-  if (date.getFullYear() !== Number(year) || date.getMonth() !== Number(month) - 1 || date.getDate() !== Number(day)) return "";
-  return `${year}-${month}-${day}`;
+  const day = Number(match[1]);
+  const monthValue = match[2];
+  const month = /^\d+$/.test(monthValue)
+    ? Number(monthValue)
+    : ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"].indexOf(monthValue.slice(0, 3).toLowerCase()) + 1;
+  let year = Number(match[3] || new Date().getFullYear());
+  if (year < 100) year += 2000;
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return "";
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 function parseStatementRewardBalance(items) {
+  const fullText = items.map((item) => item.text || "").join(" ").replace(/\s+/g, " ");
   const heading = items.find((item) =>
     Number(item.x) < 160
     && /edge/i.test(item.text || "")
     && /(points|reward)/i.test(item.text || "")
   );
-  if (!heading) return null;
+  if (!heading) {
+    const federal = fullText.match(/Previous Balance\s+Earned\s+Redeemed\s+Closing Balance\s+Points Expiry Details\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+[\d,]+/i);
+    if (federal) return { points: Number(federal[4].replace(/,/g, "")), date: "" };
+    const idfc = fullText.match(/Total Reward Points Available#?\s*=?\s*([\d,]+)/i);
+    if (idfc) return { points: Number(idfc[1].replace(/,/g, "")), date: "" };
+    const neu = fullText.match(/NeuCoins with Bank.*?Lapsed\s+([\d,]+)\s+[\d,]+\s+[\d,]+\s+[\d,]+\s+[\d,]+/i);
+    if (neu) return { points: Number(neu[1].replace(/,/g, "")), date: "" };
+    return null;
+  }
 
   const nearby = items.filter((item) => Number(item.y) < Number(heading.y)
     && Number(item.y) >= Number(heading.y) - 42
@@ -5633,9 +5745,11 @@ function parseStatementRewardBalance(items) {
 
 function parseStatementPeriod(items) {
   const text = items.map((item) => item.text || "").join(" ");
-  const match = text.match(/(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})/);
+  const match = text.match(/(\d{1,2}[/-](?:\d{1,2}|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[/-]\d{2,4}|\d{1,2}\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s*,?\s*\d{2,4})\s*(?:To|[-–])\s*(\d{1,2}[/-](?:\d{1,2}|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[/-]\d{2,4}|\d{1,2}\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s*,?\s*\d{2,4})/i);
   if (!match) return "";
-  return `${parseStatementDate(match[1])} – ${parseStatementDate(match[2])}`;
+  const start = parseStatementDate(match[1]);
+  const end = parseStatementDate(match[2]);
+  return start && end ? `${start} – ${end}` : "";
 }
 
 function createStatementImportId(cardId, parsedStatement) {
@@ -15850,6 +15964,15 @@ function showPprValueModal(partnerName, currentValue = 0, scope = "all", availab
   }
 
   const showInputs = !isRedeemedBatchAction || action !== "delete";
+  const topUpEnabled = isRedeemedBatchAction && action !== "delete";
+  if (els.pprPartnerTopUpField) els.pprPartnerTopUpField.style.display = topUpEnabled ? "block" : "none";
+  if (els.pprPartnerTopUpSelect) {
+    const sourcePartners = getPprExistingPartnerNames()
+      .filter((name) => normalizePprPartnerName(name) !== normalizePprPartnerName(partnerName))
+      .filter((name) => getPprPartnerUnredeemedPoints(name) > 0);
+    els.pprPartnerTopUpSelect.innerHTML = `<option value="">No additional partner points</option>${sourcePartners.map((name) => `<option value="${escapeAttribute(name)}">${escapeHtml(name)} · ${escapeHtml(formatPoints(getPprPartnerUnredeemedPoints(name)))} available</option>`).join("")}`;
+  }
+  if (els.pprPartnerTopUpPoints) els.pprPartnerTopUpPoints.value = "";
   if (els.pprRedeemPointsInput) {
     els.pprRedeemPointsInput.closest(".field")?.style.setProperty("display", showInputs ? "block" : "none");
     els.pprRedeemPointsInput.value = isRedeemedBatchAction ? "" : "";
@@ -15881,6 +16004,45 @@ function showPprValueModal(partnerName, currentValue = 0, scope = "all", availab
   }
 }
 
+function addPprPartnerTopUpTransfer(sourcePartnerName, destinationPartnerName, points, redemptionId, createdAt) {
+  const sourceName = String(sourcePartnerName || "").trim();
+  const destinationName = String(destinationPartnerName || "").trim();
+  const requestedPoints = Math.max(0, Math.trunc(toNumber(points)));
+  if (!sourceName || !destinationName || requestedPoints <= 0) return { error: "Enter a partner and points for the top-up." };
+  if (normalizePprPartnerName(sourceName) === normalizePprPartnerName(destinationName)) return { error: "Choose a different source partner." };
+
+  const plan = getPprPartnerTransferPlan(sourceName, requestedPoints, 1, 1, 0);
+  if (plan.error) return { error: plan.error };
+  const allocation = normalizePprRedemptionAllocation({
+    id: `${redemptionId}-topup-${createId()}`,
+    redemptionId,
+    points: plan.destinationPoints,
+    value: 0,
+    createdAt,
+  });
+  state.pprPartnerTransfers = [
+    ...(state.pprPartnerTransfers || []),
+    normalizePprPartnerTransfer({
+      id: createId(),
+      sourcePartnerName: sourceName,
+      destinationPartnerName: destinationName,
+      ratioFrom: 1,
+      ratioTo: 1,
+      sourcePoints: plan.sourcePoints,
+      destinationPoints: plan.destinationPoints,
+      redeemedPoints: plan.destinationPoints,
+      monetaryValue: 0,
+      sourceAllocations: plan.sourceAllocations,
+      rootLineages: plan.rootLineages,
+      redemptions: [allocation],
+      valueAllocations: [],
+      createdAt,
+      updatedAt: createdAt,
+    }),
+  ];
+  return { points: plan.destinationPoints };
+}
+
 function closePprValueModal() {
   if (els.pprValueModal) els.pprValueModal.style.display = "none";
   pprValueModalPartnerName = null;
@@ -15894,6 +16056,9 @@ async function savePprPartnerValue() {
 
   const pointsToRedeem = toNumber(els.pprRedeemPointsInput?.value || 0);
   const value = toNumber(els.pprValueInput?.value || 0);
+  const topUpSource = String(els.pprPartnerTopUpSelect?.value || "").trim();
+  const topUpPoints = Math.max(0, Math.trunc(toNumber(els.pprPartnerTopUpPoints?.value || 0)));
+  const topUpAvailable = topUpSource ? getPprPartnerUnredeemedPoints(topUpSource) : 0;
 
   if (pointsToRedeem > pprValueModalAvailablePoints) {
     showToast(`You can redeem up to ${formatPoints(pprValueModalAvailablePoints)}.`);
@@ -15912,6 +16077,19 @@ async function savePprPartnerValue() {
     return;
   }
 
+  if (pprValueModalScope === "redeemed" && topUpPoints > 0) {
+    if (!topUpSource) {
+      showToast("Select the partner providing the additional points.");
+      els.pprPartnerTopUpSelect?.focus();
+      return;
+    }
+    if (topUpPoints > topUpAvailable) {
+      showToast(`Only ${formatPoints(topUpAvailable)} are available from ${topUpSource}.`);
+      els.pprPartnerTopUpPoints?.focus();
+      return;
+    }
+  }
+
   const redemptionId = els.pprRedemptionBatchSelect?.value || "";
   const result = pprValueModalScope === "redeemed"
     ? updatePprRedemptionBatch(pprValueModalPartnerName, redemptionId, pointsToRedeem, value)
@@ -15924,6 +16102,13 @@ async function savePprPartnerValue() {
   if (result?.error) {
     showToast(result.error);
     return;
+  }
+  if (pprValueModalScope === "redeemed" && topUpPoints > 0) {
+    const topUpResult = addPprPartnerTopUpTransfer(topUpSource, pprValueModalPartnerName, topUpPoints, redemptionId, new Date().toISOString());
+    if (topUpResult.error) {
+      showToast(topUpResult.error);
+      return;
+    }
   }
   if (!result?.redeemedPoints) {
     showToast("No unredeemed partner points are available.");
@@ -16163,9 +16348,9 @@ function renderPprWidget() {
               </button>
             `
           : "";
-        const traceHtml = Array.isArray(row.traces) && row.traces.length
-          ? `<span class="ppr-row-trace">${row.traces.slice(0, 2).map((trace) => escapeHtml(trace)).join("<br>")}</span>`
-          : "";
+        // Keep transfer paths inside the partner-details popup only; summary
+        // rows should remain compact and display the usual partner fields.
+        const traceHtml = "";
         return `
         <article class="card-row ppr-partner-row" data-partner-name="${escapeAttribute(row.partnerName)}" data-ppr-scope="${escapeAttribute(scope)}" tabindex="0" role="button" aria-label="View details for ${escapeAttribute(row.partnerName)}" style="padding: 10px 12px; gap: 0; align-items: center; margin: 0;">
           <div class="card-name" style="flex: 1; padding: 0 6px;">
@@ -16424,7 +16609,10 @@ function showPprPartnerDetails(partnerName, scope = "all") {
         </div>
       `;
     } else {
-      els.pprDetailsModalBody.innerHTML = detailGroups.map((group) => {
+      const topUpAction = scope === "redeemed"
+        ? `<div style="display:flex; justify-content:flex-end; margin-bottom:12px;"><button type="button" class="primary-button" data-ppr-open-topup="${escapeAttribute(partnerName)}">Redeem additional points from another partner</button></div>`
+        : "";
+      els.pprDetailsModalBody.innerHTML = topUpAction + detailGroups.map((group) => {
         const groupPoints = getDetailGroupPoints(group);
         const groupValue = getDetailGroupValue(group);
         const groupCardLabels = group.isManual
@@ -16502,6 +16690,15 @@ function showPprPartnerDetails(partnerName, scope = "all") {
 }
 
 function handlePprDetailsAction(event) {
+  const topUpButton = event.target.closest("[data-ppr-open-topup]");
+  if (topUpButton) {
+    const partnerName = topUpButton.dataset.pprOpenTopup || "";
+    const summaryRow = getPprSummary().redeemedRows.find((row) => normalizePprPartnerName(row.partnerName) === normalizePprPartnerName(partnerName));
+    closePprDetailsModal();
+    showPprValueModal(partnerName, toNumber(summaryRow?.value), "redeemed", toNumber(summaryRow?.points), "edit");
+    return;
+  }
+
   const deleteRpSourceButton = event.target.closest("[data-ppr-delete-rp-source]");
   if (deleteRpSourceButton) {
     const rpSpend = state.rpSpends.find((item) => item.id === deleteRpSourceButton.dataset.pprDeleteRpSource);
