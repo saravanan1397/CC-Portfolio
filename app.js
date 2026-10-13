@@ -15974,7 +15974,6 @@ function showPprValueModal(partnerName, currentValue = 0, scope = "all", availab
   if (els.pprPartnerTopUpField) els.pprPartnerTopUpField.style.display = topUpEnabled ? "block" : "none";
   if (els.pprPartnerTopUpSelect) {
     const sourcePartners = getPprExistingPartnerNames()
-      .filter((name) => normalizePprPartnerName(name) !== normalizePprPartnerName(partnerName))
       .filter((name) => getPprPartnerUnredeemedPoints(name) > 0);
     els.pprPartnerTopUpSelect.innerHTML = `<option value="">No additional partner points</option>${sourcePartners.map((name) => `<option value="${escapeAttribute(name)}">${escapeHtml(name)} · ${escapeHtml(formatPoints(getPprPartnerUnredeemedPoints(name)))} available</option>`).join("")}`;
   }
