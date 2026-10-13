@@ -17676,6 +17676,38 @@ body[data-view="intlTravel"] #intlTravelView {
   transform: none !important;
 }
 
+/* Compact, consistent action sizing across the application. */
+.primary-button,
+.ghost-button {
+  min-height: 38px !important;
+  padding: 7px 12px !important;
+  font-size: 0.82rem !important;
+  line-height: 1.15 !important;
+}
+
+.ppr-open-group-topup {
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  white-space: nowrap !important;
+  padding: 6px 10px !important;
+  font-size: 0.76rem !important;
+}
+
+#pprDetailsModal .ppr-open-group-topup {
+  min-height: 34px !important;
+  border-radius: 8px !important;
+}
+
+.ppr-detail-actions {
+  flex-wrap: nowrap !important;
+  gap: 6px !important;
+}
+
+.ppr-detail-manual-actions {
+  gap: 6px !important;
+}
+
 /* Keep the JSON importer available only through the Import button. Mobile
    input sizing rules must never expose the browser's native file control. */
 #importFile {

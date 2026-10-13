@@ -15932,7 +15932,7 @@ function updatePprRedemptionModalSelection() {
   renderPprRedemptionPreview(batch);
 }
 
-function showPprValueModal(partnerName, currentValue = 0, scope = "all", availablePoints = 0, action = "edit") {
+function showPprValueModal(partnerName, currentValue = 0, scope = "all", availablePoints = 0, action = "edit", selectedRedemptionId = "") {
   pprValueModalPartnerName = partnerName;
   pprValueModalScope = scope;
   pprValueModalAvailablePoints = toNumber(availablePoints);
@@ -15964,6 +15964,9 @@ function showPprValueModal(partnerName, currentValue = 0, scope = "all", availab
     els.pprRedemptionBatchSelect.innerHTML = batches.map((batch, index) => (
       `<option value="${escapeAttribute(batch.id)}">${escapeHtml(formatPprBatchOption(batch, index))}</option>`
     )).join("");
+    if (selectedRedemptionId && batches.some((batch) => batch.id === selectedRedemptionId)) {
+      els.pprRedemptionBatchSelect.value = selectedRedemptionId;
+    }
   }
 
   const showInputs = !isRedeemedBatchAction || action !== "delete";
@@ -16615,10 +16618,7 @@ function showPprPartnerDetails(partnerName, scope = "all") {
         </div>
       `;
     } else {
-      const topUpAction = scope === "redeemed"
-        ? `<div style="display:flex; justify-content:flex-end; margin-bottom:12px;"><button type="button" class="primary-button" data-ppr-open-topup="${escapeAttribute(partnerName)}">Redeem additional points from another partner</button></div>`
-        : "";
-      els.pprDetailsModalBody.innerHTML = topUpAction + detailGroups.map((group) => {
+      els.pprDetailsModalBody.innerHTML = detailGroups.map((group) => {
         const groupPoints = getDetailGroupPoints(group);
         const groupValue = getDetailGroupValue(group);
         const groupCardLabels = group.isManual
@@ -16637,6 +16637,12 @@ function showPprPartnerDetails(partnerName, scope = "all") {
               <div class="ppr-detail-meta">Ratio ${group.transfer.ratioFrom}:${group.transfer.ratioTo} · ${escapeHtml(formatPoints(group.transfer.sourcePoints))} source points${group.transfer.bonusPoints > 0 ? ` · ${escapeHtml(formatPoints(group.transfer.bonusPoints))} bonus` : ""}</div>
               <div class="ppr-detail-trace-list">${group.traces.map((trace) => `<span>${escapeHtml(trace)}</span>`).join("")}</div>
             `
+          : "";
+        const groupRedemptionId = group.isTransfer
+          ? (group.transfer?.redemptions || [])[0]?.redemptionId || ""
+          : (group.items || []).flatMap((item) => item.pprRedemptions || [])[0]?.redemptionId || "";
+        const additionalPointsButton = scope === "redeemed"
+          ? `<button type="button" class="primary-button ppr-open-group-topup" data-ppr-partner="${escapeAttribute(partnerName)}" data-ppr-redemption-id="${escapeAttribute(groupRedemptionId)}" data-ppr-group-value="${escapeAttribute(groupValue)}" data-ppr-group-points="${escapeAttribute(groupPoints)}">Redeem additional points</button>`
           : "";
         return `
           <article class="ppr-detail-card">
@@ -16678,6 +16684,7 @@ function showPprPartnerDetails(partnerName, scope = "all") {
                     </div>
                   </div>
                   <div class="ppr-detail-manual-actions">
+                    ${additionalPointsButton}
                     <button type="button" class="ghost-button" data-ppr-open-rp="${escapeAttribute(item.id)}">Edit source transfer</button>
                     <button type="button" class="icon-button subtle" data-ppr-delete-rp-source="${escapeAttribute(item.id)}" title="Delete source transfer" aria-label="Delete source transfer">
                       <svg viewBox="0 0 24 24" width="14"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg>
@@ -16696,12 +16703,13 @@ function showPprPartnerDetails(partnerName, scope = "all") {
 }
 
 function handlePprDetailsAction(event) {
-  const topUpButton = event.target.closest("[data-ppr-open-topup]");
+  const topUpButton = event.target.closest(".ppr-open-group-topup");
   if (topUpButton) {
-    const partnerName = topUpButton.dataset.pprOpenTopup || "";
-    const summaryRow = getPprSummary().redeemedRows.find((row) => normalizePprPartnerName(row.partnerName) === normalizePprPartnerName(partnerName));
+    const partnerName = topUpButton.dataset.pprPartner || "";
+    const groupValue = toNumber(topUpButton.dataset.pprGroupValue);
+    const groupPoints = toNumber(topUpButton.dataset.pprGroupPoints);
     closePprDetailsModal();
-    showPprValueModal(partnerName, toNumber(summaryRow?.value), "redeemed", toNumber(summaryRow?.points), "edit");
+    showPprValueModal(partnerName, groupValue, "redeemed", groupPoints, "edit", topUpButton.dataset.pprRedemptionId || "");
     return;
   }
 
