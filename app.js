@@ -16779,11 +16779,11 @@ function showPprPartnerDetails(partnerName, scope = "all") {
                     </div>
                   </div>
                   <div class="ppr-detail-manual-actions">
-                    ${additionalPointsButton}
+                    ${item.topUpTrace ? "" : `${additionalPointsButton}
                     <button type="button" class="ghost-button" data-ppr-open-rp="${escapeAttribute(item.id)}">Edit source transfer</button>
                     <button type="button" class="icon-button subtle" data-ppr-delete-rp-source="${escapeAttribute(item.id)}" title="Delete source transfer" aria-label="Delete source transfer">
                       <svg viewBox="0 0 24 24" width="14"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg>
-                    </button>
+                    </button>`}
                   </div>
                 </div>
               `).join("")}
@@ -16813,11 +16813,22 @@ function handlePprDetailsAction(event) {
     const rpSpend = state.rpSpends.find((item) => item.id === deleteRpSourceButton.dataset.pprDeleteRpSource);
     if (!rpSpend || !isPartnerProgramRpSpend(rpSpend)) return;
     const dependentTransfers = getPprPartnerTransferIdsUsingSource("card", rpSpend.id);
+    const linkedTopUps = new Set(
+      (state.pprPartnerTransfers || [])
+        .filter((transfer) => transfer.redemptionTopUp === true
+          && (String(transfer.targetPurchaseId || "") === String(rpSpend.purchaseId || "")
+            || transfer.sourceAllocations.some((allocation) => allocation.type === "card" && allocation.sourceId === rpSpend.id)))
+        .map((transfer) => transfer.id)
+    );
+    linkedTopUps.forEach((id) => dependentTransfers.add(id));
     const dependentCopy = dependentTransfers.size
       ? ` This also removes and restores ${dependentTransfers.size} downstream transfer${dependentTransfers.size === 1 ? "" : "s"}.`
       : "";
     if (!window.confirm(`Delete this card-to-partner transfer and restore its card points?${dependentCopy}`)) return;
-    if (dependentTransfers.size) removePprPartnerTransfersUsingSource("card", rpSpend.id);
+    if (dependentTransfers.size) {
+      state.pprPartnerTransfers = (state.pprPartnerTransfers || [])
+        .filter((transfer) => !dependentTransfers.has(transfer.id));
+    }
     state.rpSpends = state.rpSpends.filter((item) => item.id !== rpSpend.id);
     syncRpRedeemedBenefitsFromSpends();
     saveState();
