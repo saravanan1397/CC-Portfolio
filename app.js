@@ -16558,7 +16558,35 @@ function getPprPartnerDetailGroups(partnerName, scope = "all") {
     })
     .filter(Boolean);
 
-  return [...Array.from(groups.values()), ...manualGroups, ...transferGroups]
+  // Redemption top-ups belong to the redemption that consumed them. Merge
+  // them into that source block instead of showing an extra same-partner
+  // transfer card.
+  const standaloneTransferGroups = transferGroups.filter((group) => {
+    if (!group.transfer?.redemptionTopUp) return true;
+    const redemptionIds = new Set((group.transfer.redemptions || []).map((item) => item.redemptionId));
+    const targetGroup = Array.from(groups.values()).find((candidate) =>
+      (candidate.items || []).some((item) =>
+        (item.pprRedemptions || []).some((allocation) => redemptionIds.has(allocation.redemptionId))
+      )
+    );
+    if (!targetGroup) return false;
+    const topUpPoints = group.points;
+    const topUpValue = group.value;
+    targetGroup.points += topUpPoints;
+    targetGroup.value += topUpValue;
+    targetGroup.items.push({
+      id: `topup-${group.transfer.id}`,
+      productName: "Additional partner points",
+      pprDisplayPoints: topUpPoints,
+      pprDisplayValue: topUpValue,
+      originatingCardId: "",
+      topUpTrace: group.traces?.join("; ") || "Partner top-up",
+      pprRedemptions: group.transfer.redemptions || [],
+    });
+    return false;
+  });
+
+  return [...Array.from(groups.values()), ...manualGroups, ...standaloneTransferGroups]
     .sort((a, b) => new Date(b.latestDate || 0) - new Date(a.latestDate || 0));
 }
 
@@ -16701,7 +16729,7 @@ function showPprPartnerDetails(partnerName, scope = "all") {
                 <div class="ppr-detail-item">
                   <div>
                     <strong>${escapeHtml(item.productName || "Reward spend")}</strong>
-                    <div class="ppr-detail-meta">${escapeHtml(getContributingCardLabel(item))}</div>
+                    <div class="ppr-detail-meta">${escapeHtml(item.topUpTrace || getContributingCardLabel(item))}</div>
                     <div class="ppr-detail-meta">
                       ${escapeHtml(formatPoints(item.pprDisplayPoints))} | ${escapeHtml(formatMoney(item.pprDisplayValue))} redeemed value
                     </div>
