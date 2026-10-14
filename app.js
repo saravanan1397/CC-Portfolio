@@ -2072,7 +2072,12 @@ function getActivityPartnerUnredeemedPoints(snapshot, partnerName) {
 
     const sourcePoints = Math.max(0, getPartnerProgramPoints(spend));
     const explicitlyRedeemed = Math.max(0, toNumber(spend.partnerRedeemedPoints));
-    const redeemedPoints = explicitlyRedeemed > 0
+    // Monetary value belongs to the exact PPR redemption allocation. It must
+    // never imply that the entire source transfer was redeemed: a 500-point
+    // redemption from a 4,816-point transfer leaves the other 4,316 points
+    // unredeemed.
+    const hasExplicitRedemptionLedger = Object.prototype.hasOwnProperty.call(spend, "partnerRedeemedPoints");
+    const redeemedPoints = hasExplicitRedemptionLedger
       ? Math.min(sourcePoints, explicitlyRedeemed)
       : toNumber(spend.pointsValue) > 0
         ? sourcePoints
@@ -2892,6 +2897,7 @@ function normalizePprPartnerTransfer(transfer = {}) {
     valueAllocations: Array.isArray(transfer.valueAllocations)
       ? transfer.valueAllocations.map(normalizePprTransferValueAllocation).filter((item) => item.rootId && item.value >= 0)
       : [],
+    redemptionTopUp: transfer.redemptionTopUp === true,
     createdAt: transfer.createdAt || new Date().toISOString(),
     updatedAt: transfer.updatedAt || transfer.createdAt || new Date().toISOString(),
   };
@@ -15315,6 +15321,13 @@ function restorePprRedemptionBatch(partnerName, redemptionId) {
     if (!removed.length) return rawTransfer;
     const removedPoints = removed.reduce((sum, allocation) => sum + allocation.points, 0);
     const removedValue = removed.reduce((sum, allocation) => sum + allocation.value, 0);
+    const isTopUpTransfer = transfer.redemptionTopUp === true
+      || (normalizePprPartnerName(transfer.sourcePartnerName) === normalizePprPartnerName(transfer.destinationPartnerName)
+        && transfer.ratioFrom === 1
+        && transfer.ratioTo === 1
+        && transfer.monetaryValue === 0
+        && transfer.destinationPoints === transfer.sourcePoints);
+    if (isTopUpTransfer && transfer.redemptions.length === removed.length) return null;
     return normalizePprPartnerTransfer({
       ...transfer,
       redeemedPoints: Math.max(0, transfer.redeemedPoints - removedPoints),
@@ -15323,7 +15336,7 @@ function restorePprRedemptionBatch(partnerName, redemptionId) {
       valueAllocations: transfer.valueAllocations.filter((allocation) => allocation.redemptionId !== redemptionId),
       updatedAt: new Date().toISOString(),
     });
-  });
+  }).filter(Boolean);
 
   return {
     redeemedPoints: batch.points,
@@ -15880,6 +15893,8 @@ let pprValueModalScope = "all";
 let pprValueModalAvailablePoints = 0;
 let pprValueModalAction = "edit";
 let pprValueModalTopUpOnly = false;
+let pprValueModalBasePoints = 0;
+let pprValueModalBaseValue = 0;
 
 function getPprPartnerUnredeemedPoints(partnerName) {
   const row = getPprSummary().unredeemedRows
@@ -15937,6 +15952,8 @@ function showPprValueModal(partnerName, currentValue = 0, scope = "all", availab
   pprValueModalScope = scope;
   pprValueModalAvailablePoints = toNumber(availablePoints);
   pprValueModalAction = action;
+  pprValueModalBasePoints = toNumber(availablePoints);
+  pprValueModalBaseValue = toNumber(currentValue);
 
   const isRedeemedBatchAction = scope === "redeemed";
   const batches = isRedeemedBatchAction ? getPprRedemptionBatches(partnerName) : [];
@@ -16009,20 +16026,18 @@ function showPprValueModal(partnerName, currentValue = 0, scope = "all", availab
   }
 }
 
-function addPprPartnerTopUpTransfer(sourcePartnerName, destinationPartnerName, points, redemptionId, createdAt) {
+function addPprPartnerTopUpTransfer(sourcePartnerName, destinationPartnerName, points, redemptionId, createdAt, monetaryValue = 0) {
   const sourceName = String(sourcePartnerName || "").trim();
   const destinationName = String(destinationPartnerName || "").trim();
   const requestedPoints = Math.max(0, Math.trunc(toNumber(points)));
   if (!sourceName || !destinationName || requestedPoints <= 0) return { error: "Enter a partner and points for the top-up." };
-  if (normalizePprPartnerName(sourceName) === normalizePprPartnerName(destinationName)) return { error: "Choose a different source partner." };
-
   const plan = getPprPartnerTransferPlan(sourceName, requestedPoints, 1, 1, 0);
   if (plan.error) return { error: plan.error };
   const allocation = normalizePprRedemptionAllocation({
     id: `${redemptionId}-topup-${createId()}`,
     redemptionId,
     points: plan.destinationPoints,
-    value: 0,
+    value: monetaryValue,
     createdAt,
   });
   state.pprPartnerTransfers = [
@@ -16036,11 +16051,12 @@ function addPprPartnerTopUpTransfer(sourcePartnerName, destinationPartnerName, p
       sourcePoints: plan.sourcePoints,
       destinationPoints: plan.destinationPoints,
       redeemedPoints: plan.destinationPoints,
-      monetaryValue: 0,
+      monetaryValue,
+      redemptionTopUp: true,
       sourceAllocations: plan.sourceAllocations,
       rootLineages: plan.rootLineages,
       redemptions: [allocation],
-      valueAllocations: [],
+      valueAllocations: buildPprRootValueAllocations(plan.rootLineages, monetaryValue, redemptionId),
       createdAt,
       updatedAt: createdAt,
     }),
@@ -16055,6 +16071,8 @@ function closePprValueModal() {
   pprValueModalAvailablePoints = 0;
   pprValueModalAction = "edit";
   pprValueModalTopUpOnly = false;
+  pprValueModalBasePoints = 0;
+  pprValueModalBaseValue = 0;
 }
 
 async function savePprPartnerValue() {
@@ -16097,6 +16115,12 @@ async function savePprPartnerValue() {
   }
 
   const redemptionId = els.pprRedemptionBatchSelect?.value || (topUpPoints > 0 ? createId() : "");
+  const selectedBatch = redemptionId ? getPprRedemptionBatch(pprValueModalPartnerName, redemptionId) : null;
+  const basePoints = selectedBatch?.points || pprValueModalBasePoints;
+  const baseValue = selectedBatch?.value || pprValueModalBaseValue;
+  const topUpValue = topUpPoints > 0 && basePoints > 0
+    ? Math.round(((baseValue / basePoints) * topUpPoints + Number.EPSILON) * 100) / 100
+    : 0;
   const result = pprValueModalScope === "redeemed" && !pprValueModalTopUpOnly
     ? updatePprRedemptionBatch(pprValueModalPartnerName, redemptionId, pointsToRedeem, value)
     : pprValueModalScope === "redeemed"
@@ -16112,7 +16136,7 @@ async function savePprPartnerValue() {
     return;
   }
   if (pprValueModalScope === "redeemed" && topUpPoints > 0) {
-    const topUpResult = addPprPartnerTopUpTransfer(topUpSource, pprValueModalPartnerName, topUpPoints, redemptionId, new Date().toISOString());
+    const topUpResult = addPprPartnerTopUpTransfer(topUpSource, pprValueModalPartnerName, topUpPoints, redemptionId, new Date().toISOString(), topUpValue);
     if (topUpResult.error) {
       showToast(topUpResult.error);
       return;
