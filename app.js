@@ -16144,7 +16144,9 @@ async function savePprPartnerValue() {
     ? Math.round((baseValue * (topUpPoints / combinedPoints) + Number.EPSILON) * 100) / 100
     : 0;
   const adjustedExistingValue = Math.max(0, Math.round((baseValue - topUpValue + Number.EPSILON) * 100) / 100);
-  const result = pprValueModalScope === "redeemed" && !pprValueModalTopUpOnly
+  const isTopUpOnlySave = pprValueModalScope === "redeemed"
+    && (pprValueModalTopUpOnly || (topUpPoints > 0 && pointsToRedeem <= 0));
+  const result = pprValueModalScope === "redeemed" && !isTopUpOnlySave
     ? updatePprRedemptionBatch(
       pprValueModalPartnerName,
       redemptionId,
