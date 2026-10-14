@@ -2898,6 +2898,7 @@ function normalizePprPartnerTransfer(transfer = {}) {
       ? transfer.valueAllocations.map(normalizePprTransferValueAllocation).filter((item) => item.rootId && item.value >= 0)
       : [],
     redemptionTopUp: transfer.redemptionTopUp === true,
+    targetPurchaseId: String(transfer.targetPurchaseId || ""),
     createdAt: transfer.createdAt || new Date().toISOString(),
     updatedAt: transfer.updatedAt || transfer.createdAt || new Date().toISOString(),
   };
@@ -15895,6 +15896,7 @@ let pprValueModalAction = "edit";
 let pprValueModalTopUpOnly = false;
 let pprValueModalBasePoints = 0;
 let pprValueModalBaseValue = 0;
+let pprValueModalTargetPurchaseId = "";
 
 function getPprPartnerUnredeemedPoints(partnerName) {
   const row = getPprSummary().unredeemedRows
@@ -15947,13 +15949,14 @@ function updatePprRedemptionModalSelection() {
   renderPprRedemptionPreview(batch);
 }
 
-function showPprValueModal(partnerName, currentValue = 0, scope = "all", availablePoints = 0, action = "edit", selectedRedemptionId = "") {
+function showPprValueModal(partnerName, currentValue = 0, scope = "all", availablePoints = 0, action = "edit", selectedRedemptionId = "", targetPurchaseId = "") {
   pprValueModalPartnerName = partnerName;
   pprValueModalScope = scope;
   pprValueModalAvailablePoints = toNumber(availablePoints);
   pprValueModalAction = action;
   pprValueModalBasePoints = toNumber(availablePoints);
   pprValueModalBaseValue = toNumber(currentValue);
+  pprValueModalTargetPurchaseId = String(targetPurchaseId || "");
 
   const isRedeemedBatchAction = scope === "redeemed";
   const batches = isRedeemedBatchAction ? getPprRedemptionBatches(partnerName) : [];
@@ -16026,7 +16029,7 @@ function showPprValueModal(partnerName, currentValue = 0, scope = "all", availab
   }
 }
 
-function addPprPartnerTopUpTransfer(sourcePartnerName, destinationPartnerName, points, redemptionId, createdAt, monetaryValue = 0) {
+function addPprPartnerTopUpTransfer(sourcePartnerName, destinationPartnerName, points, redemptionId, createdAt, monetaryValue = 0, targetPurchaseId = "") {
   const sourceName = String(sourcePartnerName || "").trim();
   const destinationName = String(destinationPartnerName || "").trim();
   const requestedPoints = Math.max(0, Math.trunc(toNumber(points)));
@@ -16053,6 +16056,7 @@ function addPprPartnerTopUpTransfer(sourcePartnerName, destinationPartnerName, p
       redeemedPoints: plan.destinationPoints,
       monetaryValue,
       redemptionTopUp: true,
+      targetPurchaseId,
       sourceAllocations: plan.sourceAllocations,
       rootLineages: plan.rootLineages,
       redemptions: [allocation],
@@ -16064,6 +16068,22 @@ function addPprPartnerTopUpTransfer(sourcePartnerName, destinationPartnerName, p
   return { points: plan.destinationPoints };
 }
 
+function reduceRpSpendRedemptionValueForTopUp(partnerName, points, currentValue, nextValue) {
+  const source = getPprCardContributionSources(partnerName).find((item) =>
+    Math.abs(item.redeemedPoints - points) < 0.0001
+    && Math.abs(toNumber(item.spend.pointsValue) - currentValue) < 0.01
+  );
+  if (!source) return false;
+  const spend = source.spend;
+  const ratio = currentValue > 0 ? nextValue / currentValue : 0;
+  spend.pointsValue = nextValue;
+  spend.pprRedemptions = (Array.isArray(spend.pprRedemptions) ? spend.pprRedemptions : []).map((entry) => ({
+    ...entry,
+    value: Math.round((toNumber(entry.value) * ratio + Number.EPSILON) * 100) / 100,
+  }));
+  return true;
+}
+
 function closePprValueModal() {
   if (els.pprValueModal) els.pprValueModal.style.display = "none";
   pprValueModalPartnerName = null;
@@ -16073,6 +16093,7 @@ function closePprValueModal() {
   pprValueModalTopUpOnly = false;
   pprValueModalBasePoints = 0;
   pprValueModalBaseValue = 0;
+  pprValueModalTargetPurchaseId = "";
 }
 
 async function savePprPartnerValue() {
@@ -16118,11 +16139,18 @@ async function savePprPartnerValue() {
   const selectedBatch = redemptionId ? getPprRedemptionBatch(pprValueModalPartnerName, redemptionId) : null;
   const basePoints = selectedBatch?.points || pprValueModalBasePoints;
   const baseValue = selectedBatch?.value || pprValueModalBaseValue;
-  const topUpValue = topUpPoints > 0 && basePoints > 0
-    ? Math.round(((baseValue / basePoints) * topUpPoints + Number.EPSILON) * 100) / 100
+  const combinedPoints = basePoints + topUpPoints;
+  const topUpValue = topUpPoints > 0 && combinedPoints > 0
+    ? Math.round((baseValue * (topUpPoints / combinedPoints) + Number.EPSILON) * 100) / 100
     : 0;
+  const adjustedExistingValue = Math.max(0, Math.round((baseValue - topUpValue + Number.EPSILON) * 100) / 100);
   const result = pprValueModalScope === "redeemed" && !pprValueModalTopUpOnly
-    ? updatePprRedemptionBatch(pprValueModalPartnerName, redemptionId, pointsToRedeem, value)
+    ? updatePprRedemptionBatch(
+      pprValueModalPartnerName,
+      redemptionId,
+      pointsToRedeem,
+      topUpPoints > 0 ? adjustedExistingValue : value
+    )
     : pprValueModalScope === "redeemed"
       ? { redeemedPoints: topUpPoints, redeemedValue: 0, allocations: [] }
     : distributePartnerRedeemedValue(
@@ -16136,10 +16164,18 @@ async function savePprPartnerValue() {
     return;
   }
   if (pprValueModalScope === "redeemed" && topUpPoints > 0) {
-    const topUpResult = addPprPartnerTopUpTransfer(topUpSource, pprValueModalPartnerName, topUpPoints, redemptionId, new Date().toISOString(), topUpValue);
+    const topUpResult = addPprPartnerTopUpTransfer(topUpSource, pprValueModalPartnerName, topUpPoints, redemptionId, new Date().toISOString(), topUpValue, pprValueModalTargetPurchaseId);
     if (topUpResult.error) {
       showToast(topUpResult.error);
       return;
+    }
+    if (pprValueModalTopUpOnly) {
+      reduceRpSpendRedemptionValueForTopUp(
+        pprValueModalPartnerName,
+        basePoints,
+        baseValue,
+        adjustedExistingValue
+      );
     }
   }
   if (!result?.redeemedPoints) {
@@ -16564,11 +16600,19 @@ function getPprPartnerDetailGroups(partnerName, scope = "all") {
   const standaloneTransferGroups = transferGroups.filter((group) => {
     if (!group.transfer?.redemptionTopUp) return true;
     const redemptionIds = new Set((group.transfer.redemptions || []).map((item) => item.redemptionId));
-    const targetGroup = Array.from(groups.values()).find((candidate) =>
+    let targetGroup = Array.from(groups.values()).find((candidate) =>
+      (group.transfer.targetPurchaseId && candidate.purchaseId === group.transfer.targetPurchaseId)
+      ||
       (candidate.items || []).some((item) =>
         (item.pprRedemptions || []).some((allocation) => redemptionIds.has(allocation.redemptionId))
       )
     );
+    if (!targetGroup && !group.transfer.targetPurchaseId) {
+      targetGroup = Array.from(groups.values()).sort((a, b) =>
+        Math.abs(new Date(a.latestDate || 0) - new Date(group.latestDate || 0))
+        - Math.abs(new Date(b.latestDate || 0) - new Date(group.latestDate || 0))
+      )[0];
+    }
     if (!targetGroup) return false;
     const topUpPoints = group.points;
     const topUpValue = group.value;
@@ -16693,7 +16737,7 @@ function showPprPartnerDetails(partnerName, scope = "all") {
           ? (group.transfer?.redemptions || [])[0]?.redemptionId || ""
           : (group.items || []).flatMap((item) => item.pprRedemptions || [])[0]?.redemptionId || "";
         const additionalPointsButton = scope === "redeemed"
-          ? `<button type="button" class="primary-button ppr-open-group-topup" data-ppr-partner="${escapeAttribute(partnerName)}" data-ppr-redemption-id="${escapeAttribute(groupRedemptionId)}" data-ppr-group-value="${escapeAttribute(groupValue)}" data-ppr-group-points="${escapeAttribute(groupPoints)}">Redeem additional points</button>`
+          ? `<button type="button" class="primary-button ppr-open-group-topup" data-ppr-partner="${escapeAttribute(partnerName)}" data-ppr-redemption-id="${escapeAttribute(groupRedemptionId)}" data-ppr-purchase-id="${escapeAttribute(group.purchaseId)}" data-ppr-group-value="${escapeAttribute(groupValue)}" data-ppr-group-points="${escapeAttribute(groupPoints)}">Redeem additional points</button>`
           : "";
         return `
           <article class="ppr-detail-card">
@@ -16760,7 +16804,7 @@ function handlePprDetailsAction(event) {
     const groupValue = toNumber(topUpButton.dataset.pprGroupValue);
     const groupPoints = toNumber(topUpButton.dataset.pprGroupPoints);
     closePprDetailsModal();
-    showPprValueModal(partnerName, groupValue, "redeemed", groupPoints, "edit", topUpButton.dataset.pprRedemptionId || "");
+    showPprValueModal(partnerName, groupValue, "redeemed", groupPoints, "edit", topUpButton.dataset.pprRedemptionId || "", topUpButton.dataset.pprPurchaseId || "");
     return;
   }
 
