@@ -2465,6 +2465,59 @@ body::after {
   .ai-assist-panel::after { width: 69%; opacity: 0.1; } /* legacy visual layer */
 }
 
+@media (max-width: 430px) {
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions > #lockBtn,
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions > .refresh-view-button {
+    flex: 0 1 82% !important;
+    width: 82% !important;
+    max-width: 82% !important;
+    min-width: 0 !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions .topbar-file-action {
+    flex: 0 1 39% !important;
+    width: 39% !important;
+    max-width: 39% !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions > button {
+    min-height: 34px !important;
+    height: 34px !important;
+    padding: 0 8px !important;
+    font-size: 0.62rem !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .topbar-actions {
+    justify-content: center !important;
+    gap: 6px !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .topbar-actions > .refresh-view-button,
+  body[data-view]:not([data-view="dashboard"]) .topbar-actions > #lockBtn {
+    flex: 0 1 82% !important;
+    width: 82% !important;
+    min-width: 0 !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .topbar-actions .topbar-file-action {
+    flex: 0 1 39% !important;
+    width: 39% !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .topbar-actions button {
+    min-height: 34px !important;
+    height: 34px !important;
+    padding: 0 8px !important;
+    font-size: 0.62rem !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .topbar-actions .topbar-file-action svg,
+  body[data-view]:not([data-view="dashboard"]) .topbar-actions .refresh-view-button svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+}
+
 /* Final widget header alignment: flat strip, page context left, actions right. */
 body[data-view]:not([data-view="dashboard"]) #app#app#app .app-shell > .topbar {
   position: sticky !important;
@@ -17639,6 +17692,61 @@ body[data-view="intlTravel"] #intlTravelView {
   box-sizing: border-box !important;
 }
 
+/* Compact mobile action layout: keep utility buttons aligned without oversized rows. */
+@media (max-width: 760px) {
+  body[data-view]:not([data-view="dashboard"]) .topbar-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .topbar-actions > .floating-actions {
+    display: contents !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .topbar-actions > .refresh-view-button,
+  body[data-view]:not([data-view="dashboard"]) .topbar-actions > #lockBtn {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .topbar-actions .topbar-file-action {
+    flex: 1 1 calc(50% - 4px) !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .topbar-actions > .widget-activity-button {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .topbar-actions button {
+    min-height: 42px !important;
+    height: 42px !important;
+    padding: 0 12px !important;
+    border-radius: 999px !important;
+    white-space: nowrap !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) .topbar-actions .topbar-file-action svg,
+  body[data-view]:not([data-view="dashboard"]) .topbar-actions .refresh-view-button svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  #pprView .portfolio-heading > .primary-button,
+  #pprView .primary-button,
+  #pprView .ppr-open-group-topup {
+    min-height: 44px !important;
+    height: auto !important;
+    padding: 10px 14px !important;
+    font-size: 0.82rem !important;
+    line-height: 1.15 !important;
+  }
+}
+
 /* Keep portfolio file actions visually consistent with the dashboard icon controls. */
 .topbar-file-action {
   display: inline-flex !important;
@@ -18728,5 +18836,93 @@ body #lockScreen button.pin-button:not(#addSwipeBtn) {
   #toolsView .tools-editor-panel iframe {
     min-height: 620px;
     height: 78vh;
+  }
+}
+
+/* Final mobile action sizing override. */
+@media (max-width: 430px) {
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-navigation > #backFromPortfolioBtn,
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-navigation > #backFromSwipesBtn,
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-navigation > #backFromRpSpendsBtn,
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-navigation > #backFromPprBtn,
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-navigation > #backFromInterestIncomeBtn,
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-navigation > #backFromLoungeBtn,
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-navigation > #backFromIntlTravelBtn {
+    display: none !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions > #saveStatus {
+    display: none !important;
+    flex: 0 0 0 !important;
+    width: 0 !important;
+    max-width: 0 !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions > button,
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions .topbar-file-action {
+    flex: 0 0 36px !important;
+    width: 36px !important;
+    max-width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions .refresh-view-button span,
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions > #lockBtn {
+    font-size: 0 !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions > #lockBtn::before {
+    content: "↪";
+    font-size: 1.35rem;
+    line-height: 1;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions .refresh-view-button svg,
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions .topbar-file-action svg,
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions .widget-activity-button svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions > #lockBtn,
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions > .refresh-view-button {
+    flex: 0 0 36px !important;
+    width: 36px !important;
+    max-width: 36px !important;
+    min-width: 0 !important;
+  }
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions .topbar-file-action {
+    flex: 0 0 36px !important;
+    width: 36px !important;
+    max-width: 36px !important;
+  }
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions > button {
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions {
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    overflow: visible !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) #app#app#app .topbar-actions .floating-actions {
+    display: contents !important;
   }
 }
