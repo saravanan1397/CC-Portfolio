@@ -84,12 +84,27 @@ const cardEarningRates = [
     cardName: "HDFC Tata Neu Infinity",
     baseRate: { type: "percent_of_spend", rewardUnit: "NeuCoins", percent: 1.5, rounding: "unconfirmed" },
     acceleratedRates: [{
-      label: "Tata Neu and partner purchases",
+      label: "Tata Neu eligible partner purchases (5% NeuCoins)",
       status: "needs_confirmation",
       rate: { type: "percent_of_spend", rewardUnit: "NeuCoins", percent: 5, rounding: "unconfirmed" },
-      condition: { type: "merchant", description: "Eligible Tata Neu and partner purchases" },
+      condition: { type: "merchant", description: "Tata 1MG, bigbasket, Croma, Air India Express, Tata CliQ, IHCL (TAJ group of hotels), Westside, Qmin, Tata Play, Cult, Tata Pay eligible bill payments and gift-card purchases, Titan, Tanishq, and Air India" },
+      merchantKeywords: ["tata 1mg", "bigbasket", "croma", "air india express", "tata cliq", "ihcl", "taj", "westside", "qmin", "tata play", "cult", "tata pay", "titan", "tanishq", "air india"],
     }],
-    unresolved: ["Confirm NeuCoin calculation/rounding, eligible partner list, caps, and exclusions."],
+    exclusions: ["education fees", "municipal taxes", "echallan", "e challan", "nps", "housing society", "rental"],
+    unresolved: ["Confirm NeuCoin calculation/rounding, caps, and Tata Pay exclusions: education fees, municipal taxes/e-challan/NPS, housing society, and rental transactions."],
+  },
+  {
+    cardName: "HDFC Tata Neu Plus",
+    baseRate: { type: "percent_of_spend", rewardUnit: "NeuCoins", percent: 1.5, rounding: "unconfirmed" },
+    acceleratedRates: [{
+      label: "Tata Neu eligible partner purchases (2% NeuCoins)",
+      status: "needs_confirmation",
+      rate: { type: "percent_of_spend", rewardUnit: "NeuCoins", percent: 2, rounding: "unconfirmed" },
+      condition: { type: "merchant", description: "Tata 1MG, bigbasket, Croma, Air India Express, Tata CliQ, IHCL (TAJ group of hotels), Westside, Qmin, Tata Play, Cult, Tata Pay eligible bill payments and gift-card purchases, Titan, Tanishq, and Air India" },
+      merchantKeywords: ["tata 1mg", "bigbasket", "croma", "air india express", "tata cliq", "ihcl", "taj", "westside", "qmin", "tata play", "cult", "tata pay", "titan", "tanishq", "air india"],
+    }],
+    exclusions: ["education fees", "municipal taxes", "echallan", "e challan", "nps", "housing society", "rental"],
+    unresolved: ["Confirm NeuCoin calculation/rounding, caps, and Tata Pay exclusions: education fees, municipal taxes/e-challan/NPS, housing society, and rental transactions."],
   },
   {
     cardName: "Amex Platinum Travel",
@@ -172,6 +187,7 @@ function getCardEarningRate(cardName) {
     "imperio": "federal bank imperio",
     "platinum travel": "amex platinum travel",
     "tata neu infinity": "hdfc tata neu infinity",
+    "tata neu plus": "hdfc tata neu plus",
   };
   const lookupName = aliases[normalizedName] || normalizedName;
   return cardEarningRates.find((entry) => {
@@ -2470,7 +2486,7 @@ function getDefaultStatementEarningRules(cardName) {
     baseRateType: baseRate.type || "points_per_spend",
     basePoints,
     baseSpend,
-    categories: (catalogEntry.acceleratedRates || []).map((accelerated, index) => {
+    categories: (catalogEntry.acceleratedRates || []).flatMap((accelerated, index) => {
       const rate = accelerated.rate || {};
       const acceleratedPoints = rate.type === "percent_of_spend"
         ? toNumber(rate.percent)
@@ -2484,9 +2500,12 @@ function getDefaultStatementEarningRules(cardName) {
           : 0;
       const effectiveRateType = rate.type === "multiplier" ? baseRate.type : (rate.type || baseRate.type);
       const multiplier = basePoints > 0 ? acceleratedPoints / basePoints : 0;
-      return {
-        id: `catalog-${String(cardName || "card").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${index + 1}`,
-        match: `Acc Rewards - ${accelerated.label || `Rule ${index + 1}`}`,
+      const matches = Array.isArray(accelerated.merchantKeywords) && accelerated.merchantKeywords.length
+        ? accelerated.merchantKeywords
+        : [`Acc Rewards - ${accelerated.label || `Rule ${index + 1}`}`];
+      return matches.map((match, matchIndex) => ({
+        id: `catalog-${String(cardName || "card").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${index + 1}-${matchIndex + 1}`,
+        match,
         multiplier,
         rateType: effectiveRateType || "points_per_spend",
         ratePoints: acceleratedPoints,
@@ -2495,9 +2514,9 @@ function getDefaultStatementEarningRules(cardName) {
         capSpend: 0,
         capPoints: 0,
         capPeriod: "statement",
-      };
+      }));
     }),
-    exclusions: [],
+    exclusions: Array.isArray(catalogEntry.exclusions) ? catalogEntry.exclusions : [],
   };
 }
 
@@ -16695,7 +16714,12 @@ function showPprPartnerDetails(partnerName, scope = "all") {
   };
 
   const getGroupCardLabels = (group) => {
-    const labels = [...new Set(group.items.map((item) => getContributingCardLabel(item)).filter(Boolean))];
+    const labels = [...new Set(group.items.flatMap((item) => {
+      if (item.topUpTrace) {
+        return [String(item.topUpTrace).split(" → ")[0].trim()];
+      }
+      return [getContributingCardLabel(item)];
+    }).filter(Boolean))];
     return labels.length ? labels : ["Card not found"];
   };
 
