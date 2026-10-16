@@ -17344,8 +17344,15 @@ async function authenticatePortfolio(createAccount = false) {
   }
 
   if (!window.portfolioAuth) {
+    try {
+      if (window.portfolioAuthReady) await window.portfolioAuthReady;
+    } catch (error) {
+      console.error("Firebase authentication module failed to load", error);
+    }
+  }
+  if (!window.portfolioAuth) {
     if (errorMessage) {
-      errorMessage.textContent = "Authentication is still loading. Please try again in a moment.";
+      errorMessage.textContent = "Authentication could not start. Please refresh and try again.";
       errorMessage.style.display = "block";
     }
     return;
