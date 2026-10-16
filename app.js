@@ -17345,7 +17345,21 @@ async function authenticatePortfolio(createAccount = false) {
 
   if (!window.portfolioAuth) {
     try {
-      if (window.portfolioAuthReady) await window.portfolioAuthReady;
+      if (window.portfolioAuthReady) {
+        await window.portfolioAuthReady;
+      } else {
+        await new Promise((resolve) => {
+          const startedAt = Date.now();
+          const check = () => {
+            if (window.portfolioAuth || Date.now() - startedAt >= 15000) {
+              resolve();
+              return;
+            }
+            window.setTimeout(check, 100);
+          };
+          check();
+        });
+      }
     } catch (error) {
       console.error("Firebase authentication module failed to load", error);
     }
