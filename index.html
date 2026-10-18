@@ -305,6 +305,7 @@
     appId: "1:459587513450:web:b93829e8cb1d57f4516e13"
   };
 
+
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const auth = getAuth(app);
@@ -1584,6 +1585,17 @@
         </section>
       </div>
 
+      <div id="investmentCompaniesModal" class="details-modal" role="presentation" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:20003; align-items:center; justify-content:center; padding:20px;">
+        <section class="details-dialog investment-companies-dialog" role="dialog" aria-modal="true" aria-labelledby="investmentCompaniesTitle">
+          <header class="dividend-breakdown-header">
+            <div><h3 id="investmentCompaniesTitle">Stock companies</h3><p>Manage saved company names used for dividend entries.</p></div>
+            <button id="investmentCompaniesCloseBtn" class="dividend-breakdown-icon-close" type="button" aria-label="Close companies">&times;</button>
+          </header>
+          <div id="investmentCompaniesBody" class="investment-companies-table" role="table" aria-live="polite"></div>
+          <footer class="dividend-breakdown-footer"><button id="investmentCompaniesFooterCloseBtn" class="ghost-button" type="button">Close</button></footer>
+        </section>
+      </div>
+
       <main id="interestIncomeView" style="display:none;">
         <section class="portfolio-panel income-ledger-panel" aria-label="Interest and additional income">
           <div class="panel-heading portfolio-heading income-ledger-heading">
@@ -1791,6 +1803,7 @@
                 <div class="investment-company-manager">
                   <label class="field"><span>Add stock company</span><input id="investmentCompanyName" type="text" maxlength="100" placeholder="e.g. Reliance Industries" /></label>
                   <button id="addInvestmentCompanyBtn" class="ghost-button" type="button">Add company</button>
+                  <button id="viewInvestmentCompaniesBtn" class="ghost-button" type="button">View companies</button>
                 </div>
                 <div class="income-entry-actions">
                   <button id="clearInvestmentEntryBtn" class="ghost-button" type="button">Clear</button>
@@ -1798,12 +1811,17 @@
                 </div>
               </div>
             </form>
-            <div id="investmentCompanyList" class="investment-company-list" aria-label="Saved stock companies"></div>
           </section>
 
           <section class="investment-lists" aria-live="polite">
             <section class="investment-list-panel"><h3>Gold purchases</h3><div id="investmentGoldList"></div></section>
-            <section class="investment-list-panel"><h3>Stock dividends</h3><div id="investmentDividendList"></div></section>
+            <section class="investment-list-panel">
+              <div class="investment-list-heading">
+                <h3>Stock dividends</h3>
+                <input id="investmentDividendSearch" type="search" placeholder="Search company" aria-label="Search dividends by company" />
+              </div>
+              <div id="investmentDividendList"></div>
+            </section>
           </section>
         </section>
       </main>

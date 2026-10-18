@@ -267,6 +267,7 @@ let pprManualEditingId = "";
 let pprPartnerTransferEditingId = "";
 let activitySnapshot = null;
 const INITIAL_VISIBLE_INTL_TRAVEL_RECORDS = 10;
+const INITIAL_VISIBLE_INVESTMENT_RECORDS = 10;
 
 // Client-side rendering limits to improve initial load performance
 const INITIAL_VISIBLE_CARDS = 20;
@@ -274,6 +275,9 @@ let cardsAllExpanded = false; // set true when user clicks "Load more"
 let swipesAllExpanded = false;
 let rpSpendsAllExpanded = false;
 let loungeAllExpanded = false;
+let investmentGoldAllExpanded = false;
+let investmentDividendAllExpanded = false;
+let investmentDividendSearch = "";
 
 const els = {};
 const activeSaveOperations = new Set();
@@ -875,6 +879,12 @@ function cacheElements() {
     investmentDividendBreakdownBody: document.getElementById("investmentDividendBreakdownBody"),
     investmentDividendBreakdownCloseBtn: document.getElementById("investmentDividendBreakdownCloseBtn"),
     investmentDividendBreakdownFooterCloseBtn: document.getElementById("investmentDividendBreakdownFooterCloseBtn"),
+    investmentCompaniesModal: document.getElementById("investmentCompaniesModal"),
+    investmentCompaniesBody: document.getElementById("investmentCompaniesBody"),
+    investmentCompaniesCloseBtn: document.getElementById("investmentCompaniesCloseBtn"),
+    investmentCompaniesFooterCloseBtn: document.getElementById("investmentCompaniesFooterCloseBtn"),
+    viewInvestmentCompaniesBtn: document.getElementById("viewInvestmentCompaniesBtn"),
+    investmentDividendSearch: document.getElementById("investmentDividendSearch"),
     aiCommandForm: document.getElementById("aiCommandForm"),
     aiCommandInput: document.getElementById("aiCommandInput"),
     aiCommandRunBtn: document.getElementById("aiCommandRunBtn"),
@@ -1437,6 +1447,18 @@ document.addEventListener("keydown", (e) => {
   els.investmentDividendBreakdownFooterCloseBtn?.addEventListener("click", closeInvestmentDividendBreakdown);
   els.investmentDividendBreakdownModal?.addEventListener("click", (event) => {
     if (event.target === els.investmentDividendBreakdownModal) closeInvestmentDividendBreakdown();
+  });
+  els.viewInvestmentCompaniesBtn?.addEventListener("click", openInvestmentCompaniesModal);
+  els.investmentCompaniesCloseBtn?.addEventListener("click", closeInvestmentCompaniesModal);
+  els.investmentCompaniesFooterCloseBtn?.addEventListener("click", closeInvestmentCompaniesModal);
+  els.investmentCompaniesModal?.addEventListener("click", (event) => {
+    if (event.target === els.investmentCompaniesModal) closeInvestmentCompaniesModal();
+  });
+  els.investmentCompaniesBody?.addEventListener("click", handleInvestmentCompanyAction);
+  els.investmentDividendSearch?.addEventListener("input", (event) => {
+    investmentDividendSearch = event.target.value || "";
+    investmentDividendAllExpanded = false;
+    renderInvestmentsWidget();
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && els.investmentDividendBreakdownModal?.style.display === "flex") {
@@ -12685,31 +12707,70 @@ function renderInvestmentsWidget() {
       const dateB = new Date(`${getInvestmentRecordDate(b) || b.createdAt || "1970-01-01"}T00:00:00`).getTime();
       return dateB - dateA;
     });
+  const dividendSearchTerm = investmentDividendSearch.trim().toLocaleLowerCase();
+  const filteredDividends = dividendSearchTerm
+    ? dividends.filter((entry) => String(entry.companyName || "").toLocaleLowerCase().includes(dividendSearchTerm))
+    : dividends;
   const goldCost = gold.reduce((sum, item) => sum + toNumber(item.cost), 0);
   const dividendTotal = dividends.reduce((sum, item) => sum + toNumber(item.amount), 0);
+  const visibleGold = investmentGoldAllExpanded
+    ? gold
+    : gold.slice(0, INITIAL_VISIBLE_INVESTMENT_RECORDS);
+  const visibleDividends = investmentDividendAllExpanded
+    ? filteredDividends
+    : filteredDividends.slice(0, INITIAL_VISIBLE_INVESTMENT_RECORDS);
   const companies = normalizeInvestmentCompanies(state.investmentCompanies, state.investments);
   if (els.investmentGoldCount) els.investmentGoldCount.textContent = String(gold.length);
   if (els.investmentGoldCost) els.investmentGoldCost.textContent = formatMoney(goldCost);
   if (els.investmentDividendTotal) els.investmentDividendTotal.textContent = formatMoney(dividendTotal);
   if (els.investmentCompanyCount) els.investmentCompanyCount.textContent = String(companies.length);
   renderInvestmentCompanyOptions(els.investmentDividendCompany?.value || "");
-  if (els.investmentCompanyList) {
-    els.investmentCompanyList.innerHTML = companies.length
-      ? companies.map((company) => `<div class="investment-company-chip"><span>${escapeHtml(company)}</span><button type="button" data-investment-company-edit="${escapeAttribute(company)}" title="Edit company" aria-label="Edit ${escapeAttribute(company)}">✎</button><button type="button" data-investment-company-delete="${escapeAttribute(company)}" title="Delete company" aria-label="Delete ${escapeAttribute(company)}">×</button></div>`).join("")
-      : "";
-  }
+  renderInvestmentCompaniesModal(companies);
   updateInvestmentEntryFields();
 
   const actions = (entry) => `<div class="row-actions"><button class="icon-button subtle" type="button" data-investment-edit="${escapeAttribute(entry.id)}" title="Edit" aria-label="Edit"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button><button class="icon-button subtle" type="button" data-investment-delete="${escapeAttribute(entry.id)}" title="Delete" aria-label="Delete"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg></button></div>`;
-  els.investmentGoldList.innerHTML = gold.length ? gold.map((entry) => {
+  els.investmentGoldList.innerHTML = gold.length ? visibleGold.map((entry) => {
     const dateValue = getInvestmentRecordDate(entry);
     const dateLabel = dateValue ? `Purchase date: ${formatInvestmentCreditDate(dateValue)}` : "Purchase date not entered";
     return `<article class="investment-record"><div><strong>${escapeHtml(entry.goldType)} · ${escapeHtml(String(entry.quantity))} g</strong><span>${escapeHtml(dateLabel)}</span><span>${escapeHtml(entry.vendor || "Vendor not entered")}</span>${entry.notes ? `<small>${escapeHtml(entry.notes)}</small>` : ""}</div><b>${escapeHtml(formatMoney(entry.cost))}</b>${actions(entry)}</article>`;
   }).join("") : `<p class="investment-empty">No gold purchases recorded.</p>`;
-  els.investmentDividendList.innerHTML = dividends.length ? dividends.map((entry) => {
+  if (!investmentGoldAllExpanded && gold.length > visibleGold.length) {
+    renderLoadMoreIn(els.investmentGoldList, gold.length - visibleGold.length, () => {
+      investmentGoldAllExpanded = true;
+      renderInvestmentsWidget();
+    });
+  } else {
+    removeLoadMoreIn(els.investmentGoldList);
+  }
+  els.investmentDividendList.innerHTML = dividends.length ? visibleDividends.map((entry) => {
     const dateValue = getInvestmentRecordDate(entry);
     return `<article class="investment-record"><div><strong>${escapeHtml(entry.companyName)}</strong><span>${escapeHtml(dateValue ? `Credit date: ${formatInvestmentCreditDate(dateValue)}` : "Credit date not entered")}</span>${entry.notes ? `<small>${escapeHtml(entry.notes)}</small>` : ""}</div><b>${escapeHtml(formatMoney(entry.amount))}</b>${actions(entry)}</article>`;
   }).join("") : `<p class="investment-empty">No dividends recorded.</p>`;
+  if (!investmentDividendAllExpanded && filteredDividends.length > visibleDividends.length) {
+    renderLoadMoreIn(els.investmentDividendList, filteredDividends.length - visibleDividends.length, () => {
+      investmentDividendAllExpanded = true;
+      renderInvestmentsWidget();
+    });
+  } else {
+    removeLoadMoreIn(els.investmentDividendList);
+  }
+}
+
+function renderInvestmentCompaniesModal(companies = []) {
+  if (!els.investmentCompaniesBody) return;
+  els.investmentCompaniesBody.innerHTML = companies.length
+    ? `<div class="investment-company-table-head"><span>Company</span><span>Actions</span></div>${companies.map((company) => `<div class="investment-company-table-row"><strong>${escapeHtml(company)}</strong><div class="row-actions"><button class="icon-button subtle" type="button" data-investment-company-edit="${escapeAttribute(company)}" title="Edit company" aria-label="Edit ${escapeAttribute(company)}">✎</button><button class="icon-button subtle" type="button" data-investment-company-delete="${escapeAttribute(company)}" title="Delete company" aria-label="Delete ${escapeAttribute(company)}">×</button></div></div>`).join("")}`
+    : `<p class="investment-empty">No stock companies added.</p>`;
+}
+
+function openInvestmentCompaniesModal() {
+  if (!els.investmentCompaniesModal) return;
+  els.investmentCompaniesModal.style.display = "flex";
+  renderInvestmentCompaniesModal(normalizeInvestmentCompanies(state.investmentCompanies, state.investments));
+}
+
+function closeInvestmentCompaniesModal() {
+  if (els.investmentCompaniesModal) els.investmentCompaniesModal.style.display = "none";
 }
 
 async function handleInvestmentCompanyAction(event) {
@@ -12731,8 +12792,8 @@ async function handleInvestmentCompanyAction(event) {
     return;
   }
   const nextName = window.prompt("Update stock company name", company)?.trim().replace(/\s+/g, " ");
-  if (!nextName || normalizeInvestmentCompanyKey(nextName) === normalizeInvestmentCompanyKey(company)) return;
-  if (state.investmentCompanies.some((item) => normalizeInvestmentCompanyKey(item) === normalizeInvestmentCompanyKey(nextName))) {
+  if (!nextName || nextName === company) return;
+  if (state.investmentCompanies.some((item) => item !== company && normalizeInvestmentCompanyKey(item) === normalizeInvestmentCompanyKey(nextName))) {
     showToast(`${nextName} already exists.`);
     return;
   }
