@@ -60,6 +60,7 @@
     renderToken: 0,
     zoom: 1.08,
   };
+  let qpdfModulePromise = null;
 
   if (!window.pdfjsLib || !window.PDFLib) {
     showError("The PDF tools could not load. Check your internet connection and reload this page.");
@@ -539,53 +540,26 @@
     }
 
     elements.unlockSubmit.disabled = true;
-    setLoading(true, "Unlocking and rebuilding PDF pages…");
+    setLoading(true, "Removing PDF password without changing page quality…");
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
-      const source = await pdfjsLib.getDocument({ data: bytes.slice(), password }).promise;
-      const output = await PDFLib.PDFDocument.create();
-
-      for (let pageNumber = 1; pageNumber <= source.numPages; pageNumber += 1) {
-        elements.loadingMessage.textContent = `Rebuilding page ${pageNumber} of ${source.numPages}…`;
-        const page = await source.getPage(pageNumber);
-        const unitViewport = page.getViewport({ scale: 1 });
-        // Password removal must rebuild each page as an image because the
-        // encrypted source page cannot be copied directly by PDF-Lib. Use a
-        // high-resolution render so text and fine print do not become visibly
-        // pixelated in the downloaded PDF.
-        const pixelScale = Math.min(
-          3.5,
-          9000 / unitViewport.width,
-          9000 / unitViewport.height,
-          Math.sqrt(40000000 / (unitViewport.width * unitViewport.height))
-        );
-        const viewport = page.getViewport({ scale: pixelScale });
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.ceil(viewport.width);
-        canvas.height = Math.ceil(viewport.height);
-        await page.render({ canvasContext: canvas.getContext("2d", { alpha: false }), viewport }).promise;
-        // JPEG keeps the rebuilt, password-removed PDF close to the 1 MB
-        // target while retaining a high visual quality for statement text.
-        const imageBlob = await canvasToBlob(canvas, "image/jpeg", 0.96);
-        const image = await output.embedJpg(await imageBlob.arrayBuffer());
-        const outputPage = output.addPage([unitViewport.width, unitViewport.height]);
-        outputPage.drawImage(image, {
-          x: 0,
-          y: 0,
-          width: unitViewport.width,
-          height: unitViewport.height,
-        });
-        canvas.width = 1;
-        canvas.height = 1;
-        page.cleanup();
+      const qpdf = await loadQpdfDecryptor();
+      const loaded = qpdf.loadPdfWithPassword(bytes, password);
+      if (!loaded.ok) {
+        throw Object.assign(new Error(loaded.error || "The PDF password could not be verified."), { code: loaded.code });
       }
 
-      const result = await output.save();
-      downloadBytes(result, outputFileName(file.name), "application/pdf");
+      const result = loaded.value.writePdf({ preserveEncryption: false });
+      loaded.value.close();
+      if (!result.ok) {
+        throw Object.assign(new Error(result.error || "QPDF could not write the unlocked PDF."), { code: result.code });
+      }
+
+      downloadBytes(result.value, outputFileName(file.name), "application/pdf");
       elements.unlockPassword.value = "";
-      showToast("Unlocked PDF downloaded. Its pages are images; selectable text and links are not preserved.");
+      showToast("Unlocked PDF downloaded with the original page quality preserved.");
     } catch (error) {
-      if (error?.name === "PasswordException") {
+      if (error?.code === "INVALID_PASSWORD" || error?.name === "PasswordException") {
         showError("The password was incorrect, or this PDF uses an unsupported protection method.");
       } else {
         showError(error && error.message ? `Could not remove this password: ${error.message}` : "Could not remove this password.");
@@ -596,13 +570,14 @@
     }
   }
 
-  function canvasToBlob(canvas, type, quality) {
-    return new Promise((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error("Could not convert a PDF page to an image."));
-      }, type, quality);
-    });
+  async function loadQpdfDecryptor() {
+    if (!qpdfModulePromise) {
+      qpdfModulePromise = import("https://cdn.jsdelivr.net/npm/@lipoe/browser-qpdf@0.3.1/dist/index.js")
+        .then(({ createQpdfImageStreams }) => createQpdfImageStreams({
+          locateFile: (fileName) => `https://cdn.jsdelivr.net/npm/@lipoe/browser-qpdf@0.3.1/dist/${fileName}`,
+        }));
+    }
+    return qpdfModulePromise;
   }
 
   function downloadBytes(bytes, fileName, type) {
