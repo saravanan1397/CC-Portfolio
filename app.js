@@ -219,6 +219,7 @@ const state = {
   cards: [],
   swipes: [],
   rpSpends: [],
+  statementImports: [],
   pprManualPoints: [],
   pprPartnerTransfers: [],
   loungeVisits: [],
@@ -292,7 +293,7 @@ let syncedPortfolioSnapshot = null;
 const portfolioPersistedFields = [
   "currency", "cards", "swipes", "rpSpends", "pprManualPoints", "pprPartnerTransfers",
   "loungeVisits", "loungeCardLimits", "intlTravelTrips", "interestLedger", "incomeBanks",
-  "investments", "investmentCompanies", "activityLog", "aiTrainer",
+  "investments", "investmentCompanies", "statementImports", "activityLog", "aiTrainer",
 ];
 // Reuse expensive point/fee calculations while a single render is building
 // several views and summaries. The cache is cleared as soon as that render
@@ -1165,6 +1166,7 @@ function createPersistentStateSnapshot() {
     cards: state.cards,
     swipes: state.swipes,
     rpSpends: state.rpSpends,
+    statementImports: state.statementImports,
     pprManualPoints: state.pprManualPoints,
     pprPartnerTransfers: state.pprPartnerTransfers,
     loungeVisits: state.loungeVisits,
@@ -1830,8 +1832,12 @@ async function loadState() {
       state.incomeBanks = normalizeIncomeBanks(data.incomeBanks, state.interestLedger);
       state.investments = (data.investments || []).map(normalizeInvestmentEntry).filter(Boolean);
       state.investmentCompanies = normalizeInvestmentCompanies(data.investmentCompanies, state.investments);
+      state.statementImports = Array.isArray(data.statementImports)
+        ? data.statementImports.map((id) => String(id || "").trim()).filter(Boolean)
+        : [];
       state.activityLog = (data.activityLog || []).map(normalizeActivityEntry).filter(Boolean);
       state.aiTrainer = normalizeAiTrainer(data.aiTrainer);
+      const migratedStatementSources = migrateStatementSourcesToNormalBalances();
       // Keep the exact cloud version as the merge baseline before any local
       // migrations add or repair data.
       markPortfolioFieldsSynced(createPersistentStateSnapshot());
@@ -1843,7 +1849,7 @@ async function loadState() {
         state.activityLog = buildInitialActivityLog();
       }
       activitySnapshot = createActivitySnapshot();
-      if (migratedLegacyRp || removedDuplicateLegacyRp || migratedWelcomePoints) {
+      if (migratedLegacyRp || removedDuplicateLegacyRp || migratedWelcomePoints || migratedStatementSources) {
         await saveState({ skipActivity: true });
       }
 
@@ -5934,7 +5940,8 @@ function renderStatementParsePreview() {
   const netBalanceChange = previousBalance === null || !Number.isFinite(previousBalance) || previousBalance < 0 || !rewardBalance
     ? null
     : rewardBalance.points - previousBalance;
-  const existingImport = state.rpSpends.some((record) => record.statementImportId === statementParseSession.statementImportId);
+  const existingImport = state.statementImports.includes(statementParseSession.statementImportId)
+    || state.rpSpends.some((record) => record.statementImportId === statementParseSession.statementImportId);
   const rows = transactions.map((transaction, index) => {
     const row = document.createElement("tr");
 
@@ -6103,7 +6110,8 @@ function updateStatementPointsApplyButton() {
   const button = document.getElementById("addStatementPointsBtn");
   if (!button || !statementParseSession) return;
   const calculation = calculateStatementRewardPoints(statementParseSession.transactions, statementParseSession.earningRules);
-  const alreadyAdded = state.rpSpends.some((record) => record.statementImportId === statementParseSession.statementImportId);
+  const alreadyAdded = state.statementImports.includes(statementParseSession.statementImportId)
+    || state.rpSpends.some((record) => record.statementImportId === statementParseSession.statementImportId);
   button.textContent = `Add ${formatPoints(calculation.totalPoints)} to Unredeemed Points`;
   button.disabled = !statementParseSession.reviewConfirmed
     || alreadyAdded
@@ -6115,28 +6123,32 @@ async function applyReviewedStatementPoints() {
   if (!statementParseSession?.reviewConfirmed) {
     throw new Error("Review the transactions and confirm the point estimate before adding points.");
   }
-  if (state.rpSpends.some((record) => record.statementImportId === statementParseSession.statementImportId)) {
+  if (state.statementImports.includes(statementParseSession.statementImportId)
+    || state.rpSpends.some((record) => record.statementImportId === statementParseSession.statementImportId)) {
     throw new Error("These statement transactions have already been added to this card.");
   }
   const calculation = calculateStatementRewardPoints(statementParseSession.transactions, statementParseSession.earningRules);
   if (calculation.totalPoints <= 0 || calculation.rows.some((row) => row.points === null)) {
     throw new Error("A complete card earning rule and at least one eligible transaction are required.");
   }
-  const pointSource = normalizeRpSpend({
-    id: createId(),
-    purchaseId: `statement-${statementParseSession.statementImportId}`,
-    cardId: statementParseSession.cardId,
-    points: calculation.totalPoints,
-    redeemedPoints: 0,
-    unredeemedPointsRecord: true,
-    unredeemedBalanceInitialized: true,
-    redemptionModel: "split-v2",
-    statementImportId: statementParseSession.statementImportId,
-    statementPeriod: statementParseSession.statementPeriod,
-    purchasedFrom: "Statement review",
-    productName: statementParseSession.fileName,
-  });
-  state.rpSpends.push(pointSource);
+  const existingSource = getUnredeemedPointsSourceRecord(statementParseSession.cardId);
+  if (existingSource) {
+    existingSource.points = toNumber(existingSource.points) + calculation.totalPoints;
+  } else {
+    state.rpSpends.push(normalizeRpSpend({
+      id: createId(),
+      purchaseId: createId(),
+      cardId: statementParseSession.cardId,
+      points: calculation.totalPoints,
+      redeemedPoints: 0,
+      unredeemedPointsRecord: true,
+      unredeemedBalanceInitialized: true,
+      redemptionModel: "split-v2",
+      purchasedFrom: "Unredeemed",
+      productName: "Unredeemed",
+    }));
+  }
+  state.statementImports = [...new Set([...state.statementImports, statementParseSession.statementImportId])];
   syncRpRedeemedBenefitsFromSpends();
   await saveState();
   const addedPoints = calculation.totalPoints;
@@ -9464,6 +9476,43 @@ function getUnredeemedPointsSourceRecord(cardId, excludeId = "") {
   return getUnredeemedPointsSourceRecords(cardId, excludeId)[0] || null;
 }
 
+function migrateStatementSourcesToNormalBalances() {
+  const importedIds = new Set(Array.isArray(state.statementImports) ? state.statementImports : []);
+  const retained = [];
+  let changed = false;
+
+  state.rpSpends.forEach((record) => {
+    const importId = String(record.statementImportId || "").trim();
+    if (!importId || !isUnredeemedPointsRecord(record)) {
+      retained.push(record);
+      return;
+    }
+
+    importedIds.add(importId);
+    const sourceCardId = getRpSpendRedeemedSourceCardId(record) || record.cardId || "";
+    const target = retained.find((candidate) =>
+      isUnredeemedPointsRecord(candidate)
+      && (getRpSpendRedeemedSourceCardId(candidate) || candidate.cardId || "") === sourceCardId
+    );
+
+    if (target) {
+      target.points = toNumber(target.points) + toNumber(record.points);
+      changed = true;
+      return;
+    }
+
+    const normalSource = { ...record };
+    delete normalSource.statementImportId;
+    delete normalSource.statementPeriod;
+    retained.push(normalSource);
+    changed = true;
+  });
+
+  state.rpSpends = retained;
+  state.statementImports = [...importedIds];
+  return changed;
+}
+
 function getUnredeemedSourceConsumedPoints(sourceCardId, excludeId = "") {
   const cardId = String(sourceCardId || "").trim();
   if (!cardId) return 0;
@@ -11231,16 +11280,22 @@ function renderRpSpends() {
   // Group spends by purchaseId
   const groups = {};
   visibleRpSpends.forEach(spend => {
-    const pid = spend.purchaseId || spend.id;
+    // Statement imports and manually initialized balances are both
+    // authoritative unredeemed sources. Present them as one card-level
+    // balance in RP Spends instead of showing a separate statement row.
+    const pid = isUnredeemedPointsRecord(spend)
+      ? `unredeemed-card:${getRpSpendRedeemedSourceCardId(spend) || spend.cardId || spend.id}`
+      : spend.purchaseId || spend.id;
     if (!groups[pid]) {
       groups[pid] = {
         purchaseId: pid,
         items: [],
         latestDate: spend.createdAt,
-        productName: spend.productName,
-        purchasedFrom: spend.purchasedFrom,
+        productName: isUnredeemedPointsRecord(spend) ? "Unredeemed" : spend.productName,
+        purchasedFrom: isUnredeemedPointsRecord(spend) ? "Unredeemed" : spend.purchasedFrom,
         productValue: spend.productValue,
-        pointsReceived: spend.pointsReceived
+        pointsReceived: spend.pointsReceived,
+        isConsolidatedUnredeemed: isUnredeemedPointsRecord(spend),
       };
     }
     groups[pid].items.push(spend);
@@ -11361,6 +11416,7 @@ function renderRpSpends() {
       const card = getCardById(item.originatingCardId || item.sourceCardId || "");
       return card ? [card.issuer, card.name].filter(Boolean).join(" ").trim() : "NA";
     };
+    const displayItems = group.isConsolidatedUnredeemed ? [group.items[0]] : group.items;
 
     row.innerHTML = `
       <div class="card-name">
@@ -11372,12 +11428,14 @@ function renderRpSpends() {
       <div class="money-cell">
         <span class="cell-label">Card / Platform</span>
         <div class="benefit-breakdown" style="margin-top: 4px;">
-          ${group.items.map((item) => {
+          ${displayItems.map((item) => {
             const sourceCard = getRpSpendDisplayCard(item);
             const sourceAllocation = isUnredeemedPointsRecord(item) && sourceCard
               ? getCardPointAllocation(sourceCard)
               : null;
-            const displayPoints = getRpSpendDisplayPoints(item);
+            const displayPoints = group.isConsolidatedUnredeemed
+              ? group.items.reduce((sum, source) => sum + getRpSpendDisplayPoints(source), 0)
+              : getRpSpendDisplayPoints(item);
             const isPrimaryUnredeemedSource = Boolean(sourceAllocation
               && getUnredeemedPointsSourceRecord(sourceCard.id)?.id === item.id);
             const includedBenefits = isPrimaryUnredeemedSource
@@ -11397,8 +11455,10 @@ function renderRpSpends() {
               </span>
               ${isPartnerProgramRpSpend(item) ? `<span class="card-meta" style="display:block; margin-top:4px;">Card: ${escapeHtml(getContributingCardLabel(item))}</span>` : ""}
               <div class="row-actions inline-actions">
-                <button class="icon-button subtle" type="button" data-rp-spend-action="edit" data-id="${escapeAttribute(item.id)}"><svg viewBox="0 0 24 24" width="14"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button>
-                <button class="icon-button subtle" type="button" data-rp-spend-action="delete" data-id="${escapeAttribute(item.id)}"><svg viewBox="0 0 24 24" width="14"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg></button>
+                ${(group.isConsolidatedUnredeemed ? group.items : [item]).map((source) => `
+                  <button class="icon-button subtle" type="button" data-rp-spend-action="edit" data-id="${escapeAttribute(source.id)}" title="Edit unredeemed source"><svg viewBox="0 0 24 24" width="14"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button>
+                  <button class="icon-button subtle" type="button" data-rp-spend-action="delete" data-id="${escapeAttribute(source.id)}" title="Delete unredeemed source"><svg viewBox="0 0 24 24" width="14"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg></button>
+                `).join("")}
               </div>
             </div>
           `;
@@ -11425,8 +11485,10 @@ function renderRpSpends() {
       <div class="money-cell rp-spend-actions-cell">
         <span class="cell-label">Actions</span>
         <div class="row-actions" style="justify-content:flex-end;">
-          <button class="icon-button subtle" type="button" data-rp-spend-action="add-to-group" data-purchase-id="${escapeAttribute(group.purchaseId)}" title="Add payment to this product"><svg viewBox="0 0 24 24" width="14"><path d="M12 5v14M5 12h14" /></svg></button>
-          <button class="icon-button subtle" type="button" data-rp-spend-action="delete-group" data-purchase-id="${escapeAttribute(group.purchaseId)}" title="Delete entire product"><svg viewBox="0 0 24 24" width="14"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg></button>
+          ${group.isConsolidatedUnredeemed ? "" : `
+            <button class="icon-button subtle" type="button" data-rp-spend-action="add-to-group" data-purchase-id="${escapeAttribute(group.purchaseId)}" title="Add payment to this product"><svg viewBox="0 0 24 24" width="14"><path d="M12 5v14M5 12h14" /></svg></button>
+            <button class="icon-button subtle" type="button" data-rp-spend-action="delete-group" data-purchase-id="${escapeAttribute(group.purchaseId)}" title="Delete entire product"><svg viewBox="0 0 24 24" width="14"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg></button>
+          `}
         </div>
       </div>
     `;
