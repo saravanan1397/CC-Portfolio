@@ -13992,7 +13992,7 @@ function renderStatementCategoryRuleDrafts() {
       </label>
       <label class="field">
         <span>Multiplier</span>
-        <input type="number" min="1" step="0.1" data-statement-rule-field="multiplier" value="${rule.multiplier || ""}" placeholder="e.g. 5" />
+        <input type="number" min="1" step="0.000000000000001" inputmode="decimal" data-statement-rule-field="multiplier" value="${rule.multiplier || ""}" placeholder="e.g. 5" />
       </label>
       <fieldset class="statement-rule-mode">
         <legend>Reward calculation</legend>

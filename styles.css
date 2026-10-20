@@ -18399,6 +18399,7 @@ body #lockScreen button.pin-button:hover:not(:disabled):not(#addSwipeBtn) {
 
 .statement-earning-rules-heading {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -18986,11 +18987,12 @@ body #lockScreen button.pin-button:not(#addSwipeBtn) {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
-  min-width: 260px;
+  min-width: 0;
   margin: 0;
   padding: 8px 10px;
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 10px;
+  grid-column: 1 / -1;
 }
 
 .statement-rule-mode legend {
@@ -19008,4 +19010,30 @@ body #lockScreen button.pin-button:not(#addSwipeBtn) {
   color: #c6d0dc;
   font-size: 0.72rem;
   white-space: nowrap;
+}
+
+/* Keep the mode selector in its own grid track so it cannot overlap the
+   spend-cap, bonus-cap, or reset-period controls. */
+.statement-earning-rule {
+  grid-template-columns: minmax(130px, 1.25fr) minmax(92px, .8fr) minmax(245px, 1.9fr) repeat(3, minmax(92px, 1fr)) auto;
+}
+
+/* The editor modal can be narrower than the desktop form. Keep every rule
+   inside the modal instead of allowing a horizontal scrollbar to appear. */
+.statement-earning-rule {
+  grid-template-columns: minmax(0, 1.35fr) minmax(88px, .75fr);
+}
+
+.statement-earning-rule .statement-rule-mode {
+  width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .statement-earning-rule {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .statement-earning-rule .statement-rule-mode {
+    grid-column: 1 / -1;
+  }
 }
