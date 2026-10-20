@@ -401,6 +401,28 @@ input:disabled {
   font-weight: 700;
 }
 
+.zoom-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+}
+
+.zoom-controls > span {
+  min-width: 42px;
+  color: #aeb9c5;
+  font-size: 10px;
+  text-align: center;
+}
+
+.zoom-button {
+  min-width: 30px;
+  justify-content: center;
+  padding: 0 7px;
+  font-size: 18px;
+  line-height: 1;
+}
+
 .tool-button.is-active {
   border-color: #438d7d;
   background: #1b3736;

@@ -554,18 +554,20 @@
         // high-resolution render so text and fine print do not become visibly
         // pixelated in the downloaded PDF.
         const pixelScale = Math.min(
-          4.5,
-          10000 / unitViewport.width,
-          10000 / unitViewport.height,
-          Math.sqrt(64000000 / (unitViewport.width * unitViewport.height))
+          3.5,
+          9000 / unitViewport.width,
+          9000 / unitViewport.height,
+          Math.sqrt(40000000 / (unitViewport.width * unitViewport.height))
         );
         const viewport = page.getViewport({ scale: pixelScale });
         const canvas = document.createElement("canvas");
         canvas.width = Math.ceil(viewport.width);
         canvas.height = Math.ceil(viewport.height);
         await page.render({ canvasContext: canvas.getContext("2d", { alpha: false }), viewport }).promise;
-        const png = await canvasToBlob(canvas, "image/png");
-        const image = await output.embedPng(await png.arrayBuffer());
+        // JPEG keeps the rebuilt, password-removed PDF close to the 1 MB
+        // target while retaining a high visual quality for statement text.
+        const imageBlob = await canvasToBlob(canvas, "image/jpeg", 0.96);
+        const image = await output.embedJpg(await imageBlob.arrayBuffer());
         const outputPage = output.addPage([unitViewport.width, unitViewport.height]);
         outputPage.drawImage(image, {
           x: 0,
@@ -594,12 +596,12 @@
     }
   }
 
-  function canvasToBlob(canvas, type) {
+  function canvasToBlob(canvas, type, quality) {
     return new Promise((resolve, reject) => {
       canvas.toBlob((blob) => {
         if (blob) resolve(blob);
         else reject(new Error("Could not convert a PDF page to an image."));
-      }, type);
+      }, type, quality);
     });
   }
 
