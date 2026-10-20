@@ -220,6 +220,7 @@ const state = {
   swipes: [],
   rpSpends: [],
   statementImports: [],
+  statementContributions: [],
   pprManualPoints: [],
   pprPartnerTransfers: [],
   loungeVisits: [],
@@ -293,7 +294,7 @@ let syncedPortfolioSnapshot = null;
 const portfolioPersistedFields = [
   "currency", "cards", "swipes", "rpSpends", "pprManualPoints", "pprPartnerTransfers",
   "loungeVisits", "loungeCardLimits", "intlTravelTrips", "interestLedger", "incomeBanks",
-  "investments", "investmentCompanies", "statementImports", "activityLog", "aiTrainer",
+  "investments", "investmentCompanies", "statementImports", "statementContributions", "activityLog", "aiTrainer",
 ];
 // Reuse expensive point/fee calculations while a single render is building
 // several views and summaries. The cache is cleared as soon as that render
@@ -1835,6 +1836,9 @@ async function loadState() {
       state.statementImports = Array.isArray(data.statementImports)
         ? data.statementImports.map((id) => String(id || "").trim()).filter(Boolean)
         : [];
+    state.statementContributions = Array.isArray(data.statementContributions)
+      ? data.statementContributions.filter((entry) => entry && entry.statementImportId && entry.cardId)
+      : [];
       state.activityLog = (data.activityLog || []).map(normalizeActivityEntry).filter(Boolean);
       state.aiTrainer = normalizeAiTrainer(data.aiTrainer);
       const migratedStatementSources = migrateStatementSourcesToNormalBalances();
@@ -5777,18 +5781,29 @@ function parseStatementDate(value) {
 
 function parseStatementRewardBalance(items) {
   const fullText = items.map((item) => item.text || "").join(" ").replace(/\s+/g, " ");
+  const iciciEarned = fullText.match(/Total Points earned\*\s*([\d,]+)/i);
+  const idfcEarned = fullText.match(/Earned this Month\s*\+?\s*([\d,]+)/i);
+  const federalSummary = fullText.match(/Previous Balance\s+Earned\s+Redeemed\s+Closing Balance\s+Points Expiry Details\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)/i);
+  const explicitEarnedPoints = iciciEarned
+    ? Number(iciciEarned[1].replace(/,/g, ""))
+    : idfcEarned
+      ? Number(idfcEarned[1].replace(/,/g, ""))
+      : federalSummary
+        ? Number(federalSummary[2].replace(/,/g, ""))
+        : null;
   const heading = items.find((item) =>
     Number(item.x) < 160
     && /edge/i.test(item.text || "")
     && /(points|reward)/i.test(item.text || "")
   );
   if (!heading) {
-    const federal = fullText.match(/Previous Balance\s+Earned\s+Redeemed\s+Closing Balance\s+Points Expiry Details\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+[\d,]+/i);
-    if (federal) return { points: Number(federal[4].replace(/,/g, "")), date: "" };
+    const federal = federalSummary;
+    if (federal) return { points: Number(federal[4].replace(/,/g, "")), earnedPoints: Number(federal[2].replace(/,/g, "")), date: "" };
     const idfc = fullText.match(/Total Reward Points Available#?\s*=?\s*([\d,]+)/i);
-    if (idfc) return { points: Number(idfc[1].replace(/,/g, "")), date: "" };
+    if (idfc) return { points: Number(idfc[1].replace(/,/g, "")), earnedPoints: explicitEarnedPoints, date: "" };
     const neu = fullText.match(/NeuCoins with Bank.*?Lapsed\s+([\d,]+)\s+[\d,]+\s+[\d,]+\s+[\d,]+\s+[\d,]+/i);
-    if (neu) return { points: Number(neu[1].replace(/,/g, "")), date: "" };
+    if (neu) return { points: Number(neu[1].replace(/,/g, "")), earnedPoints: null, date: "" };
+    if (explicitEarnedPoints !== null) return { points: null, earnedPoints: explicitEarnedPoints, date: "" };
     return null;
   }
 
@@ -5808,6 +5823,7 @@ function parseStatementRewardBalance(items) {
   if (!pointCandidates.length) return null;
   return {
     points: pointCandidates[0],
+    earnedPoints: explicitEarnedPoints,
     date: dateCandidates[0] || "",
   };
 }
@@ -5835,6 +5851,27 @@ function createStatementImportId(cardId, parsedStatement) {
     hash = Math.imul(hash, 16777619);
   }
   return `statement-${(hash >>> 0).toString(16)}`;
+}
+
+function getStatementContribution(statementImportId) {
+  return (state.statementContributions || []).find((entry) => entry.statementImportId === statementImportId) || null;
+}
+
+function getStatementContributionTotal(statementImportId) {
+  return toNumber(getStatementContribution(statementImportId)?.points);
+}
+
+function getStatementContributionsForCard(cardId) {
+  return (state.statementContributions || []).filter((entry) => entry.cardId === cardId);
+}
+
+function removeStatementContribution(statementImportId, cardId, points) {
+  const source = getUnredeemedPointsSourceRecord(cardId);
+  if (source) source.points = Math.max(0, toNumber(source.points) - toNumber(points));
+  state.statementContributions = (state.statementContributions || []).filter(
+    (entry) => entry.statementImportId !== statementImportId
+  );
+  state.statementImports = (state.statementImports || []).filter((id) => id !== statementImportId);
 }
 
 async function parseStatementFromTrainingModal() {
@@ -5941,6 +5978,7 @@ function renderStatementParsePreview() {
     ? null
     : rewardBalance.points - previousBalance;
   const existingImport = state.statementImports.includes(statementParseSession.statementImportId)
+    || Boolean(getStatementContribution(statementParseSession.statementImportId))
     || state.rpSpends.some((record) => record.statementImportId === statementParseSession.statementImportId);
   const rows = transactions.map((transaction, index) => {
     const row = document.createElement("tr");
@@ -6012,7 +6050,11 @@ function renderStatementParsePreview() {
   const summary = document.createElement("div");
   summary.className = "statement-preview-summary";
   const rewardText = rewardBalance
-    ? `Statement reward balance: ${formatPoints(rewardBalance.points)}${rewardBalance.date ? ` on ${rewardBalance.date}` : ""}.`
+    ? `${rewardBalance.earnedPoints !== null && rewardBalance.earnedPoints !== undefined
+      ? `Statement-period rewards earned: ${formatPoints(rewardBalance.earnedPoints)}. `
+      : ""}${rewardBalance.points !== null && rewardBalance.points !== undefined
+        ? `Overall reward balance: ${formatPoints(rewardBalance.points)}${rewardBalance.date ? ` on ${rewardBalance.date}` : ""}.`
+        : ""}`
     : "No statement reward balance was detected.";
   let changeText = netBalanceChange === null
     ? "Enter the prior closing balance to see net balance change; this is not gross points earned."
@@ -6056,7 +6098,7 @@ function renderStatementParsePreview() {
   confirmation.type = "checkbox";
   confirmation.id = "statementReviewConfirmed";
   confirmation.checked = statementParseSession.reviewConfirmed === true;
-  confirmation.disabled = calculation.rows.some((row) => row.points === null) || existingImport || calculation.totalPoints <= 0;
+  confirmation.disabled = calculation.rows.some((row) => row.points === null) || calculation.totalPoints <= 0;
   confirmation.addEventListener("change", () => {
     statementParseSession.reviewConfirmed = confirmation.checked;
     updateStatementPointsApplyButton();
@@ -6081,7 +6123,7 @@ function renderStatementParsePreview() {
   if (existingImport) {
     const duplicateNote = document.createElement("p");
     duplicateNote.className = "statement-parser-note statement-excluded";
-    duplicateNote.textContent = "These statement transactions have already been added to this card’s Unredeemed Points.";
+    duplicateNote.textContent = "Points from this statement were already added. Confirming again will replace only the previous statement contribution; manual points will remain untouched.";
     applyControls.append(duplicateNote);
   }
 
@@ -6111,10 +6153,10 @@ function updateStatementPointsApplyButton() {
   if (!button || !statementParseSession) return;
   const calculation = calculateStatementRewardPoints(statementParseSession.transactions, statementParseSession.earningRules);
   const alreadyAdded = state.statementImports.includes(statementParseSession.statementImportId)
+    || Boolean(getStatementContribution(statementParseSession.statementImportId))
     || state.rpSpends.some((record) => record.statementImportId === statementParseSession.statementImportId);
   button.textContent = `Add ${formatPoints(calculation.totalPoints)} to Unredeemed Points`;
   button.disabled = !statementParseSession.reviewConfirmed
-    || alreadyAdded
     || calculation.totalPoints <= 0
     || calculation.rows.some((row) => row.points === null);
 }
@@ -6123,15 +6165,20 @@ async function applyReviewedStatementPoints() {
   if (!statementParseSession?.reviewConfirmed) {
     throw new Error("Review the transactions and confirm the point estimate before adding points.");
   }
-  if (state.statementImports.includes(statementParseSession.statementImportId)
-    || state.rpSpends.some((record) => record.statementImportId === statementParseSession.statementImportId)) {
-    throw new Error("These statement transactions have already been added to this card.");
-  }
   const calculation = calculateStatementRewardPoints(statementParseSession.transactions, statementParseSession.earningRules);
   if (calculation.totalPoints <= 0 || calculation.rows.some((row) => row.points === null)) {
     throw new Error("A complete card earning rule and at least one eligible transaction are required.");
   }
+  const importId = statementParseSession.statementImportId;
+  const previousContribution = getStatementContribution(importId);
+  if (previousContribution && !window.confirm("Points from this statement were already added. Do you want to replace them?")) {
+    return;
+  }
+  const previousPoints = previousContribution?.points || 0;
   const existingSource = getUnredeemedPointsSourceRecord(statementParseSession.cardId);
+  if (previousContribution) {
+    removeStatementContribution(importId, statementParseSession.cardId, previousPoints);
+  }
   if (existingSource) {
     existingSource.points = toNumber(existingSource.points) + calculation.totalPoints;
   } else {
@@ -6148,7 +6195,22 @@ async function applyReviewedStatementPoints() {
       productName: "Unredeemed",
     }));
   }
-  state.statementImports = [...new Set([...state.statementImports, statementParseSession.statementImportId])];
+  state.statementImports = [...new Set([...(state.statementImports || []), importId])];
+  state.statementContributions = [
+    ...(state.statementContributions || []).filter((entry) => entry.statementImportId !== importId),
+    {
+      statementImportId: importId,
+      cardId: statementParseSession.cardId,
+      statementPeriod: statementParseSession.statementPeriod || "",
+      points: calculation.totalPoints,
+      rewardType: statementParseSession.rewardBalance?.earnedPoints !== null
+        ? "statement-earned"
+        : "calculated-from-transactions",
+      statementEarnedPoints: statementParseSession.rewardBalance?.earnedPoints ?? null,
+      statementBalancePoints: statementParseSession.rewardBalance?.points ?? null,
+      importedAt: new Date().toISOString(),
+    },
+  ];
   syncRpRedeemedBenefitsFromSpends();
   await saveState();
   const addedPoints = calculation.totalPoints;
@@ -10699,7 +10761,7 @@ async function saveRpSpendFromForm(event) {
     existingUnredeemedSource.redemptionModel = "split-v2";
 
     syncRpRedeemedBenefitsFromSpends();
-    await saveState();
+    saveState();
     render();
     resetRpSpendForm();
     showToast(`Added ${formatPoints(enteredPoints)} to the card's unredeemed points.`);
@@ -11104,6 +11166,18 @@ function handleRpSpendAction(event) {
 
   const action = button.dataset.rpSpendAction;
 
+  if (action === "delete-statement-import") {
+    const contribution = getStatementContribution(button.dataset.statementImportId);
+    if (!contribution) return;
+    if (!window.confirm("Delete only the points added by this statement? Manual unredeemed points will remain.")) return;
+    removeStatementContribution(contribution.statementImportId, contribution.cardId, contribution.points);
+    syncRpRedeemedBenefitsFromSpends();
+    saveState();
+    render();
+    showToast("Statement-added points deleted. Manual points were not changed.");
+    return;
+  }
+
   // Item-level actions (edit/delete) use data-id
   if (action === "edit" || action === "delete") {
     const rpSpend = state.rpSpends.find((item) => item.id === button.dataset.id);
@@ -11441,6 +11515,11 @@ function renderRpSpends() {
             const includedBenefits = isPrimaryUnredeemedSource
               ? getRpUnredeemedBenefitLabels(sourceCard)
               : [];
+            const statementDeleteActions = group.isConsolidatedUnredeemed && sourceCard
+              ? getStatementContributionsForCard(sourceCard.id).map((entry) => `
+                <button class="icon-button subtle" type="button" data-rp-spend-action="delete-statement-import" data-statement-import-id="${escapeAttribute(entry.statementImportId)}" title="Delete points added by this statement"><svg viewBox="0 0 24 24" width="14"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg></button>
+              `).join("")
+              : "";
 
             return `
             <div class="benefit-line">
@@ -11455,6 +11534,7 @@ function renderRpSpends() {
               </span>
               ${isPartnerProgramRpSpend(item) ? `<span class="card-meta" style="display:block; margin-top:4px;">Card: ${escapeHtml(getContributingCardLabel(item))}</span>` : ""}
               <div class="row-actions inline-actions">
+                ${statementDeleteActions}
                 ${(group.isConsolidatedUnredeemed ? group.items : [item]).map((source) => `
                   <button class="icon-button subtle" type="button" data-rp-spend-action="edit" data-id="${escapeAttribute(source.id)}" title="Edit unredeemed source"><svg viewBox="0 0 24 24" width="14"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button>
                   <button class="icon-button subtle" type="button" data-rp-spend-action="delete" data-id="${escapeAttribute(source.id)}" title="Delete unredeemed source"><svg viewBox="0 0 24 24" width="14"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg></button>
