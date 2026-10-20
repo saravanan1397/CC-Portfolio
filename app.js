@@ -2556,6 +2556,9 @@ function normalizeStatementEarningRules(rules) {
           ratePoints: Math.max(0, toNumber(rule?.ratePoints)),
           rateSpend: Math.max(0, toNumber(rule?.rateSpend)),
           fullRate: rule?.fullRate === true,
+          earningMode: ["base", "base_plus_accelerated", "accelerated"].includes(rule?.earningMode)
+            ? rule.earningMode
+            : rule?.fullRate === true ? "accelerated" : "base_plus_accelerated",
           capSpend: Math.max(0, toNumber(rule?.capSpend)),
           capPoints: Math.max(0, toNumber(rule?.capPoints)),
           capPeriod: ["statement", "month", "year"].includes(rule?.capPeriod) ? rule.capPeriod : "statement",
@@ -5681,12 +5684,14 @@ function calculateStatementRewardPoints(transactions, rawEarningRules) {
     const categoryRule = accRewardsOnly
       ? earningRules.categories.find((rule) => /\bacc\s+rewards?\b/i.test(rule.match))
       : earningRules.categories.find((rule) => rule.id === transaction.earningRuleId);
-    if (accRewardsOnly && (!categoryRule || categoryRule.multiplier <= 1)) {
+    if (accRewardsOnly && (!categoryRule || categoryRule.multiplier < 1)) {
       rows[index] = { points: null, basePoints: null, bonusPoints: null, exclusionReason: "Acc Rewards rule not configured" };
       return;
     }
     let bonusPoints = 0;
-    if (categoryRule && categoryRule.multiplier > 1) {
+    const earningMode = categoryRule?.earningMode
+      || (categoryRule?.fullRate ? "accelerated" : "base_plus_accelerated");
+    if (categoryRule && categoryRule.multiplier >= 1 && earningMode !== "base") {
       const capPeriodKey = `${categoryRule.id}:${getStatementCapPeriodKey(transaction.date, categoryRule.capPeriod)}`;
       const usage = ruleUsage.get(capPeriodKey) || { spend: 0, points: 0 };
       const remainingSpend = categoryRule.capSpend > 0
@@ -5703,10 +5708,18 @@ function calculateStatementRewardPoints(transactions, rawEarningRules) {
       const rawBonus = acceleratedRatePoints === null
         ? calculateRatePoints(acceleratedSpend) * (categoryRule.multiplier - 1)
         : acceleratedRatePoints;
+      const rawAcceleratedPoints = acceleratedRatePoints === null
+        ? calculateRatePoints(acceleratedSpend) * categoryRule.multiplier
+        : acceleratedRatePoints;
       const remainingBonus = categoryRule.capPoints > 0
         ? Math.max(0, categoryRule.capPoints - usage.points)
-        : rawBonus;
-      bonusPoints = Math.floor(Math.min(rawBonus, remainingBonus));
+        : earningMode === "accelerated"
+          ? rawAcceleratedPoints
+          : rawBonus;
+      bonusPoints = Math.floor(Math.min(
+        earningMode === "accelerated" ? rawAcceleratedPoints : rawBonus,
+        remainingBonus
+      ));
       ruleUsage.set(capPeriodKey, {
         spend: usage.spend + acceleratedSpend,
         points: usage.points + bonusPoints,
@@ -5714,11 +5727,13 @@ function calculateStatementRewardPoints(transactions, rawEarningRules) {
     }
     // Acc Rewards is an exclusive rule: keep only the configured accelerated
     // reward points and do not add the base-rate points for that transaction.
-    const points = Math.floor(categoryRule?.fullRate
-      ? bonusPoints
-      : accRewardsOnly
-        ? bonusPoints
-        : basePoints + bonusPoints);
+    const points = Math.floor(
+      earningMode === "base"
+        ? basePoints
+        : earningMode === "accelerated" || accRewardsOnly
+          ? bonusPoints
+          : basePoints + bonusPoints
+    );
     totalPoints += points;
     rows[index] = { points, basePoints: Math.floor(basePoints), bonusPoints, exclusionReason: "" };
   });
@@ -13755,8 +13770,8 @@ async function saveCardFromForm(event)
     showToast("Set a base earning rate before adding category accelerators.");
     return;
   }
-  if (statementCategoryRules.some((rule) => !rule.match || rule.multiplier <= 1)) {
-    showToast("Each category rule needs a keyword and a multiplier greater than 1.");
+  if (statementCategoryRules.some((rule) => !rule.match || rule.multiplier < 1)) {
+    showToast("Each category rule needs a keyword and a multiplier of at least 1.");
     return;
   }
 
@@ -13979,6 +13994,12 @@ function renderStatementCategoryRuleDrafts() {
         <span>Multiplier</span>
         <input type="number" min="1" step="0.1" data-statement-rule-field="multiplier" value="${rule.multiplier || ""}" placeholder="e.g. 5" />
       </label>
+      <fieldset class="statement-rule-mode">
+        <legend>Reward calculation</legend>
+        <label><input type="radio" name="statement-rule-mode-${index}" value="base_plus_accelerated" data-statement-rule-field="earningMode"${(rule.earningMode || "base_plus_accelerated") === "base_plus_accelerated" ? " checked" : ""} /> Base + accelerated</label>
+        <label><input type="radio" name="statement-rule-mode-${index}" value="base" data-statement-rule-field="earningMode"${rule.earningMode === "base" ? " checked" : ""} /> Base</label>
+        <label><input type="radio" name="statement-rule-mode-${index}" value="accelerated" data-statement-rule-field="earningMode"${rule.earningMode === "accelerated" ? " checked" : ""} /> Accelerated</label>
+      </fieldset>
       <label class="field">
         <span>Spend cap (INR)</span>
         <input type="number" min="0" step="0.01" data-statement-rule-field="capSpend" value="${rule.capSpend || ""}" placeholder="No cap" />
@@ -14016,6 +14037,7 @@ function syncStatementCategoryRulesFromDom() {
     ...draftStatementCategoryRules[Number(row.dataset.statementRuleIndex)],
     match: row.querySelector('[data-statement-rule-field="match"]')?.value.trim() || "",
     multiplier: toNumber(row.querySelector('[data-statement-rule-field="multiplier"]')?.value),
+    earningMode: row.querySelector('[data-statement-rule-field="earningMode"]:checked')?.value || "base_plus_accelerated",
     capSpend: toNumber(row.querySelector('[data-statement-rule-field="capSpend"]')?.value),
     capPoints: toNumber(row.querySelector('[data-statement-rule-field="capPoints"]')?.value),
     capPeriod: row.querySelector('[data-statement-rule-field="capPeriod"]')?.value || "statement",
@@ -14024,7 +14046,7 @@ function syncStatementCategoryRulesFromDom() {
 
 function addStatementCategoryRule() {
   syncStatementCategoryRulesFromDom();
-  draftStatementCategoryRules.push({ id: createId(), match: "", multiplier: 0, capSpend: 0, capPoints: 0, capPeriod: "statement" });
+  draftStatementCategoryRules.push({ id: createId(), match: "", multiplier: 1, earningMode: "base_plus_accelerated", capSpend: 0, capPoints: 0, capPeriod: "statement" });
   renderStatementCategoryRuleDrafts();
 }
 
@@ -14035,7 +14057,7 @@ function updateStatementCategoryRule(event) {
   if (!input || !Number.isInteger(index) || !draftStatementCategoryRules[index]) return;
 
   const field = input.dataset.statementRuleField;
-  draftStatementCategoryRules[index][field] = ["match", "capPeriod"].includes(field) ? input.value : toNumber(input.value);
+  draftStatementCategoryRules[index][field] = ["match", "capPeriod", "earningMode"].includes(field) ? input.value : toNumber(input.value);
 }
 
 function removeStatementCategoryRule(event) {
