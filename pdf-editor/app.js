@@ -31,6 +31,9 @@
     textSize: document.getElementById("textSize"),
     annotationText: document.getElementById("annotationText"),
     unlockModeButton: document.getElementById("unlockModeButton"),
+    zoomInButton: document.getElementById("zoomInButton"),
+    zoomOutButton: document.getElementById("zoomOutButton"),
+    zoomValue: document.getElementById("zoomValue"),
     unlockPanel: document.getElementById("unlockPanel"),
     unlockFileInput: document.getElementById("unlockFileInput"),
     unlockFileName: document.getElementById("unlockFileName"),
@@ -55,6 +58,7 @@
     dragStart: null,
     toastTimer: null,
     renderToken: 0,
+    zoom: 1.08,
   };
 
   if (!window.pdfjsLib || !window.PDFLib) {
@@ -89,6 +93,8 @@
     elements.unlockPassword.value = "";
   });
   elements.unlockPanel.addEventListener("submit", removePdfPassword);
+  elements.zoomInButton.addEventListener("click", () => changeZoom(0.15));
+  elements.zoomOutButton.addEventListener("click", () => changeZoom(-0.15));
 
   elements.canvas.addEventListener("pointerdown", onCanvasPointerDown);
   elements.canvas.addEventListener("pointermove", onCanvasPointerMove);
@@ -200,23 +206,33 @@
       const availableHeight = Math.max(240, elements.canvasArea.clientHeight - 66);
       const rotation = normalizeRotation(page.rotate + pageData.rotation);
       const unitViewport = page.getViewport({ scale: 1, rotation });
-      const scale = Math.min(1.65, availableWidth / unitViewport.width, availableHeight / unitViewport.height);
+      const fitScale = Math.min(1.65, availableWidth / unitViewport.width, availableHeight / unitViewport.height);
+      const scale = fitScale * state.zoom;
       const viewport = page.getViewport({ scale, rotation });
       state.viewport = viewport;
       const canvas = elements.canvas;
       const context = canvas.getContext("2d", { alpha: false });
+      const pixelRatio = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
 
-      canvas.width = Math.ceil(viewport.width);
-      canvas.height = Math.ceil(viewport.height);
+      canvas.width = Math.ceil(viewport.width * pixelRatio);
+      canvas.height = Math.ceil(viewport.height * pixelRatio);
       canvas.style.width = `${Math.ceil(viewport.width)}px`;
       canvas.style.height = `${Math.ceil(viewport.height)}px`;
+      canvas.dataset.pixelRatio = String(pixelRatio);
       elements.pageStage.hidden = false;
       elements.welcomeCard.hidden = true;
       elements.emptyDocument.hidden = true;
 
-      await page.render({ canvasContext: context, viewport }).promise;
+      await page.render({
+        canvasContext: context,
+        viewport,
+        transform: [pixelRatio, 0, 0, pixelRatio, 0, 0],
+      }).promise;
       if (renderToken !== state.renderToken) return;
+      context.save();
+      context.scale(pixelRatio, pixelRatio);
       drawAnnotations(context, viewport, pageData.annotations);
+      context.restore();
       canvas.dataset.scale = String(scale);
       canvas.dataset.rotation = String(rotation);
       updateInterface();
@@ -249,6 +265,12 @@
         context.restore();
       }
     }
+  }
+
+  function changeZoom(delta) {
+    if (!state.pages.length) return;
+    state.zoom = Math.min(2.4, Math.max(0.65, state.zoom + delta));
+    renderCurrentPage();
   }
 
   async function renderThumbnails() {
@@ -452,9 +474,10 @@
 
   function canvasPoint(event) {
     const bounds = elements.canvas.getBoundingClientRect();
+    const pixelRatio = Number(elements.canvas.dataset.pixelRatio) || 1;
     return {
-      x: (event.clientX - bounds.left) * (elements.canvas.width / bounds.width),
-      y: (event.clientY - bounds.top) * (elements.canvas.height / bounds.height),
+      x: (event.clientX - bounds.left) * (elements.canvas.width / pixelRatio / bounds.width),
+      y: (event.clientY - bounds.top) * (elements.canvas.height / pixelRatio / bounds.height),
     };
   }
 
@@ -467,8 +490,9 @@
   function updateSelection(point) {
     if (!state.dragStart) return;
     const start = state.dragStart;
-    const scaleX = elements.canvas.clientWidth / elements.canvas.width;
-    const scaleY = elements.canvas.clientHeight / elements.canvas.height;
+    const pixelRatio = Number(elements.canvas.dataset.pixelRatio) || 1;
+    const scaleX = elements.canvas.clientWidth / (elements.canvas.width / pixelRatio);
+    const scaleY = elements.canvas.clientHeight / (elements.canvas.height / pixelRatio);
     const left = Math.min(start.x, point.x) * scaleX;
     const top = Math.min(start.y, point.y) * scaleY;
     const width = Math.abs(point.x - start.x) * scaleX;
@@ -525,11 +549,15 @@
         elements.loadingMessage.textContent = `Rebuilding page ${pageNumber} of ${source.numPages}…`;
         const page = await source.getPage(pageNumber);
         const unitViewport = page.getViewport({ scale: 1 });
+        // Password removal must rebuild each page as an image because the
+        // encrypted source page cannot be copied directly by PDF-Lib. Use a
+        // high-resolution render so text and fine print do not become visibly
+        // pixelated in the downloaded PDF.
         const pixelScale = Math.min(
-          2,
-          4096 / unitViewport.width,
-          4096 / unitViewport.height,
-          Math.sqrt(12000000 / (unitViewport.width * unitViewport.height))
+          4.5,
+          10000 / unitViewport.width,
+          10000 / unitViewport.height,
+          Math.sqrt(64000000 / (unitViewport.width * unitViewport.height))
         );
         const viewport = page.getViewport({ scale: pixelScale });
         const canvas = document.createElement("canvas");
@@ -658,6 +686,9 @@
     elements.annotationText.disabled = !current;
     elements.textSize.disabled = !current;
     elements.downloadButton.disabled = !hasPages;
+    elements.zoomInButton.disabled = !hasPages || state.zoom >= 2.4;
+    elements.zoomOutButton.disabled = !hasPages || state.zoom <= 0.65;
+    elements.zoomValue.textContent = `${Math.round(state.zoom * 100)}%`;
     elements.welcomeCard.hidden = hasDocument;
     elements.emptyDocument.hidden = !hasDocument || hasPages;
     elements.pageStage.hidden = !hasPages;
