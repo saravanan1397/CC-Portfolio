@@ -221,6 +221,7 @@ const state = {
   rpSpends: [],
   statementImports: [],
   statementContributions: [],
+  statementRecords: [],
   pprManualPoints: [],
   pprPartnerTransfers: [],
   loungeVisits: [],
@@ -279,6 +280,7 @@ let rpSpendsAllExpanded = false;
 let loungeAllExpanded = false;
 let investmentGoldAllExpanded = false;
 let investmentDividendAllExpanded = false;
+let statementExpandedCard = "";
 let investmentDividendSearch = "";
 
 const els = {};
@@ -294,7 +296,7 @@ let syncedPortfolioSnapshot = null;
 const portfolioPersistedFields = [
   "currency", "cards", "swipes", "rpSpends", "pprManualPoints", "pprPartnerTransfers",
   "loungeVisits", "loungeCardLimits", "intlTravelTrips", "interestLedger", "incomeBanks",
-  "investments", "investmentCompanies", "statementImports", "statementContributions", "activityLog", "aiTrainer",
+  "investments", "investmentCompanies", "statementImports", "statementContributions", "statementRecords", "activityLog", "aiTrainer",
 ];
 // Reuse expensive point/fee calculations while a single render is building
 // several views and summaries. The cache is cleared as soon as that render
@@ -735,6 +737,18 @@ function cacheElements() {
     intlTravelView: document.getElementById("intlTravelView"),
     interestIncomeView: document.getElementById("interestIncomeView"),
     investmentsView: document.getElementById("investmentsView"),
+    statementsView: document.getElementById("statementsView"),
+    statementsTable: document.getElementById("statementsTable"),
+    statementsRenderTotal: document.getElementById("statementsRenderTotal"),
+    statementsRenderCount: document.getElementById("statementsRenderCount"),
+    statementsRenderCards: document.getElementById("statementsRenderCards"),
+    statementsFromDate: document.getElementById("statementsFromDate"),
+    statementsToDate: document.getElementById("statementsToDate"),
+    statementsCardSearch: document.getElementById("statementsCardSearch"),
+    statementsInlineCard: document.getElementById("statementsInlineCard"),
+    statementsInlineFile: document.getElementById("statementsInlineFile"),
+    statementsInlinePrevious: document.getElementById("statementsInlinePrevious"),
+    statementsInlineParseBtn: document.getElementById("statementsInlineParseBtn"),
     toolsSearchInput: document.getElementById("toolsSearchInput"),
     toolsResults: document.getElementById("toolsResults"),
     toolsResultCount: document.getElementById("toolsResultCount"),
@@ -899,6 +913,10 @@ function cacheElements() {
     openIntlTravelBtn: document.getElementById("openIntlTravelBtn"),
     openInterestIncomeBtn: document.getElementById("openInterestIncomeBtn"),
     openInvestmentsBtn: document.getElementById("openInvestmentsBtn"),
+    openStatementsWidgetBtn: document.getElementById("openStatementsWidgetBtn"),
+    dashboardStatementsValue: document.getElementById("dashboardStatementsValue"),
+    dashboardStatementsCount: document.getElementById("dashboardStatementsCount"),
+    dashboardStatementsCards: document.getElementById("dashboardStatementsCards"),
     dashboardInvestmentValue: document.getElementById("dashboardInvestmentValue"),
     dashboardInvestmentGoldCost: document.getElementById("dashboardInvestmentGoldCost"),
     dashboardInvestmentDividends: document.getElementById("dashboardInvestmentDividends"),
@@ -1247,6 +1265,32 @@ function bindEvents() {
   document.querySelectorAll("[data-statement-upload]").forEach((button) => {
     button.addEventListener("click", openStatementTrainingModal);
   });
+  els.statementsInlineParseBtn?.addEventListener("click", () => {
+    openStatementTrainingModal();
+    requestAnimationFrame(() => {
+      const modalCard = document.getElementById("statementTrainingCard");
+      const modalFile = document.getElementById("statementTrainingFile");
+      const modalPrevious = document.getElementById("statementPreviousRewardBalance");
+      if (modalCard) modalCard.value = els.statementsInlineCard?.value || "";
+      if (modalPrevious) modalPrevious.value = els.statementsInlinePrevious?.value || "";
+      const file = els.statementsInlineFile?.files?.[0];
+      if (file && modalFile && typeof DataTransfer !== "undefined") {
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        modalFile.files = transfer.files;
+      }
+    });
+  });
+  [els.statementsFromDate, els.statementsToDate, els.statementsCardSearch].forEach((field) => {
+    field?.addEventListener("input", renderStatementsWidget);
+    field?.addEventListener("change", renderStatementsWidget);
+  });
+  els.statementsTable?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-statement-card]");
+    if (!button) return;
+    statementExpandedCard = statementExpandedCard === button.dataset.statementCard ? "" : button.dataset.statementCard;
+    renderStatementsWidget();
+  });
   els.aiCommandInput?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
@@ -1355,6 +1399,7 @@ document.addEventListener("keydown", (e) => {
   els.openIntlTravelBtn?.addEventListener("click", () => showView("intlTravel"));
   els.openInterestIncomeBtn?.addEventListener("click", () => showView("interestIncome"));
   els.openInvestmentsBtn?.addEventListener("click", () => showView("investments"));
+  els.openStatementsWidgetBtn?.addEventListener("click", () => showView("statements"));
   els.refreshViewBtn?.addEventListener("click", refreshCurrentView);
   els.widgetActivityBtn?.addEventListener("click", openWidgetActivityModal);
   els.closeWidgetActivityBtn?.addEventListener("click", closeWidgetActivityModal);
@@ -1839,6 +1884,8 @@ async function loadState() {
     state.statementContributions = Array.isArray(data.statementContributions)
       ? data.statementContributions.filter((entry) => entry && entry.statementImportId && entry.cardId)
       : [];
+    state.statementRecords = Array.isArray(data.statementRecords) ? data.statementRecords : [];
+    const seededStatementRecords = ensureStatementRecordsSeeded();
       state.activityLog = (data.activityLog || []).map(normalizeActivityEntry).filter(Boolean);
       state.aiTrainer = normalizeAiTrainer(data.aiTrainer);
       const migratedStatementSources = migrateStatementSourcesToNormalBalances();
@@ -1853,7 +1900,7 @@ async function loadState() {
         state.activityLog = buildInitialActivityLog();
       }
       activitySnapshot = createActivitySnapshot();
-      if (migratedLegacyRp || removedDuplicateLegacyRp || migratedWelcomePoints || migratedStatementSources) {
+      if (migratedLegacyRp || removedDuplicateLegacyRp || migratedWelcomePoints || migratedStatementSources || seededStatementRecords) {
         await saveState({ skipActivity: true });
       }
 
@@ -1941,6 +1988,7 @@ const widgetActivityMeta = {
   ppr: { title: "Partner Programs", empty: "No partner-program updates recorded yet." },
   lounge: { title: "Lounge Benefits", empty: "No lounge updates recorded yet." },
   intlTravel: { title: "Travel Expenses", empty: "No travel updates recorded yet." },
+  statements: { title: "Statements", empty: "No statement updates recorded yet." },
   interestIncome: { title: "Interest & Income", empty: "No income-ledger updates recorded yet." },
   investments: { title: "Investments", empty: "No investment updates recorded yet." },
 };
@@ -3941,6 +3989,7 @@ function showView(view) {
   if (els.swipesView) els.swipesView.style.display = nextView === "swipes" ? "block" : "none";
   if (els.rpSpendsView) els.rpSpendsView.style.display = nextView === "rpSpends" ? "block" : "none";
   if (els.pprView) els.pprView.style.display = nextView === "ppr" ? "block" : "none";
+  if (els.statementsView) els.statementsView.style.display = nextView === "statements" ? "block" : "none";
   if (els.loungeView) els.loungeView.style.display = nextView === "lounge" ? "block" : "none";
   if (els.intlTravelView) els.intlTravelView.style.display = nextView === "intlTravel" ? "block" : "none";
   if (els.interestIncomeView) els.interestIncomeView.style.display = nextView === "interestIncome" ? "block" : "none";
@@ -5580,6 +5629,7 @@ function parseCardStatementItems(items) {
   return {
     transactions,
     rewardBalance,
+    financialSummary: parseStatementFinancialSummary(items),
     statementPeriod: parseStatementPeriod(items),
   };
 }
@@ -5837,6 +5887,50 @@ function parseStatementPeriod(items) {
   return start && end ? `${start} – ${end}` : "";
 }
 
+function parseStatementFinancialSummary(items) {
+  const fullText = items.map((item) => item.text || "").join(" ").replace(/\s+/g, " ");
+  const money = (value) => Number(String(value || "").replace(/[,₹C`]/g, "").trim()) || 0;
+  const result = { officialPurchaseTotal: null, totalAmountDue: null, rawDebitTotal: null, paymentsCreditsTotal: null, source: "" };
+  const due = fullText.match(/Total Amount Due\s*(?:=|:)\s*[₹Cr`r]?\s*([\d,]+\.\d{2})/i);
+  if (due) result.totalAmountDue = money(due[1]);
+  const federal = fullText.match(/Payments\/Credits\s+([\d,]+\.\d{2}).*?Purchases\s*&\s*Charges\s+([\d,]+\.\d{2})/i);
+  if (federal) {
+    result.paymentsCreditsTotal = money(federal[1]);
+    result.officialPurchaseTotal = money(federal[2]);
+    result.source = "issuer-account-summary";
+  }
+  const axis = fullText.match(/Previous Balance\s*-\s*Payments\s*-\s*Credits\s*\+\s*Purchase\s*\+\s*Cash Advance\s*\+\s*Other Debit&Charges\s*=.*?\s([\d,]+\.\d{2})\s+(?:Dr|Cr)?\s*([\d,]+\.\d{2})\s+(?:Dr|Cr)?\s*([\d,]+\.\d{2})\s+(?:Dr|Cr)?\s*([\d,]+\.\d{2})\s+(?:Dr|Cr)?/i);
+  if (axis && result.officialPurchaseTotal === null) {
+    result.officialPurchaseTotal = money(axis[4]);
+    result.source = "issuer-account-summary";
+  }
+  const hdfc = fullText.match(/PURCHASES\/DEBIT\s*\(Current Billing Cycle\).*?([₹C]?\s*[\d,]+\.\d{2})\s*\+/i);
+  if (hdfc && result.officialPurchaseTotal === null) {
+    result.officialPurchaseTotal = money(hdfc[1]);
+    result.source = "issuer-account-summary";
+  }
+  const rawDebitTotal = items.map((item) => String(item.text || "").match(/([\d,]+\.\d{2})\s*Dr\b/i)?.[1])
+    .filter(Boolean).reduce((sum, value) => sum + money(value), 0);
+  if (rawDebitTotal > 0) result.rawDebitTotal = rawDebitTotal;
+  return result;
+}
+
+function ensureStatementRecordsSeeded() {
+  if (state.statementRecords?.length) return false;
+  state.statementRecords = [
+    { id: "stmt-axis-atlas-2026-08", cardName: "Axis Atlas", period: "2026-07-20 – 2026-08-18", month: "2026-08", amount: 175783.90, source: "issuer purchase summary" },
+    { id: "stmt-axis-horizon-2026-10", cardName: "Axis Horizon", period: "2026-09-12 – 2026-10-10", month: "2026-10", amount: 228461.50, source: "issuer purchase summary" },
+    { id: "stmt-axis-magnus-2026-10", cardName: "Axis Magnus", period: "2026-09-12 – 2026-10-10", month: "2026-10", amount: 155838.26, source: "issuer purchase summary" },
+    { id: "stmt-federal-imperio-2026-09", cardName: "Federal Imperio", period: "2026-08-03 – 2026-09-02", month: "2026-09", amount: 387077.53, source: "issuer purchases & charges" },
+    { id: "stmt-hdfc-marriott-2026-07", cardName: "HDFC Marriott Bonvoy", period: "2026-06-19 – 2026-07-18", month: "2026-07", amount: 1217, source: "issuer purchase/debit" },
+    { id: "stmt-hdfc-tata-neu-2026-10", cardName: "HDFC Tata Neu Infinity", period: "2026-09-02 – 2026-10-01", month: "2026-10", amount: 36507.28, source: "issuer purchase/debit" },
+    { id: "stmt-icici-coral-2025-10", cardName: "ICICI Coral RuPay", period: "2025-09-17 – 2025-10-16", month: "2025-10", amount: 15653.98, source: "issuer purchases/charges" },
+    { id: "stmt-hsbc-platinum-2026-10", cardName: "HSBC Platinum", period: "2026-09-05 – 2026-10-04", month: "2026-10", amount: 7057, source: "issuer purchases/installments" },
+    { id: "stmt-idfc-select-2026-09", cardName: "IDFC FIRST Select", period: "2026-08-25 – 2026-09-24", month: "2026-09", amount: 17252.07, source: "total amount due" },
+  ];
+  return true;
+}
+
 function createStatementImportId(cardId, parsedStatement) {
   const statementText = [
     cardId,
@@ -5965,7 +6059,7 @@ function renderStatementParsePreview() {
   const preservedModalScrollTop = modalBody?.scrollTop || 0;
   const preservedPageScrollY = window.scrollY || 0;
 
-  const { transactions, rewardBalance, statementPeriod } = statementParseSession;
+  const { transactions, rewardBalance, statementPeriod, financialSummary } = statementParseSession;
   const calculation = calculateStatementRewardPoints(transactions, statementParseSession.earningRules);
   const includedTotal = transactions
     .filter((transaction) => transaction.include)
@@ -6065,7 +6159,13 @@ function renderStatementParsePreview() {
   if (netBalanceChange !== null && calculation.rows.every((row) => row.points !== null)) {
     changeText += ` Difference from net balance change: ${formatPoints(netBalanceChange - calculation.totalPoints)}.`;
   }
-  summary.textContent = `${statementParseSession.cardName}${statementPeriod ? ` · ${statementPeriod}` : ""} · ${transactions.length} rows, ${eligibleCount} included debits · Eligible debit total ${formatMoney(includedTotal)}. ${estimatedPointsText} ${rewardText} ${changeText}`;
+  const purchaseText = financialSummary?.officialPurchaseTotal !== null && financialSummary?.officialPurchaseTotal !== undefined
+    ? `Official statement purchases: ${formatMoney(financialSummary.officialPurchaseTotal)}.`
+    : "Official statement purchases were not detected.";
+  const rawDebitText = financialSummary?.rawDebitTotal
+    ? `Raw Dr total: ${formatMoney(financialSummary.rawDebitTotal)}; includes payments, fees, GST, EMI, and adjustments and is not used as spend.`
+    : "";
+  summary.textContent = `${statementParseSession.cardName}${statementPeriod ? ` · ${statementPeriod}` : ""} · ${transactions.length} rows, ${eligibleCount} included debits · Eligible debit total ${formatMoney(includedTotal)}. ${purchaseText} ${rawDebitText} ${estimatedPointsText} ${rewardText} ${changeText}`;
 
   const note = document.createElement("p");
   note.className = "statement-parser-note";
@@ -6208,9 +6308,32 @@ async function applyReviewedStatementPoints() {
         : "calculated-from-transactions",
       statementEarnedPoints: statementParseSession.rewardBalance?.earnedPoints ?? null,
       statementBalancePoints: statementParseSession.rewardBalance?.points ?? null,
+      officialPurchaseTotal: statementParseSession.financialSummary?.officialPurchaseTotal ?? null,
+      rawDebitTotal: statementParseSession.financialSummary?.rawDebitTotal ?? null,
+      financialSummarySource: statementParseSession.financialSummary?.source || "",
       importedAt: new Date().toISOString(),
     },
   ];
+  const financialSummary = statementParseSession.financialSummary || {};
+  const periodDates = [...String(statementParseSession.statementPeriod || "").matchAll(/(20\d{2}-\d{2}-\d{2})/g)].map((match) => match[1]);
+  const statementAmount = financialSummary.officialPurchaseTotal !== null && financialSummary.officialPurchaseTotal !== undefined
+    ? financialSummary.officialPurchaseTotal
+    : /IDFC/i.test(statementParseSession.cardName)
+      ? financialSummary.totalAmountDue
+      : null;
+  if (statementAmount !== null && statementAmount !== undefined) {
+    state.statementRecords = [
+      ...(state.statementRecords || []).filter((record) => record.id !== importId),
+      {
+        id: importId,
+        cardName: statementParseSession.cardName,
+        period: statementParseSession.statementPeriod || "",
+        month: periodDates.at(-1)?.slice(0, 7) || new Date().toISOString().slice(0, 7),
+        amount: statementAmount,
+        source: /IDFC/i.test(statementParseSession.cardName) ? "total amount due" : financialSummary.source || "issuer summary",
+      },
+    ];
+  }
   syncRpRedeemedBenefitsFromSpends();
   await saveState();
   const addedPoints = calculation.totalPoints;
@@ -7239,7 +7362,7 @@ function initUiEnhancements() {
 }
 
 function getViews() {
-  return [els.dashboardView, els.toolsView, els.portfolioView, els.swipesView, els.rpSpendsView, els.pprView, els.loungeView, els.intlTravelView, els.interestIncomeView, els.investmentsView].filter(Boolean);
+  return [els.dashboardView, els.toolsView, els.portfolioView, els.swipesView, els.rpSpendsView, els.pprView, els.statementsView, els.loungeView, els.intlTravelView, els.interestIncomeView, els.investmentsView].filter(Boolean);
 }
 
 function handleDashboardStudioAction(event) {
@@ -7274,6 +7397,7 @@ function syncActiveViewClasses() {
     swipes: els.swipesView,
     rpSpends: els.rpSpendsView,
     ppr: els.pprView,
+    statements: els.statementsView,
     lounge: els.loungeView,
     intlTravel: els.intlTravelView,
     interestIncome: els.interestIncomeView,
@@ -7309,6 +7433,7 @@ function animateActiveView(view) {
     swipes: els.swipesView,
     rpSpends: els.rpSpendsView,
     ppr: els.pprView,
+    statements: els.statementsView,
     lounge: els.loungeView,
     intlTravel: els.intlTravelView,
     interestIncome: els.interestIncomeView,
@@ -7396,7 +7521,7 @@ function setWidgetValueState(element, value) {
 }
 
 function normalizeViewName(view) {
-  return ["dashboard", "tools", "portfolio", "swipes", "rpSpends", "ppr", "lounge", "intlTravel", "interestIncome", "investments"].includes(view) ? view : "dashboard";
+  return ["dashboard", "tools", "portfolio", "swipes", "rpSpends", "ppr", "statements", "lounge", "intlTravel", "interestIncome", "investments"].includes(view) ? view : "dashboard";
 }
 
 function renderToolsSearchResults() {
@@ -7649,6 +7774,12 @@ function renderDashboard() {
   if (els.dashboardInvestmentHint) {
     els.dashboardInvestmentHint.textContent = `${state.investments.length} ${state.investments.length === 1 ? "record" : "records"} · consolidated tracker`;
   }
+  const statementRecords = (state.statementRecords || []).filter((record) => isStatementCardVisible(record.cardName));
+  const statementTotal = statementRecords.reduce((sum, record) => sum + toNumber(record.amount), 0);
+  const statementCards = new Set(statementRecords.map((record) => record.cardName).filter(Boolean));
+  if (els.dashboardStatementsValue) els.dashboardStatementsValue.textContent = formatMoney(statementTotal);
+  if (els.dashboardStatementsCount) els.dashboardStatementsCount.textContent = String(statementRecords.length);
+  if (els.dashboardStatementsCards) els.dashboardStatementsCards.textContent = String(statementCards.size);
 
   renderDashboardTopBalances();
   renderDashboardUpcoming();
@@ -13072,6 +13203,9 @@ function renderVisibleView(view = state.currentView, includeDropdowns = false) {
       case "ppr":
         renderPprWidget();
         break;
+      case "statements":
+        renderStatementsWidget();
+        break;
       case "lounge":
         renderLoungeVisits();
         renderLoungeLimitsTable();
@@ -13096,6 +13230,63 @@ function renderVisibleView(view = state.currentView, includeDropdowns = false) {
   } finally {
     if (ownsCache) renderDerivedCache = null;
   }
+}
+
+function renderStatementsWidget() {
+  if (!els.statementsTable) return;
+  populateStatementsInlineCardOptions();
+  const from = els.statementsFromDate?.value || "";
+  const to = els.statementsToDate?.value || "";
+  const query = (els.statementsCardSearch?.value || "").trim().toLowerCase();
+  const records = (state.statementRecords || []).filter((record) => {
+    // Visibility is presentation-only: masked cards remain in state/database,
+    // but their statement rows are excluded from this widget.
+    if (!isStatementCardVisible(record.cardName)) return false;
+    if (query && !record.cardName.toLowerCase().includes(query)) return false;
+    if (from && record.month < from.slice(0, 7)) return false;
+    if (to && record.month > to.slice(0, 7)) return false;
+    return true;
+  });
+  const groups = new Map();
+  records.forEach((record) => {
+    if (!groups.has(record.cardName)) groups.set(record.cardName, []);
+    groups.get(record.cardName).push(record);
+  });
+  const total = records.reduce((sum, record) => sum + toNumber(record.amount), 0);
+  if (els.statementsRenderTotal) els.statementsRenderTotal.textContent = formatMoney(total);
+  if (els.statementsRenderCount) els.statementsRenderCount.textContent = String(records.length);
+  if (els.statementsRenderCards) els.statementsRenderCards.textContent = String(groups.size);
+  if (!records.length) {
+    els.statementsTable.innerHTML = `<div class="empty-state"><strong>No statement records found</strong><span>Upload and review a statement to add monthly spend.</span></div>`;
+    return;
+  }
+  els.statementsTable.innerHTML = `
+    <div class="table-head"><span>Card</span><span>Statements</span><span>Consolidated spend</span><span></span></div>
+    ${[...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([cardName, cardRecords]) => {
+      const cardTotal = cardRecords.reduce((sum, record) => sum + toNumber(record.amount), 0);
+      const expanded = statementExpandedCard === cardName;
+      return `<article class="card-row statements-card-row">
+        <div class="statement-card-toggle" role="button" tabindex="0" data-statement-card="${escapeAttribute(cardName)}"><strong>${escapeHtml(cardName)}</strong><span>${cardRecords.length}</span><strong>${formatMoney(cardTotal)}</strong><span>${expanded ? "−" : "+"}</span></div>
+        ${expanded ? `<div class="statement-month-breakdown">${cardRecords.sort((a,b) => a.month.localeCompare(b.month)).map((record) => `<div><span>${escapeHtml(record.month)}<small>${escapeHtml(record.period)}</small></span><strong>${formatMoney(record.amount)}</strong></div>`).join("")}</div>` : ""}
+      </article>`;
+    }).join("")}`;
+}
+
+function isStatementCardVisible(cardName) {
+  const normalizedName = String(cardName || "").trim().toLowerCase();
+  const card = (state.cards || []).find((entry) => formatCardName(entry).trim().toLowerCase() === normalizedName);
+  return !card || !card.isGreyedOut;
+}
+
+function populateStatementsInlineCardOptions() {
+  const select = els.statementsInlineCard;
+  if (!select) return;
+  const current = select.value;
+  select.replaceChildren(new Option("Please select", ""));
+  state.cards.slice().sort((a, b) => formatCardName(a).localeCompare(formatCardName(b))).forEach((card) => {
+    select.add(new Option(formatCardName(card), card.id));
+  });
+  if ([...select.options].some((option) => option.value === current)) select.value = current;
 }
 
 function renderSummary() {
@@ -17159,6 +17350,8 @@ function getViewTitle(view) {
       return "Reward Points";
     case "ppr":
       return "Partner Program Rewards";
+    case "statements":
+      return "Statements";
     case "lounge":
       return "Airport Lounge / Other Benefits";
     case "intlTravel":

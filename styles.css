@@ -19037,3 +19037,247 @@ body #lockScreen button.pin-button:not(#addSwipeBtn) {
     grid-column: 1 / -1;
   }
 }
+/* Statements monthly consolidation */
+.statement-card-toggle{display:grid;grid-template-columns:1.5fr .5fr 1fr 28px;align-items:center;width:100%;gap:12px;text-align:left;background:transparent;color:inherit;border:0;padding:16px 18px;cursor:pointer}
+.statement-card-toggle strong:nth-child(3){color:#55e0bb;text-align:right}.statement-card-toggle span:nth-child(2){color:#94a3b8}.statements-card-row{display:block;padding:0}.statement-month-breakdown{margin:0 18px 14px;border-top:1px solid rgba(148,163,184,.18)}.statement-month-breakdown>div{display:flex;justify-content:space-between;gap:16px;padding:11px 0;border-bottom:1px solid rgba(148,163,184,.12)}.statement-month-breakdown small{display:block;color:#94a3b8;font-size:.75rem;margin-top:3px}.statement-month-breakdown strong{color:#55e0bb}@media(max-width:700px){.statement-card-toggle{grid-template-columns:1fr auto;}.statement-card-toggle strong:nth-child(3){text-align:left}.statement-card-toggle span:nth-child(2){grid-column:2;grid-row:1}.statement-card-toggle span:last-child{grid-column:2;grid-row:2}}
+/* Global action styling aligned to the compact bin-action reference */
+.primary-button,
+.ghost-button,
+.danger-button {
+  border-radius: 8px !important;
+  min-height: 36px;
+  padding: 8px 14px;
+  background: #653033 !important;
+  border: 1px solid #a56b6c !important;
+  color: #f7e6e6 !important;
+  box-shadow: none !important;
+  font-weight: 700;
+}
+.primary-button:hover,
+.ghost-button:hover,
+.danger-button:hover {
+  background: #7a3a3b !important;
+  border-color: #d0908f !important;
+  transform: translateY(-1px);
+}
+.icon-button,
+.dashboard-v2-icon-action,
+.topbar-file-action,
+.widget-activity-button {
+  border-radius: 50% !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.icon-button:hover,
+.dashboard-v2-icon-action:hover,
+.topbar-file-action:hover,
+.widget-activity-button:hover {
+  background: rgba(166, 94, 94, .18) !important;
+  border-color: #a56b6c !important;
+}
+#lockBtn {
+  border-radius: 8px !important;
+  background: #653033 !important;
+  border: 1px solid #a56b6c !important;
+  color: #f7e6e6 !important;
+  box-shadow: none !important;
+}
+.floating-actions { gap: 6px; }
+
+/* Statements page: restore the shared left navigation and match the compact
+   full-width tracker layout used by the other widget pages. */
+body[data-view="statements"] .widget-v2-sidebar {
+  display: flex !important;
+  position: fixed;
+  z-index: 3500;
+  inset: 0 auto 0 0;
+  width: 192px;
+  padding: 24px 14px 20px;
+  flex-direction: column;
+  background: #030507;
+  border-right: 1px solid rgba(148,163,184,.12);
+  box-shadow: 20px 0 60px rgba(0,0,0,.22);
+}
+
+body[data-view="statements"] #statementsView {
+  display: block !important;
+  width: calc(100% - 192px) !important;
+  min-height: calc(100vh - 72px) !important;
+  margin: 0 0 0 192px !important;
+  padding: 28px 24px 60px !important;
+  box-sizing: border-box;
+  background: radial-gradient(circle at 85% 8%, rgba(120, 82, 35, .18), transparent 34%), #05070a !important;
+}
+
+.dashboard-v2-statements-widget {
+  background-image: linear-gradient(90deg, rgba(4, 12, 20, .8), rgba(4, 12, 20, .38)), url("assets/dashboard/statements-bg-generated.png");
+  background-size: cover;
+  background-position: center;
+}
+
+.dashboard-v2-investments-widget {
+  background-image: linear-gradient(90deg, rgba(32, 25, 8, .78), rgba(32, 25, 8, .28)), url("assets/dashboard/investments-bg-generated.png");
+  background-size: cover;
+  background-position: center;
+}
+
+/* Homepage dashboard tiles use a 12-column grid: keep the two new tiles
+   consistent with the existing three-column lower row. */
+#dashboardView .dashboard-v2-statements-widget {
+  grid-column: span 4;
+  min-height: 252px;
+  aspect-ratio: 1 / 1;
+  background:
+    linear-gradient(105deg, rgba(6, 10, 15, .97), rgba(7, 18, 28, .72)),
+    url("assets/dashboard/statements-bg-generated.png") center / cover no-repeat;
+}
+
+#dashboardView .dashboard-v2-investments-widget {
+  background:
+    linear-gradient(105deg, rgba(29, 24, 13, .9), rgba(13, 17, 23, .48)),
+    url("assets/dashboard/investments-bg-generated.png") center / cover no-repeat;
+}
+
+body[data-view="statements"] .statement-parser-card {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(148,163,184,.16);
+  padding: 0 0 18px;
+}
+
+body[data-view="statements"] .statements-parser-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+body[data-view="statements"] .statements-parser-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+body[data-view="statements"] .statements-filter-panel .filter-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) minmax(180px, 260px) minmax(260px, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+
+body[data-view="statements"] .statements-filter-panel .field {
+  min-width: 0;
+}
+
+body[data-view="statements"] .statements-card-row {
+  display: block;
+  padding: 0;
+  margin-bottom: 10px;
+  overflow: hidden;
+  background: #09131d;
+  border: 1px solid rgba(148,163,184,.14);
+  border-radius: 12px;
+}
+
+body[data-view="statements"] .statements-table-panel .table-head {
+  display: grid;
+  grid-template-columns: 1.5fr .5fr 1fr 28px;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 18px;
+  margin-bottom: 10px;
+  color: #b7c5d6;
+  background: linear-gradient(90deg, rgba(38, 91, 128, .55), rgba(16, 35, 52, .72));
+  border: 1px solid rgba(83, 159, 206, .22);
+  border-radius: 12px;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+body[data-view="statements"] .statement-card-toggle {
+  display: grid;
+  grid-template-columns: 1.5fr .5fr 1fr 28px;
+  align-items: center;
+  width: 100%;
+  gap: 12px;
+  padding: 16px 18px !important;
+  text-align: left;
+  background: #09131d !important;
+  color: #e8edf5 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+body[data-view="statements"] .statement-card-toggle strong:nth-child(3) {
+  text-align: left !important;
+}
+
+body[data-view="statements"] .statement-card-toggle:hover {
+  background: rgba(255,255,255,.04) !important;
+}
+
+body[data-view="statements"] .statements-card-row.card-row,
+body[data-view="statements"] .statements-card-row.card-row:hover {
+  background: #09131d !important;
+  border-color: rgba(148,163,184,.14) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+body[data-view="statements"] .statement-card-toggle::before,
+body[data-view="statements"] .statement-card-toggle::after {
+  content: none !important;
+}
+
+/* Final specificity guard: card rows must never inherit the app's gold
+   action-button treatment. */
+body[data-view="statements"] #statementsView .statements-table-panel .statement-card-toggle,
+body[data-view="statements"] #statementsView .statements-table-panel .statement-card-toggle:hover,
+body[data-view="statements"] #statementsView .statements-table-panel .statement-card-toggle:focus {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background: #09131d !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  color: #e8edf5 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  cursor: pointer;
+}
+
+@media (max-width: 700px) {
+  body[data-view="statements"] .widget-v2-sidebar {
+    display: none !important;
+  }
+  body[data-view="statements"] #statementsView {
+    width: 100% !important;
+    margin-left: 0 !important;
+    padding: 18px 14px 80px !important;
+  }
+  body[data-view="statements"] .statements-parser-fields {
+    grid-template-columns: 1fr;
+  }
+  body[data-view="statements"] .statements-filter-panel .filter-grid {
+    grid-template-columns: 1fr;
+  }
+  body[data-view="statements"] .statement-card-toggle {
+    grid-template-columns: 1fr auto;
+  }
+  body[data-view="statements"] .statement-card-toggle strong:nth-child(3) {
+    text-align: left;
+  }
+  body[data-view="statements"] .statement-card-toggle span:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  body[data-view="statements"] .statement-card-toggle span:last-child {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
