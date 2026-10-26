@@ -18297,6 +18297,7 @@ body #lockScreen button.pin-button:hover:not(:disabled):not(#addSwipeBtn) {
 
 #aiAssistModal[data-mode="statementTraining"] .statement-preview-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.74rem;
 }
@@ -18308,6 +18309,9 @@ body #lockScreen button.pin-button:hover:not(:disabled):not(#addSwipeBtn) {
   border-bottom: 1px solid #303b49;
   text-align: left;
   vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #aiAssistModal[data-mode="statementTraining"] .statement-preview-table th {
@@ -18319,14 +18323,31 @@ body #lockScreen button.pin-button:hover:not(:disabled):not(#addSwipeBtn) {
   white-space: nowrap;
 }
 
+#aiAssistModal[data-mode="statementTraining"] .statement-preview-table th:nth-child(1),
+#aiAssistModal[data-mode="statementTraining"] .statement-preview-table td:nth-child(1) { width: 5%; }
+#aiAssistModal[data-mode="statementTraining"] .statement-preview-table th:nth-child(2),
+#aiAssistModal[data-mode="statementTraining"] .statement-preview-table td:nth-child(2) { width: 10%; }
+#aiAssistModal[data-mode="statementTraining"] .statement-preview-table th:nth-child(3),
+#aiAssistModal[data-mode="statementTraining"] .statement-preview-table td:nth-child(3) { width: 24%; }
+#aiAssistModal[data-mode="statementTraining"] .statement-preview-table th:nth-child(4),
+#aiAssistModal[data-mode="statementTraining"] .statement-preview-table td:nth-child(4) { width: 14%; }
+#aiAssistModal[data-mode="statementTraining"] .statement-preview-table th:nth-child(5),
+#aiAssistModal[data-mode="statementTraining"] .statement-preview-table td:nth-child(5) { width: 13%; }
+#aiAssistModal[data-mode="statementTraining"] .statement-preview-table th:nth-child(6),
+#aiAssistModal[data-mode="statementTraining"] .statement-preview-table td:nth-child(6) { width: 12%; }
+#aiAssistModal[data-mode="statementTraining"] .statement-preview-table th:nth-child(7),
+#aiAssistModal[data-mode="statementTraining"] .statement-preview-table td:nth-child(7) { width: 8%; }
+#aiAssistModal[data-mode="statementTraining"] .statement-preview-table th:nth-child(8),
+#aiAssistModal[data-mode="statementTraining"] .statement-preview-table td:nth-child(8) { width: 14%; }
+
+#aiAssistModal[data-mode="statementTraining"] .statement-preview-table td:nth-child(3),
 #aiAssistModal[data-mode="statementTraining"] .statement-preview-table td:nth-child(4) {
-  min-width: 190px;
-  max-width: 320px;
   color: #e1e7ed;
 }
 
 #aiAssistModal[data-mode="statementTraining"] .statement-preview-table select {
-  max-width: 160px;
+  width: 100%;
+  max-width: none;
   min-height: 32px;
   padding: 4px 6px;
   border: 1px solid #465463;
@@ -19085,6 +19106,173 @@ body #lockScreen button.pin-button:not(#addSwipeBtn) {
 }
 .floating-actions { gap: 6px; }
 
+/* Application-wide compact action language, matching the reference bin
+   control while retaining the portfolio's existing colour palette. */
+#app button.primary-button,
+#app button.ghost-button,
+#app button.danger-button,
+#app button.refresh-view-button,
+#app button.topbar-file-action,
+#app button#lockBtn {
+  min-height: 36px !important;
+  padding: 8px 14px !important;
+  border: 1px solid #a56b6c !important;
+  border-radius: 8px !important;
+  background: #653033 !important;
+  background-image: none !important;
+  color: #f7e6e6 !important;
+  box-shadow: none !important;
+  font-weight: 700 !important;
+  text-shadow: none !important;
+}
+
+#app button.primary-button:hover,
+#app button.ghost-button:hover,
+#app button.danger-button:hover,
+#app button.refresh-view-button:hover,
+#app button.topbar-file-action:hover,
+#app button#lockBtn:hover {
+  background: #7a3a3b !important;
+  border-color: #d0908f !important;
+  color: #fff3f3 !important;
+  box-shadow: none !important;
+  transform: translateY(-1px);
+}
+
+#app button.topbar-file-action {
+  width: 36px !important;
+  min-width: 36px !important;
+  padding: 8px !important;
+}
+
+/* Unified compact rounded action treatment. */
+#app .primary-button,
+#app .ghost-button,
+#app .icon-button,
+#app .dashboard-v2-icon-action,
+#app .dashboard-v2-open-widget {
+  border-radius: 999px !important;
+  padding: 8px 14px;
+  min-height: 36px;
+  line-height: 1;
+}
+
+#app .icon-button,
+#app .dashboard-v2-icon-action,
+#app .dashboard-v2-open-widget {
+  width: 36px;
+  min-width: 36px;
+  padding: 8px;
+}
+
+/* Statement review is rendered in the Statements page after parsing. */
+.statement-preview-summary {
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid rgba(89, 219, 173, 0.28);
+  border-radius: 10px;
+  background: rgba(11, 20, 29, 0.92);
+}
+.statement-preview-summary > strong { display: block; margin-bottom: 10px; font-size: 1rem; }
+.statement-amount-options {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  overflow: visible;
+}
+.statement-amount-option {
+  min-width: 0;
+  padding: 8px 10px;
+  border-left: 1px solid #2a4657;
+  color: #cbd9e4;
+  white-space: nowrap;
+}
+.statement-amount-option:first-child { border-left: 0; }
+.statement-amount-option:nth-child(6) { border-left: 0; }
+.statement-amount-option input { margin-right: 6px; accent-color: #59dbad; }
+.statement-selected-amount { margin-top: 10px; color: #59dbad; font-size: .8rem; }
+.statement-preview-table-wrap { max-width: 100%; max-height: 62vh; overflow: auto; border: 1px solid #354353; border-radius: 8px; }
+.statement-preview-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: .74rem; }
+.statement-preview-table th, .statement-preview-table td { padding: 8px; border-bottom: 1px solid #303b49; text-align: left; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.statement-preview-table th { background: #162c3e; color: #dbe4ed; }
+.statement-preview-table select { width: 100%; min-height: 32px; padding: 4px 6px; border: 1px solid #465463; border-radius: 6px; background: #111923; color: #e7edf3; font-size: .7rem; }
+.statement-review-confirmation { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.statement-save-amount-button { margin-right: 4px; }
+.statement-card-toggle { display: grid; grid-template-columns: minmax(0, 1fr) 90px minmax(150px, 220px) 38px 28px; align-items: center; gap: 12px; }
+.statement-card-toggle > button, .statement-month-breakdown button { justify-self: center; }
+.statement-month-breakdown > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 220px) 38px; align-items: center; gap: 12px; }
+.statement-month-breakdown small { display: block; color: #93a4b5; font-size: .72rem; }
+#statementsView #statementsTable > .table-head { grid-template-columns: minmax(0, 1fr) 90px minmax(150px, 220px) 100px; min-height: 42px; }
+#statementsView #statementsTable .statements-card-row { display: block !important; min-height: 0 !important; padding: 0 !important; }
+#statementsView #statementsTable .statement-card-toggle { min-height: 58px; padding: 0 16px; width: 100%; box-sizing: border-box; }
+
+/* Final shared action-button treatment: one consistent compact pill system. */
+#app .primary-button,
+#app .ghost-button,
+#app .danger-button,
+#app .icon-button,
+#app .pin-button,
+#app .scroll-top-button,
+#app .widget-activity-button,
+#app .dashboard-v2-icon-action,
+#app .dashboard-v2-open-widget {
+  font-family: inherit !important;
+  font-size: 0.82rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.01em;
+  line-height: 1 !important;
+  border-radius: 999px !important;
+  min-height: 36px !important;
+  padding: 9px 15px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  box-sizing: border-box;
+}
+#app .icon-button,
+#app .dashboard-v2-icon-action,
+#app .dashboard-v2-open-widget,
+#app .scroll-top-button {
+  width: 36px !important;
+  min-width: 36px !important;
+  padding: 9px !important;
+}
+#app .primary-button:hover:not(:disabled),
+#app .ghost-button:hover:not(:disabled),
+#app .danger-button:hover:not(:disabled),
+#app .icon-button:hover:not(:disabled),
+#app .pin-button:hover:not(:disabled),
+#app .scroll-top-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.06) saturate(1.08);
+}
+
+/* Header controls have legacy high-specificity rules; target the actual IDs
+   so Refresh, History, Import, Export, and Logout use the same treatment. */
+#app#app .topbar-actions > #refreshViewBtn,
+#app#app .topbar-actions > #importBtn,
+#app#app .topbar-actions > #exportBtn,
+#app#app .topbar-actions > #lockBtn {
+  min-height: 36px !important;
+  height: 36px !important;
+  border: 1px solid #a56b6c !important;
+  border-radius: 8px !important;
+  background: #653033 !important;
+  background-image: none !important;
+  color: #f7e6e6 !important;
+  box-shadow: none !important;
+}
+
+#app#app .topbar-actions > #refreshViewBtn:hover,
+#app#app .topbar-actions > #importBtn:hover,
+#app#app .topbar-actions > #exportBtn:hover,
+#app#app .topbar-actions > #lockBtn:hover {
+  background: #7a3a3b !important;
+  border-color: #d0908f !important;
+  color: #fff3f3 !important;
+}
+
 /* Statements page: restore the shared left navigation and match the compact
    full-width tracker layout used by the other widget pages. */
 body[data-view="statements"] .widget-v2-sidebar {
@@ -19280,4 +19468,44 @@ body[data-view="statements"] #statementsView .statements-table-panel .statement-
     grid-column: 2;
     grid-row: 2;
   }
+}
+
+/* Absolute-final button override: keep every application action consistent
+   with the compact reference control. */
+#app button.primary-button,
+#app button.ghost-button,
+#app button.danger-button,
+#app button.refresh-view-button,
+#app button.topbar-file-action,
+#app button#lockBtn {
+  min-height: 36px !important;
+  height: auto !important;
+  padding: 8px 14px !important;
+  border: 1px solid #a56b6c !important;
+  border-radius: 8px !important;
+  background: #653033 !important;
+  background-image: none !important;
+  color: #f7e6e6 !important;
+  box-shadow: none !important;
+  font-weight: 700 !important;
+  text-shadow: none !important;
+}
+
+#app button.primary-button:hover,
+#app button.ghost-button:hover,
+#app button.danger-button:hover,
+#app button.refresh-view-button:hover,
+#app button.topbar-file-action:hover,
+#app button#lockBtn:hover {
+  background: #7a3a3b !important;
+  border-color: #d0908f !important;
+  color: #fff3f3 !important;
+  box-shadow: none !important;
+  transform: translateY(-1px);
+}
+
+#app button.topbar-file-action {
+  width: 36px !important;
+  min-width: 36px !important;
+  padding: 8px !important;
 }

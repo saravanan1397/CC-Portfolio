@@ -11,7 +11,7 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <meta name="theme-color" content="#080d14" />
-    <link rel="stylesheet" href="styles.css?v=20261012-statement-rewards-v2" />
+    <link rel="stylesheet" href="styles.css?v=20261026-button-style-v1" />
     <title>Credit Card Portfolio P/L</title>
     <style>
       /* Remove cursor overrides - let browser handle it naturally */
@@ -1615,7 +1615,7 @@
       <main id="statementsView" style="display:none;">
         <section class="portfolio-panel statements-panel" aria-label="Statements">
           <div class="panel-heading portfolio-heading"><div><p class="eyebrow">Statement tracker</p><h2>Statements</h2><p class="panel-subtitle">Consolidated card spend by statement period.</p></div></div>
-          <section class="statement-parser-card" aria-label="Statement parser"><div class="income-entry-card-heading"><div><p class="eyebrow">Statement parser</p></div></div><div class="statements-parser-fields"><label class="field"><span>Card required</span><select id="statementsInlineCard"><option value="">Please select</option></select></label><label class="field"><span>Statement file required</span><input id="statementsInlineFile" type="file" accept="application/pdf,.pdf"><small>Searchable PDF statements only.</small></label><label class="field"><span>Previous reward balance</span><input id="statementsInlinePrevious" inputmode="decimal" placeholder="Optional"></label></div><div class="statements-parser-actions"><button type="button" class="primary-button" id="statementsInlineParseBtn">Parse for review</button></div></section>
+          <section class="statement-parser-card" aria-label="Statement parser"><div class="income-entry-card-heading"><div><p class="eyebrow">Statement parser</p></div></div><div class="statements-parser-fields"><label class="field"><span>Card required</span><select id="statementsInlineCard"><option value="">Please select</option></select></label><label class="field"><span>Statement file required</span><input id="statementsInlineFile" type="file" accept="application/pdf,.pdf"><small>Searchable PDF statements only.</small></label><label class="field"><span>Previous reward balance</span><input id="statementsInlinePrevious" inputmode="decimal" placeholder="Optional"></label></div><div class="statements-parser-actions"><button type="button" class="primary-button" id="statementsInlineParseBtn">Parse for review</button></div><div id="statementsInlineParserBody" class="statements-inline-parser-body" hidden></div></section>
           <section class="widget-render-summary" aria-label="Statement totals"><div><span>Total consolidated spend</span><strong id="statementsRenderTotal">INR 0</strong></div><div><span>Statements added</span><strong id="statementsRenderCount">0</strong></div><div><span>Cards covered</span><strong id="statementsRenderCards">0</strong></div></section>
           <section class="portfolio-panel-inner statements-filter-panel"><div class="filter-grid"><label class="field"><span>From date</span><input id="statementsFromDate" type="date"></label><label class="field"><span>To date</span><input id="statementsToDate" type="date"></label><label class="field"><span>Search card</span><input id="statementsCardSearch" type="search" placeholder="Card name"></label></div></section>
           <section class="statements-table-panel"><div id="statementsTable" aria-live="polite"></div></section>

@@ -749,6 +749,7 @@ function cacheElements() {
     statementsInlineFile: document.getElementById("statementsInlineFile"),
     statementsInlinePrevious: document.getElementById("statementsInlinePrevious"),
     statementsInlineParseBtn: document.getElementById("statementsInlineParseBtn"),
+    statementsInlineParserBody: document.getElementById("statementsInlineParserBody"),
     toolsSearchInput: document.getElementById("toolsSearchInput"),
     toolsResults: document.getElementById("toolsResults"),
     toolsResultCount: document.getElementById("toolsResultCount"),
@@ -1186,6 +1187,8 @@ function createPersistentStateSnapshot() {
     swipes: state.swipes,
     rpSpends: state.rpSpends,
     statementImports: state.statementImports,
+    statementContributions: state.statementContributions,
+    statementRecords: state.statementRecords,
     pprManualPoints: state.pprManualPoints,
     pprPartnerTransfers: state.pprPartnerTransfers,
     loungeVisits: state.loungeVisits,
@@ -1265,19 +1268,38 @@ function bindEvents() {
   document.querySelectorAll("[data-statement-upload]").forEach((button) => {
     button.addEventListener("click", openStatementTrainingModal);
   });
-  els.statementsInlineParseBtn?.addEventListener("click", () => {
+  els.statementsInlineParseBtn?.addEventListener("click", async () => {
+    const cardId = els.statementsInlineCard?.value || "";
+    const file = els.statementsInlineFile?.files?.[0];
+    const previousBalance = els.statementsInlinePrevious?.value || "";
+    if (!cardId || !file) {
+      showToast("Select a card and statement file first.");
+      return;
+    }
     openStatementTrainingModal();
-    requestAnimationFrame(() => {
+    requestAnimationFrame(async () => {
       const modalCard = document.getElementById("statementTrainingCard");
       const modalFile = document.getElementById("statementTrainingFile");
       const modalPrevious = document.getElementById("statementPreviousRewardBalance");
-      if (modalCard) modalCard.value = els.statementsInlineCard?.value || "";
-      if (modalPrevious) modalPrevious.value = els.statementsInlinePrevious?.value || "";
-      const file = els.statementsInlineFile?.files?.[0];
-      if (file && modalFile && typeof DataTransfer !== "undefined") {
+      if (modalCard) modalCard.value = cardId;
+      if (modalPrevious) modalPrevious.value = previousBalance;
+      if (modalFile && typeof DataTransfer !== "undefined") {
         const transfer = new DataTransfer();
         transfer.items.add(file);
         modalFile.files = transfer.files;
+      }
+      try {
+        await parseStatementFromTrainingModal();
+        const preview = document.getElementById("statementParsePreview");
+        if (preview && els.statementsInlineParserBody) {
+          els.statementsInlineParserBody.hidden = false;
+          els.statementsInlineParserBody.replaceChildren(preview);
+        }
+        closeAiModal();
+      } catch (error) {
+        console.error("Unable to parse card statement", error);
+        closeAiModal();
+        showToast(error.message || "Could not parse this statement.");
       }
     });
   });
@@ -1286,6 +1308,24 @@ function bindEvents() {
     field?.addEventListener("change", renderStatementsWidget);
   });
   els.statementsTable?.addEventListener("click", (event) => {
+    const deleteButton = event.target.closest("[data-statement-delete]");
+    if (deleteButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      deleteStatementRecords([deleteButton.dataset.statementDelete]);
+      return;
+    }
+    const deleteCardButton = event.target.closest("[data-statement-card-delete]");
+    if (deleteCardButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      const cardName = deleteCardButton.dataset.statementCardDelete;
+      const ids = (state.statementRecords || [])
+        .filter((record) => record.cardName === cardName)
+        .map((record) => record.id);
+      deleteStatementRecords(ids);
+      return;
+    }
     const button = event.target.closest("[data-statement-card]");
     if (!button) return;
     statementExpandedCard = statementExpandedCard === button.dataset.statementCard ? "" : button.dataset.statementCard;
@@ -1720,6 +1760,26 @@ document.addEventListener("keydown", (e) => {
   window.addEventListener("scroll", updateScrollTopButton, { passive: true });
 }
 
+async function deleteStatementRecords(recordIds) {
+  const ids = [...new Set((recordIds || []).filter(Boolean))];
+  if (!ids.length) return;
+  const message = ids.length === 1
+    ? "Delete this statement record? Any points contributed by this statement will also be restored."
+    : "Delete all statements for this card? Any points contributed by these statements will also be restored.";
+  if (!window.confirm(message)) return;
+  ids.forEach((id) => {
+    const contribution = getStatementContribution(id);
+    if (contribution) removeStatementContribution(id, contribution.cardId, contribution.points);
+  });
+  state.statementRecords = (state.statementRecords || []).filter((record) => !ids.includes(record.id));
+  state.statementImports = (state.statementImports || []).filter((id) => !ids.includes(id));
+  if (statementExpandedCard && !(state.statementRecords || []).some((record) => record.cardName === statementExpandedCard)) statementExpandedCard = "";
+  await saveState();
+  renderStatementsWidget();
+  renderSummary();
+  showToast(`${ids.length} statement${ids.length === 1 ? "" : "s"} deleted.`);
+}
+
 function normalizeIncomeBankKey(value) {
   return String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN");
 }
@@ -1885,7 +1945,7 @@ async function loadState() {
       ? data.statementContributions.filter((entry) => entry && entry.statementImportId && entry.cardId)
       : [];
     state.statementRecords = Array.isArray(data.statementRecords) ? data.statementRecords : [];
-    const seededStatementRecords = ensureStatementRecordsSeeded();
+    const seededStatementRecords = false;
       state.activityLog = (data.activityLog || []).map(normalizeActivityEntry).filter(Boolean);
       state.aiTrainer = normalizeAiTrainer(data.aiTrainer);
       const migratedStatementSources = migrateStatementSourcesToNormalBalances();
@@ -5890,23 +5950,63 @@ function parseStatementPeriod(items) {
 function parseStatementFinancialSummary(items) {
   const fullText = items.map((item) => item.text || "").join(" ").replace(/\s+/g, " ");
   const money = (value) => Number(String(value || "").replace(/[,₹C`]/g, "").trim()) || 0;
-  const result = { officialPurchaseTotal: null, totalAmountDue: null, rawDebitTotal: null, paymentsCreditsTotal: null, source: "" };
+  const result = { officialPurchaseTotal: null, totalAmountDue: null, rawDebitTotal: null, paymentsCreditsTotal: null, previousBalance: null, creditsTotal: null, cashAdvance: null, otherDebits: null, financeCharges: null, source: "" };
   const due = fullText.match(/Total Amount Due\s*(?:=|:)\s*[₹Cr`r]?\s*([\d,]+\.\d{2})/i);
   if (due) result.totalAmountDue = money(due[1]);
-  const federal = fullText.match(/Payments\/Credits\s+([\d,]+\.\d{2}).*?Purchases\s*&\s*Charges\s+([\d,]+\.\d{2})/i);
+  const federal = fullText.match(/Payments\s*\/\s*Credits\s+([\d,]+\.\d{2}).*?Purchases\s*&\s*Charges\s+([\d,]+\.\d{2})/i);
   if (federal) {
     result.paymentsCreditsTotal = money(federal[1]);
     result.officialPurchaseTotal = money(federal[2]);
     result.source = "issuer-account-summary";
   }
-  const axis = fullText.match(/Previous Balance\s*-\s*Payments\s*-\s*Credits\s*\+\s*Purchase\s*\+\s*Cash Advance\s*\+\s*Other Debit&Charges\s*=.*?\s([\d,]+\.\d{2})\s+(?:Dr|Cr)?\s*([\d,]+\.\d{2})\s+(?:Dr|Cr)?\s*([\d,]+\.\d{2})\s+(?:Dr|Cr)?\s*([\d,]+\.\d{2})\s+(?:Dr|Cr)?/i);
+  if (!federal) {
+    const federalBlock = fullText.match(/Payments\s*\/\s*Credits[\s\S]{0,700}/i)?.[0] || "";
+    const federalValues = (federalBlock.match(/[\d,]+\.\d{2}/g) || []).map(money);
+    if (federalValues.length >= 2) {
+      result.paymentsCreditsTotal = federalValues[0];
+      result.officialPurchaseTotal = federalValues[1];
+      result.source = "issuer-account-summary";
+    }
+  }
+  const axis = fullText.match(/Previous Balance\s*-\s*Payments\s*-\s*Credits\s*\+\s*Purchase\s*\+\s*Cash Advance\s*\+\s*Other Debit&Charges\s*=.*?\s([\d,]+\.\d{2})\s+(?:Dr|Cr)?\s*([\d,]+\.\d{2})\s+(?:Dr|Cr)?\s*([\d,]+\.\d{2})\s+(?:Dr|Cr)?\s*([\d,]+\.\d{2})\s+(?:Dr|Cr)?\s*([\d,]+\.\d{2})\s+(?:Dr|Cr)?\s*([\d,]+\.\d{2})\s+(?:Dr|Cr)?\s*([\d,]+\.\d{2})\s+(?:Dr|Cr)?/i);
   if (axis && result.officialPurchaseTotal === null) {
+    result.previousBalance = money(axis[1]);
+    result.paymentsCreditsTotal = money(axis[2]);
+    result.creditsTotal = money(axis[3]);
     result.officialPurchaseTotal = money(axis[4]);
+    result.cashAdvance = money(axis[5]);
+    result.otherDebits = money(axis[6]);
+    result.totalAmountDue = money(axis[7]);
     result.source = "issuer-account-summary";
   }
-  const hdfc = fullText.match(/PURCHASES\/DEBIT\s*\(Current Billing Cycle\).*?([₹C]?\s*[\d,]+\.\d{2})\s*\+/i);
-  if (hdfc && result.officialPurchaseTotal === null) {
-    result.officialPurchaseTotal = money(hdfc[1]);
+  const hdfcBlock = fullText.match(/PREVIOUS STATEMENT DUES.*?TOTAL AMOUNT DUE(.*?)TOTAL CREDIT LIMIT/i)?.[1] || "";
+  const hdfcFallbackBlock = fullText.match(/PREVIOUS STATEMENT DUES[\s\S]{0,1600}/i)?.[0] || "";
+  const hdfcMatches = hdfcBlock.match(/[\d,]+\.\d{2}/g);
+  const hdfcValues = (hdfcMatches?.length ? hdfcMatches : (hdfcFallbackBlock.match(/[\d,]+\.\d{2}/g) || [])).map(money);
+  if (hdfcValues.length >= 5 && result.officialPurchaseTotal === null) {
+    result.previousBalance = hdfcValues[0];
+    result.totalAmountDue = hdfcValues[1];
+    result.paymentsCreditsTotal = hdfcValues[2];
+    result.officialPurchaseTotal = hdfcValues[3];
+    result.cashAdvance = null;
+    result.otherDebits = null;
+    result.financeCharges = hdfcValues[4];
+    result.source = "issuer-account-summary";
+  }
+  const iciciBlock = fullText.match(/STATEMENT SUMMARY(.*?)MINIMUM AMOUNT DUE/i)?.[1] || "";
+  const iciciValues = (iciciBlock.match(/[\d,]+\.\d{2}/g) || []).map(money);
+  if (iciciValues.length >= 5 && result.officialPurchaseTotal === null) {
+    result.totalAmountDue = iciciValues[0];
+    result.previousBalance = iciciValues[1];
+    result.officialPurchaseTotal = iciciValues[2];
+    result.cashAdvance = iciciValues[3];
+    result.paymentsCreditsTotal = iciciValues[4];
+    result.source = "issuer-account-summary";
+  }
+  const hsbc = fullText.match(/OPENING BALANCE\s+([\d,]+\.\d{2}).*?PURCHASES\s*&\s*INSTALLMENTS.*?([\d,]+\.\d{2})\s+48xx/i);
+  if (hsbc && result.officialPurchaseTotal === null) {
+    result.previousBalance = money(hsbc[1]);
+    result.officialPurchaseTotal = money(hsbc[2]);
     result.source = "issuer-account-summary";
   }
   const rawDebitTotal = items.map((item) => String(item.text || "").match(/([\d,]+\.\d{2})\s*Dr\b/i)?.[1])
@@ -6165,7 +6265,42 @@ function renderStatementParsePreview() {
   const rawDebitText = financialSummary?.rawDebitTotal
     ? `Raw Dr total: ${formatMoney(financialSummary.rawDebitTotal)}; includes payments, fees, GST, EMI, and adjustments and is not used as spend.`
     : "";
-  summary.textContent = `${statementParseSession.cardName}${statementPeriod ? ` · ${statementPeriod}` : ""} · ${transactions.length} rows, ${eligibleCount} included debits · Eligible debit total ${formatMoney(includedTotal)}. ${purchaseText} ${rawDebitText} ${estimatedPointsText} ${rewardText} ${changeText}`;
+  const summaryFields = [
+    ["Previous Balance", financialSummary.previousBalance, "previousBalance"],
+    ["Payments", financialSummary.paymentsCreditsTotal, "paymentsCreditsTotal"],
+    ["Credits", financialSummary.creditsTotal, "creditsTotal"],
+    ["Purchases", financialSummary.officialPurchaseTotal, "officialPurchaseTotal"],
+    ["Cash Advance", financialSummary.cashAdvance, "cashAdvance"],
+    ["Other Debits", financialSummary.otherDebits, "otherDebits"],
+    ["Total Due", financialSummary.totalAmountDue, "totalAmountDue"],
+  ].filter(([, value]) => value !== null && value !== undefined);
+  if (!statementParseSession.selectedStatementAmountField) {
+    statementParseSession.selectedStatementAmountField = /IDFC/i.test(statementParseSession.cardName) ? "totalAmountDue" : "officialPurchaseTotal";
+  }
+  summary.innerHTML = `<strong>Choose the statement amount</strong><div class="statement-amount-options"></div><div class="statement-selected-amount"></div>`;
+  const amountOptions = summary.querySelector(".statement-amount-options");
+  summaryFields.forEach(([label, value, key]) => {
+    const option = document.createElement("label");
+    option.className = "statement-amount-option";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = statementParseSession.selectedStatementAmountField === key;
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) {
+        statementParseSession.selectedStatementAmountField = key;
+        statementParseSession.selectedStatementAmount = value;
+        renderStatementParsePreview();
+      } else {
+        checkbox.checked = true;
+      }
+    });
+    option.append(checkbox, document.createTextNode(`${label} — ${formatMoney(value)}`));
+    amountOptions.append(option);
+  });
+  const selectedAmount = summaryFields.find(([, , key]) => key === statementParseSession.selectedStatementAmountField)?.[1];
+  statementParseSession.selectedStatementAmount = selectedAmount ?? null;
+  const selectedText = summary.querySelector(".statement-selected-amount");
+  selectedText.textContent = `Selected: ${formatMoney(selectedAmount || 0)} · ${statementParseSession.cardName}${statementPeriod ? ` · ${statementPeriod}` : ""}`;
 
   const note = document.createElement("p");
   note.className = "statement-parser-note";
@@ -6227,7 +6362,15 @@ function renderStatementParsePreview() {
     applyControls.append(duplicateNote);
   }
 
-  container.append(summary, note, tableWrap, applyControls);
+  const saveAmountButton = document.createElement("button");
+  saveAmountButton.type = "button";
+  saveAmountButton.className = "primary-button statement-save-amount-button";
+  saveAmountButton.textContent = "Save statement amount";
+  saveAmountButton.addEventListener("click", () => {
+    saveSelectedStatementAmount().catch((error) => showToast(error.message || "Could not save the statement amount."));
+  });
+  applyControls.prepend(saveAmountButton);
+  container.append(summary, tableWrap, applyControls);
   preview.replaceChildren(container);
   preview.hidden = false;
 
@@ -6259,6 +6402,35 @@ function updateStatementPointsApplyButton() {
   button.disabled = !statementParseSession.reviewConfirmed
     || calculation.totalPoints <= 0
     || calculation.rows.some((row) => row.points === null);
+}
+
+async function saveSelectedStatementAmount() {
+  if (!statementParseSession) throw new Error("Parse a statement first.");
+  const amount = Number(statementParseSession.selectedStatementAmount);
+  if (!Number.isFinite(amount) || amount < 0) throw new Error("Select a valid statement amount first.");
+  const importId = createStatementImportId(statementParseSession.cardId, statementParseSession);
+  const periodDates = [...String(statementParseSession.statementPeriod || "").matchAll(/(20\d{2}-\d{2}-\d{2})/g)].map((match) => match[1]);
+  state.statementRecords = [
+    ...(state.statementRecords || []).filter((record) => record.id !== importId),
+    {
+      id: importId,
+      cardName: statementParseSession.cardName,
+      period: statementParseSession.statementPeriod || "",
+      month: periodDates.at(-1)?.slice(0, 7) || new Date().toISOString().slice(0, 7),
+      amount,
+      source: statementParseSession.financialSummary?.source || "issuer summary",
+    },
+  ];
+  await saveState();
+  renderStatementsWidget();
+  collapseInlineStatementReview();
+  showToast(`Saved ${formatMoney(amount)} as the statement amount.`);
+}
+
+function collapseInlineStatementReview() {
+  if (!els.statementsInlineParserBody) return;
+  els.statementsInlineParserBody.hidden = true;
+  els.statementsInlineParserBody.replaceChildren();
 }
 
 async function applyReviewedStatementPoints() {
@@ -6316,7 +6488,9 @@ async function applyReviewedStatementPoints() {
   ];
   const financialSummary = statementParseSession.financialSummary || {};
   const periodDates = [...String(statementParseSession.statementPeriod || "").matchAll(/(20\d{2}-\d{2}-\d{2})/g)].map((match) => match[1]);
-  const statementAmount = financialSummary.officialPurchaseTotal !== null && financialSummary.officialPurchaseTotal !== undefined
+  const statementAmount = statementParseSession.selectedStatementAmount !== null && statementParseSession.selectedStatementAmount !== undefined
+    ? statementParseSession.selectedStatementAmount
+    : financialSummary.officialPurchaseTotal !== null && financialSummary.officialPurchaseTotal !== undefined
     ? financialSummary.officialPurchaseTotal
     : /IDFC/i.test(statementParseSession.cardName)
       ? financialSummary.totalAmountDue
@@ -6339,6 +6513,7 @@ async function applyReviewedStatementPoints() {
   const addedPoints = calculation.totalPoints;
   statementParseSession = null;
   closeAiModal();
+  collapseInlineStatementReview();
   render();
   showToast(`Added ${formatPoints(addedPoints)} to the card’s Unredeemed Points. No Swipes were created.`);
 }
@@ -13266,8 +13441,8 @@ function renderStatementsWidget() {
       const cardTotal = cardRecords.reduce((sum, record) => sum + toNumber(record.amount), 0);
       const expanded = statementExpandedCard === cardName;
       return `<article class="card-row statements-card-row">
-        <div class="statement-card-toggle" role="button" tabindex="0" data-statement-card="${escapeAttribute(cardName)}"><strong>${escapeHtml(cardName)}</strong><span>${cardRecords.length}</span><strong>${formatMoney(cardTotal)}</strong><span>${expanded ? "−" : "+"}</span></div>
-        ${expanded ? `<div class="statement-month-breakdown">${cardRecords.sort((a,b) => a.month.localeCompare(b.month)).map((record) => `<div><span>${escapeHtml(record.month)}<small>${escapeHtml(record.period)}</small></span><strong>${formatMoney(record.amount)}</strong></div>`).join("")}</div>` : ""}
+        <div class="statement-card-toggle" role="button" tabindex="0" data-statement-card="${escapeAttribute(cardName)}"><strong>${escapeHtml(cardName)}</strong><span>${cardRecords.length}</span><strong>${formatMoney(cardTotal)}</strong><button class="icon-button subtle statement-delete-card" type="button" data-statement-card-delete="${escapeAttribute(cardName)}" title="Delete all statements for this card" aria-label="Delete all statements for ${escapeAttribute(cardName)}">🗑</button><span>${expanded ? "−" : "+"}</span></div>
+        ${expanded ? `<div class="statement-month-breakdown">${cardRecords.sort((a,b) => a.month.localeCompare(b.month)).map((record) => `<div><span>${escapeHtml(record.month)}<small>${escapeHtml(record.period)}</small></span><strong>${formatMoney(record.amount)}</strong><button class="icon-button subtle" type="button" data-statement-delete="${escapeAttribute(record.id)}" title="Delete this statement" aria-label="Delete statement for ${escapeAttribute(record.period || record.month)}">🗑</button></div>`).join("")}</div>` : ""}
       </article>`;
     }).join("")}`;
 }
