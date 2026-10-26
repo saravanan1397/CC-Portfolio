@@ -1845,7 +1845,7 @@ function getDividendTotalsByCompany(entries = state.investments || []) {
     company.amount += toNumber(entry.amount);
     totals.set(key, company);
   });
-  return [...totals.values()].sort((a, b) => a.companyName.localeCompare(b.companyName, "en-IN"));
+  return [...totals.values()].sort((a, b) => b.amount - a.amount || a.companyName.localeCompare(b.companyName, "en-IN"));
 }
 
 function openInvestmentDividendBreakdown() {
@@ -1854,7 +1854,7 @@ function openInvestmentDividendBreakdown() {
   const total = companies.reduce((sum, company) => sum + company.amount, 0);
   if (els.investmentDividendBreakdownSubtitle) {
     els.investmentDividendBreakdownSubtitle.textContent = companies.length
-      ? `${companies.length} ${companies.length === 1 ? "company" : "companies"} · ${formatMoney(total)} total` : "No dividend records yet.";
+      ? `${companies.length} ${companies.length === 1 ? "company" : "companies"} · Dividend value: ${formatMoney(total)}` : "No dividend records yet.";
   }
   els.investmentDividendBreakdownBody.innerHTML = companies.length
     ? companies.map((company) => `<div class="dividend-breakdown-row" role="listitem"><span>${escapeHtml(company.companyName)}</span><strong>${escapeHtml(formatMoney(company.amount))}</strong></div>`).join("")
