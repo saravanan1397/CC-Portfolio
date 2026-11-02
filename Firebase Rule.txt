@@ -1,4 +1,6 @@
-  const firebaseConfig = {
+ < to insert in Index.html>
+
+ const firebaseConfig = {
     apiKey: "AIzaSyAeWDg6WyZQshKc1Hks_AWOVJ7I4_gWe_U",
     authDomain: "credit-card-portfolio-d04db.firebaseapp.com",
     projectId: "credit-card-portfolio-d04db",
@@ -6,6 +8,225 @@
     messagingSenderId: "459587513450",
     appId: "1:459587513450:web:b93829e8cb1d57f4516e13"
   };
+
+
+
+ < to insert in Firestore Rules>
+
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true;
+    }
+
+    function isPromoter() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/promoters/$(request.auth.uid))
+        && get(/databases/$(database)/documents/promoters/$(request.auth.uid)).data.role == 'promoter'
+        && get(/databases/$(database)/documents/promoters/$(request.auth.uid)).data.active == true;
+    }
+
+    // Owners can view and manage every lead. Promoters can only create or
+    // update leads that are tied to their Firebase Auth UID.
+    match /leads/{leadId} {
+      allow read: if isAdmin()
+        || (isPromoter() && resource.data.promoterId == request.auth.uid);
+      allow create: if isAdmin()
+        || (isPromoter()
+          && request.resource.data.promoterId == request.auth.uid
+          && request.resource.data.shopId == get(/databases/$(database)/documents/promoters/$(request.auth.uid)).data.shopId);
+      allow update: if isAdmin()
+        || (isPromoter()
+          && resource.data.promoterId == request.auth.uid
+          && request.resource.data.promoterId == request.auth.uid
+          && request.resource.data.shopId == get(/databases/$(database)/documents/promoters/$(request.auth.uid)).data.shopId);
+      allow delete: if isAdmin();
+    }
+
+    // Admins manage assignment events. A promoter may read events that tell
+    // their device to remove a lead that was transferred away from them.
+    match /leadAssignmentEvents/{eventId} {
+      allow read: if isAdmin()
+        || (isPromoter()
+          && resource.data.previousPromoterId == request.auth.uid);
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Deletion markers let promoter devices remove permanently deleted leads
+    // from their local cache.
+    match /leadDeletionEvents/{eventId} {
+      allow read: if isAdmin() || isPromoter();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Follow-up edit history: promoters can create and read only their own
+    // history; admins can review and permanently remove history.
+    match /leadEditHistory/{editId} {
+      allow read: if isAdmin()
+        || (isPromoter() && resource.data.promoterId == request.auth.uid);
+      allow create: if isAdmin()
+        || (isPromoter()
+          && request.resource.data.promoterId == request.auth.uid
+          && request.resource.data.promoterName
+            == get(/databases/$(database)/documents/promoters/$(request.auth.uid)).data.name
+          && request.resource.data.keys().hasOnly([
+            'recordId', 'customerName', 'promoterId', 'promoterName',
+            'followUpNumber', 'changedAt', 'beforeComment', 'afterComment'
+          ])
+          && request.resource.data.keys().hasAll([
+            'recordId', 'customerName', 'promoterId', 'promoterName',
+            'followUpNumber', 'changedAt', 'beforeComment', 'afterComment'
+          ])
+          && request.resource.data.followUpNumber is int
+          && request.resource.data.changedAt is timestamp
+          && request.resource.data.beforeComment is string
+          && request.resource.data.afterComment is string);
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // The app may create only its own pending registration. Only an admin can
+    // approve, assign, disable, or otherwise modify a promoter profile.
+    match /promoters/{promoterId} {
+      allow read: if isAdmin()
+        || (signedIn() && request.auth.uid == promoterId);
+      allow create: if signedIn()
+        && request.auth.uid == promoterId
+        && !exists(/databases/$(database)/documents/promoterDeletions/$(promoterId))
+        && request.resource.data.role == 'promoter'
+        && request.resource.data.active == false
+        && request.resource.data.status == 'pending';
+      allow update: if isAdmin()
+        && resource.data.status != 'deleting'
+        && request.resource.data.status != 'deleting';
+      allow delete: if false;
+    }
+
+    // A private uniqueness reservation keeps one promoter account per mobile.
+    // It contains only the Firebase UID and cannot be listed by clients.
+    match /promoterMobiles/{mobile} {
+      allow read: if false;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == request.auth.uid
+        && existsAfter(/databases/$(database)/documents/promoters/$(request.auth.uid))
+        && getAfter(/databases/$(database)/documents/promoters/$(request.auth.uid)).data.mobile == mobile;
+      allow update: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // Permanent promoter deletion is queued for the existing GitHub Actions
+    // worker, which uses the private Admin SDK service-account secret.
+    match /promoterDeletionRequests/{promoterId} {
+      function promoterIsInRecycleBin() {
+        let profilePath = /databases/$(database)/documents/promoters/$(promoterId);
+        let profile = get(profilePath).data;
+        return exists(profilePath)
+          && profile.role == 'promoter'
+          && (profile.status == 'recycled'
+            || profile.status == 'deleting'
+            || ('deletedAt' in profile && profile.deletedAt != null));
+      }
+
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly(
+          ['promoterId', 'requestedBy', 'status', 'requestedAt', 'error'])
+        && request.resource.data.keys().hasAll(
+          ['promoterId', 'requestedBy', 'status', 'requestedAt', 'error'])
+        && request.resource.data.promoterId == promoterId
+        && request.resource.data.requestedBy == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.requestedAt == request.time
+        && request.resource.data.error == null
+        && promoterIsInRecycleBin();
+      allow update: if isAdmin()
+        && resource.data.status == 'failed'
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['requestedBy', 'status', 'requestedAt', 'error'])
+        && request.resource.data.promoterId == promoterId
+        && request.resource.data.requestedBy == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.requestedAt == request.time
+        && request.resource.data.error == null
+        && promoterIsInRecycleBin();
+      allow delete: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
+      allow write: if false;
+    }
+
+    match /shops/{shopId} {
+      allow read: if isAdmin()
+        || (isPromoter()
+          && request.auth.token.shopIds is list
+          && shopId in request.auth.token.shopIds);
+      allow write: if false;
+    }
+
+    // Sales Tracker is currently available only to active owner accounts.
+    // GitHub's scheduled backup uses a restricted Admin SDK service account
+    // and therefore does not depend on client security rules.
+    match /salesPersons/{personId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /salesPersonNames/{nameId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /salesEntries/{entryId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /salesEntryAudit/{auditId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /salesPersonTotalSnapshots/{snapshotId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /salesMonths/{monthId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /salesBackupRequests/{requestId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Deny every collection not explicitly listed above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
 
 
 
