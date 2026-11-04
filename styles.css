@@ -2518,6 +2518,56 @@ body::after {
   }
 }
 
+/* Mobile header actions: compact, evenly spaced round controls. */
+@media (max-width: 640px) {
+  body[data-view] .app-shell > .topbar .topbar-actions {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+    width: auto !important;
+    max-width: 100% !important;
+  }
+
+  body[data-view] .app-shell > .topbar .topbar-actions > .refresh-view-button,
+  body[data-view] .app-shell > .topbar .topbar-actions > #lockBtn,
+  body[data-view] .app-shell > .topbar .topbar-actions .topbar-file-action,
+  body[data-view] .app-shell > .topbar .topbar-actions .widget-activity-button {
+    flex: 0 0 38px !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    justify-content: center !important;
+    font-size: 0 !important;
+    line-height: 1 !important;
+  }
+
+  body[data-view] .app-shell > .topbar .topbar-actions .refresh-view-button svg,
+  body[data-view] .app-shell > .topbar .topbar-actions .topbar-file-action svg,
+  body[data-view] .app-shell > .topbar .topbar-actions .widget-activity-button svg {
+    width: 16px !important;
+    height: 16px !important;
+    display: block !important;
+  }
+
+  body[data-view] .app-shell > .topbar .topbar-actions > #lockBtn::before {
+    content: "↪";
+    display: block;
+    font-size: 19px;
+    line-height: 1;
+  }
+
+  body[data-view] .app-shell > .topbar .topbar-actions .floating-actions {
+    display: contents !important;
+  }
+}
+
 /* Final widget header alignment: flat strip, page context left, actions right. */
 body[data-view]:not([data-view="dashboard"]) #app#app#app .app-shell > .topbar {
   position: sticky !important;
