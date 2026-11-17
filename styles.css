@@ -13855,6 +13855,24 @@ html body #app#app#app#app#app#app .widget-v2-sidebar .widget-v2-nav .widget-v2-
 .investment-dividend-summary:hover strong,
 .investment-dividend-summary:focus-visible strong { color: #fff; }
 .investment-dividend-summary:focus-visible { outline: 2px solid var(--render-green); outline-offset: -4px; }
+.investment-gold-summary > small {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+.investment-gold-summary > small span {
+  color: #7f8998;
+  font-size: .68rem;
+  letter-spacing: .08em;
+}
+.investment-gold-summary > small b {
+  color: var(--render-green);
+  font-size: .78rem;
+  font-weight: 800;
+}
 .dashboard-v2-clickable-detail { cursor: pointer; }
 .dashboard-v2-clickable-detail:hover strong,
 .dashboard-v2-clickable-detail:focus-visible strong { color: #fff; }

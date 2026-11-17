@@ -778,6 +778,8 @@ function cacheElements() {
     clearInvestmentEntryBtn: document.getElementById("clearInvestmentEntryBtn"),
     saveInvestmentEntryBtn: document.getElementById("saveInvestmentEntryBtn"),
     investmentGoldCount: document.getElementById("investmentGoldCount"),
+    investmentCoinQuantity: document.getElementById("investmentCoinQuantity"),
+    investmentJewelleryQuantity: document.getElementById("investmentJewelleryQuantity"),
     investmentGoldCost: document.getElementById("investmentGoldCost"),
     investmentDividendTotal: document.getElementById("investmentDividendTotal"),
     investmentDividendSummary: document.getElementById("investmentDividendSummary"),
@@ -13176,6 +13178,10 @@ function renderInvestmentsWidget() {
     : dividends;
   const goldCost = gold.reduce((sum, item) => sum + toNumber(item.cost), 0);
   const goldQuantity = gold.reduce((sum, item) => sum + toNumber(item.quantity), 0);
+  const coinQuantity = gold.filter((item) => String(item.goldType || "").toLowerCase() === "coin")
+    .reduce((sum, item) => sum + toNumber(item.quantity), 0);
+  const jewelleryQuantity = gold.filter((item) => String(item.goldType || "").toLowerCase() === "jewellery")
+    .reduce((sum, item) => sum + toNumber(item.quantity), 0);
   const dividendTotal = dividends.reduce((sum, item) => sum + toNumber(item.amount), 0);
   const visibleGold = investmentGoldAllExpanded
     ? gold
@@ -13187,6 +13193,8 @@ function renderInvestmentsWidget() {
   if (els.investmentGoldCount) {
     els.investmentGoldCount.textContent = `${goldQuantity.toLocaleString("en-IN", { maximumFractionDigits: 3 })} g`;
   }
+  if (els.investmentCoinQuantity) els.investmentCoinQuantity.textContent = `${coinQuantity.toLocaleString("en-IN", { maximumFractionDigits: 3 })} g`;
+  if (els.investmentJewelleryQuantity) els.investmentJewelleryQuantity.textContent = `${jewelleryQuantity.toLocaleString("en-IN", { maximumFractionDigits: 3 })} g`;
   if (els.investmentGoldCost) els.investmentGoldCost.textContent = formatMoney(goldCost);
   if (els.investmentDividendTotal) els.investmentDividendTotal.textContent = formatMoney(dividendTotal);
   if (els.investmentCompanyCount) els.investmentCompanyCount.textContent = String(companies.length);

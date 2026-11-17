@@ -305,6 +305,7 @@
     appId: "1:459587513450:web:b93829e8cb1d57f4516e13"
   };
 
+
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const auth = getAuth(app);
@@ -1758,7 +1759,7 @@
           </div>
 
           <section class="widget-render-summary investments-summary" aria-label="Investment summary">
-            <div><span>Gold quantity (grams)</span><strong id="investmentGoldCount">0 g</strong></div>
+            <div class="investment-gold-summary"><span>Total gold quantity (grams)</span><strong id="investmentGoldCount">0 g</strong><small><span>Coins</span><b id="investmentCoinQuantity">0 g</b></small><small><span>Jewellery</span><b id="investmentJewelleryQuantity">0 g</b></small></div>
             <div><span>Total gold cost</span><strong id="investmentGoldCost">INR 0</strong></div>
             <div id="investmentDividendSummary" class="investment-dividend-summary" role="button" tabindex="0" aria-haspopup="dialog" title="View dividends by company"><span>Dividends credited</span><strong id="investmentDividendTotal">INR 0</strong></div>
             <div><span>Stock companies</span><strong id="investmentCompanyCount">0</strong></div>
