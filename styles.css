@@ -13873,6 +13873,72 @@ html body #app#app#app#app#app#app .widget-v2-sidebar .widget-v2-nav .widget-v2-
   font-size: .78rem;
   font-weight: 800;
 }
+
+/* Global button treatment: compact blue pills matching the supplied reference UI. */
+button,
+.primary-button,
+.ghost-button,
+.danger-button,
+.icon-button,
+.pin-button,
+.scroll-top-button,
+.widget-activity-button,
+.dashboard-v2-icon-action,
+.dashboard-v2-open-widget,
+.dashboard-v2-text-action {
+  border-radius: 999px !important;
+  font-family: inherit !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  transition: background-color .16s ease, border-color .16s ease, color .16s ease, transform .16s ease !important;
+}
+
+button:not(:disabled),
+.primary-button:not(:disabled),
+.dashboard-v2-open-widget:not(:disabled) {
+  border-color: #a9c4ff !important;
+  background: #a9c4ff !important;
+  color: #14213d !important;
+}
+
+.ghost-button:not(:disabled),
+.icon-button:not(:disabled),
+.pin-button:not(:disabled),
+.scroll-top-button:not(:disabled),
+.widget-activity-button:not(:disabled),
+.dashboard-v2-icon-action:not(:disabled),
+.dashboard-v2-text-action:not(:disabled) {
+  border: 1px solid #a9c4ff !important;
+  background: transparent !important;
+  color: #b8ccf5 !important;
+}
+
+.danger-button:not(:disabled) {
+  border-color: #eaa5ad !important;
+  background: #633238 !important;
+  color: #ffe8eb !important;
+}
+
+button:not(:disabled):hover,
+.primary-button:not(:disabled):hover,
+.ghost-button:not(:disabled):hover,
+.danger-button:not(:disabled):hover,
+.icon-button:not(:disabled):hover,
+.pin-button:not(:disabled):hover,
+.scroll-top-button:not(:disabled):hover,
+.widget-activity-button:not(:disabled):hover,
+.dashboard-v2-icon-action:not(:disabled):hover,
+.dashboard-v2-open-widget:not(:disabled):hover,
+.dashboard-v2-text-action:not(:disabled):hover {
+  transform: translateY(-1px) !important;
+  filter: none !important;
+}
+
+button:disabled {
+  box-shadow: none !important;
+  opacity: .55 !important;
+}
 .dashboard-v2-clickable-detail { cursor: pointer; }
 .dashboard-v2-clickable-detail:hover strong,
 .dashboard-v2-clickable-detail:focus-visible strong { color: #fff; }
@@ -19544,42 +19610,122 @@ body[data-view="statements"] #statementsView .statements-table-panel .statement-
   }
 }
 
-/* Absolute-final button override: keep every application action consistent
-   with the compact reference control. */
-#app button.primary-button,
-#app button.ghost-button,
-#app button.danger-button,
-#app button.refresh-view-button,
-#app button.topbar-file-action,
-#app button#lockBtn {
+/* Absolute-final reference button override: flat blue compact pills everywhere. */
+#app button {
   min-height: 36px !important;
   height: auto !important;
-  padding: 8px 14px !important;
-  border: 1px solid #a56b6c !important;
-  border-radius: 8px !important;
-  background: #653033 !important;
+  padding: 7px 14px !important;
+  border: 1px solid #a9c4ff !important;
+  border-radius: 999px !important;
+  background: #a9c4ff !important;
   background-image: none !important;
-  color: #f7e6e6 !important;
+  color: #14213d !important;
   box-shadow: none !important;
+  font-family: inherit !important;
+  font-size: .82rem !important;
   font-weight: 700 !important;
+  line-height: 1.1 !important;
   text-shadow: none !important;
 }
 
-#app button.primary-button:hover,
-#app button.ghost-button:hover,
-#app button.danger-button:hover,
-#app button.refresh-view-button:hover,
-#app button.topbar-file-action:hover,
-#app button#lockBtn:hover {
-  background: #7a3a3b !important;
-  border-color: #d0908f !important;
-  color: #fff3f3 !important;
-  box-shadow: none !important;
-  transform: translateY(-1px);
+#app button.ghost-button,
+#app button.danger-button,
+#app button.icon-button,
+#app button.pin-button,
+#app button.scroll-top-button,
+#app button.widget-activity-button,
+#app button.dashboard-v2-icon-action,
+#app button.dashboard-v2-text-action {
+  background: transparent !important;
+  color: #b8ccf5 !important;
 }
 
-#app button.topbar-file-action {
+#app button.danger-button {
+  background: #633238 !important;
+  border-color: #eaa5ad !important;
+  color: #ffe8eb !important;
+}
+
+#app button:hover:not(:disabled) {
+  background: #bfd2ff !important;
+  border-color: #bfd2ff !important;
+  color: #14213d !important;
+  box-shadow: none !important;
+  transform: translateY(-1px) !important;
+}
+
+#app button.ghost-button:hover:not(:disabled),
+#app button.icon-button:hover:not(:disabled),
+#app button.pin-button:hover:not(:disabled),
+#app button.scroll-top-button:hover:not(:disabled),
+#app button.widget-activity-button:hover:not(:disabled),
+#app button.dashboard-v2-icon-action:hover:not(:disabled),
+#app button.dashboard-v2-text-action:hover:not(:disabled) {
+  background: rgba(169, 196, 255, .16) !important;
+  border-color: #bfd2ff !important;
+  color: #dbe6ff !important;
+}
+
+#app button.topbar-file-action,
+#app button.icon-button,
+#app button.pin-button,
+#app button.scroll-top-button,
+#app button.widget-activity-button,
+#app button.dashboard-v2-icon-action {
   width: 36px !important;
   min-width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
   padding: 8px !important;
+}
+
+/* Final mobile header correction: no reserved gap and icon-only controls. */
+@media (max-width: 700px) {
+  body[data-view]:not([data-view="dashboard"]) #app .topbar-navigation > [id^="backFrom"],
+  body[data-view]:not([data-view="dashboard"]) #app .topbar-navigation > #saveStatus {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) #app .topbar-navigation {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-end !important;
+    gap: 7px !important;
+    margin-left: auto !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) #app .topbar-navigation > .refresh-view-button,
+  body[data-view]:not([data-view="dashboard"]) #app .topbar-navigation > #lockBtn,
+  body[data-view]:not([data-view="dashboard"]) #app .topbar-navigation .topbar-file-action,
+  body[data-view]:not([data-view="dashboard"]) #app .topbar-navigation > .widget-activity-button {
+    flex: 0 0 36px !important;
+    width: 36px !important;
+    min-width: 36px !important;
+    max-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    justify-content: center !important;
+    font-size: 0 !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) #app .topbar-navigation .floating-actions {
+    display: contents !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) #app .topbar-navigation > #lockBtn::before {
+    content: "↪" !important;
+    display: block !important;
+    font-size: 19px !important;
+    line-height: 1 !important;
+  }
+
+  body[data-view]:not([data-view="dashboard"]) #app .topbar-navigation .refresh-view-button span {
+    display: none !important;
+  }
 }

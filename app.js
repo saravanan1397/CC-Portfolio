@@ -5986,8 +5986,10 @@ function parseStatementFinancialSummary(items) {
   const hdfcMatches = hdfcBlock.match(/[\d,]+\.\d{2}/g);
   const hdfcValues = (hdfcMatches?.length ? hdfcMatches : (hdfcFallbackBlock.match(/[\d,]+\.\d{2}/g) || [])).map(money);
   if (hdfcValues.length >= 5 && result.officialPurchaseTotal === null) {
-    result.previousBalance = hdfcValues[0];
-    result.totalAmountDue = hdfcValues[1];
+    // HDFC renders Total Amount Due before the value row in these PDFs:
+    // total due, previous dues, payments/credits, purchases/debit, finance charges.
+    result.totalAmountDue = hdfcValues[0];
+    result.previousBalance = hdfcValues[1];
     result.paymentsCreditsTotal = hdfcValues[2];
     result.officialPurchaseTotal = hdfcValues[3];
     result.cashAdvance = null;
@@ -6277,7 +6279,7 @@ function renderStatementParsePreview() {
     ["Total Due", financialSummary.totalAmountDue, "totalAmountDue"],
   ].filter(([, value]) => value !== null && value !== undefined);
   if (!statementParseSession.selectedStatementAmountField) {
-    statementParseSession.selectedStatementAmountField = /IDFC/i.test(statementParseSession.cardName) ? "totalAmountDue" : "officialPurchaseTotal";
+    statementParseSession.selectedStatementAmountField = /IDFC|HDFC/i.test(statementParseSession.cardName) ? "totalAmountDue" : "officialPurchaseTotal";
   }
   summary.innerHTML = `<strong>Choose the statement amount</strong><div class="statement-amount-options"></div><div class="statement-selected-amount"></div>`;
   const amountOptions = summary.querySelector(".statement-amount-options");
@@ -6494,7 +6496,7 @@ async function applyReviewedStatementPoints() {
     ? statementParseSession.selectedStatementAmount
     : financialSummary.officialPurchaseTotal !== null && financialSummary.officialPurchaseTotal !== undefined
     ? financialSummary.officialPurchaseTotal
-    : /IDFC/i.test(statementParseSession.cardName)
+    : /IDFC|HDFC/i.test(statementParseSession.cardName)
       ? financialSummary.totalAmountDue
       : null;
   if (statementAmount !== null && statementAmount !== undefined) {
