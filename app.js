@@ -231,6 +231,7 @@ const state = {
   incomeBanks: [],
   investments: [],
   investmentCompanies: [],
+  goldMarketRates: { location: "Chennai", rates: {}, updatedAt: "", error: "" },
   activityLog: [],
   aiTrainer: {
     examples: [],
@@ -296,7 +297,7 @@ let syncedPortfolioSnapshot = null;
 const portfolioPersistedFields = [
   "currency", "cards", "swipes", "rpSpends", "pprManualPoints", "pprPartnerTransfers",
   "loungeVisits", "loungeCardLimits", "intlTravelTrips", "interestLedger", "incomeBanks",
-  "investments", "investmentCompanies", "statementImports", "statementContributions", "statementRecords", "activityLog", "aiTrainer",
+  "investments", "investmentCompanies", "goldMarketRates", "statementImports", "statementContributions", "statementRecords", "activityLog", "aiTrainer",
 ];
 // Reuse expensive point/fee calculations while a single render is building
 // several views and summaries. The cache is cleared as soon as that render
@@ -659,6 +660,8 @@ function initializePortfolioApp() {
     resetInvestmentEntryForm();
     appIsReady = true;
     startRealtimeSync();
+    window.setTimeout(() => refreshGoldMarketRate(false), 0);
+    window.setInterval(() => refreshGoldMarketRate(false), 60 * 60 * 1000);
     setPortfolioLoadStatus("Portfolio ready.");
   })();
 
@@ -764,6 +767,8 @@ function cacheElements() {
     investmentEntryType: document.getElementById("investmentEntryType"),
     investmentGoldType: document.getElementById("investmentGoldType"),
     investmentGoldQuantity: document.getElementById("investmentGoldQuantity"),
+    investmentGoldPricePerGram: document.getElementById("investmentGoldPricePerGram"),
+    investmentGoldPurity: document.getElementById("investmentGoldPurity"),
     investmentGoldCostInput: document.getElementById("investmentGoldCostInput"),
     investmentGoldDate: document.getElementById("investmentGoldDate"),
     investmentGoldVendor: document.getElementById("investmentGoldVendor"),
@@ -781,6 +786,13 @@ function cacheElements() {
     investmentCoinQuantity: document.getElementById("investmentCoinQuantity"),
     investmentJewelleryQuantity: document.getElementById("investmentJewelleryQuantity"),
     investmentGoldCost: document.getElementById("investmentGoldCost"),
+    investmentGoldProfitLoss: document.getElementById("investmentGoldProfitLoss"),
+    goldMarketRatePanel: document.getElementById("goldMarketRatePanel"),
+    goldMarketRateStatus: document.getElementById("goldMarketRateStatus"),
+    goldMarketRate18: document.getElementById("goldMarketRate18"),
+    goldMarketRate22: document.getElementById("goldMarketRate22"),
+    goldMarketRate24: document.getElementById("goldMarketRate24"),
+    refreshGoldRateBtn: document.getElementById("refreshGoldRateBtn"),
     investmentDividendTotal: document.getElementById("investmentDividendTotal"),
     investmentDividendSummary: document.getElementById("investmentDividendSummary"),
     investmentCompanyCount: document.getElementById("investmentCompanyCount"),
@@ -1443,6 +1455,7 @@ document.addEventListener("keydown", (e) => {
   els.openInvestmentsBtn?.addEventListener("click", () => showView("investments"));
   els.openStatementsWidgetBtn?.addEventListener("click", () => showView("statements"));
   els.refreshViewBtn?.addEventListener("click", refreshCurrentView);
+  els.refreshGoldRateBtn?.addEventListener("click", () => refreshGoldMarketRate(true));
   els.widgetActivityBtn?.addEventListener("click", openWidgetActivityModal);
   els.closeWidgetActivityBtn?.addEventListener("click", closeWidgetActivityModal);
   els.closeWidgetActivityFooterBtn?.addEventListener("click", closeWidgetActivityModal);
@@ -1899,6 +1912,8 @@ function normalizeInvestmentEntry(entry = {}) {
     kind,
     goldType: ["Jewel", "Jewellery"].includes(entry.goldType) ? "Jewellery" : "Coin",
     quantity: toNumber(entry.quantity),
+    pricePerGram: toNumber(entry.pricePerGram),
+    purity: ["18K", "22K", "24K"].includes(entry.purity) ? entry.purity : "",
     cost: toNumber(entry.cost),
     vendor: String(entry.vendor || "").trim(),
     companyName,
@@ -1940,6 +1955,12 @@ async function loadState() {
       state.incomeBanks = normalizeIncomeBanks(data.incomeBanks, state.interestLedger);
       state.investments = (data.investments || []).map(normalizeInvestmentEntry).filter(Boolean);
       state.investmentCompanies = normalizeInvestmentCompanies(data.investmentCompanies, state.investments);
+      state.goldMarketRates = {
+        location: "Chennai",
+        rates: data.goldMarketRates?.rates || {},
+        updatedAt: String(data.goldMarketRates?.updatedAt || ""),
+        error: String(data.goldMarketRates?.error || ""),
+      };
       state.statementImports = Array.isArray(data.statementImports)
         ? data.statementImports.map((id) => String(id || "").trim()).filter(Boolean)
         : [];
@@ -13067,6 +13088,7 @@ function resetInvestmentEntryForm() {
   if (els.investmentEditingId) els.investmentEditingId.value = "";
   if (els.investmentEntryType) els.investmentEntryType.value = "";
   if (els.investmentGoldType) els.investmentGoldType.value = "Coin";
+  if (els.investmentGoldPurity) els.investmentGoldPurity.value = "";
   if (els.saveInvestmentEntryBtn) els.saveInvestmentEntryBtn.textContent = "Add Entry";
   renderInvestmentCompanyOptions();
   updateInvestmentEntryFields();
@@ -13113,6 +13135,8 @@ async function saveInvestmentEntryFromForm(event) {
     entry = normalizeInvestmentEntry({
       id: editingId || createId(), kind, goldType: els.investmentGoldType?.value,
       quantity, cost, purchaseDate: els.investmentGoldDate?.value,
+      pricePerGram: els.investmentGoldPricePerGram?.value,
+      purity: els.investmentGoldPurity?.value,
       vendor: els.investmentGoldVendor?.value, notes: els.investmentGoldNotes?.value,
       createdAt: editingId ? state.investments.find((item) => item.id === editingId)?.createdAt : new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -13185,6 +13209,14 @@ function renderInvestmentsWidget() {
   const jewelleryQuantity = gold.filter((item) => String(item.goldType || "").toLowerCase() === "jewellery")
     .reduce((sum, item) => sum + toNumber(item.quantity), 0);
   const dividendTotal = dividends.reduce((sum, item) => sum + toNumber(item.amount), 0);
+  const marketRates = state.goldMarketRates?.rates || {};
+  const getMarketRate = (entry) => toNumber(marketRates[String(entry.purity || "").toUpperCase()]);
+  const entryProfitLoss = (entry) => {
+    const marketRate = getMarketRate(entry);
+    const purchaseRate = toNumber(entry.pricePerGram);
+    return marketRate > 0 && purchaseRate > 0 ? toNumber(entry.quantity) * (marketRate - purchaseRate) : null;
+  };
+  const netGoldProfitLoss = gold.reduce((sum, entry) => sum + (entryProfitLoss(entry) ?? 0), 0);
   const visibleGold = investmentGoldAllExpanded
     ? gold
     : gold.slice(0, INITIAL_VISIBLE_INVESTMENT_RECORDS);
@@ -13198,6 +13230,17 @@ function renderInvestmentsWidget() {
   if (els.investmentCoinQuantity) els.investmentCoinQuantity.textContent = `${coinQuantity.toLocaleString("en-IN", { maximumFractionDigits: 3 })} g`;
   if (els.investmentJewelleryQuantity) els.investmentJewelleryQuantity.textContent = `${jewelleryQuantity.toLocaleString("en-IN", { maximumFractionDigits: 3 })} g`;
   if (els.investmentGoldCost) els.investmentGoldCost.textContent = formatMoney(goldCost);
+  if (els.investmentGoldProfitLoss) {
+    els.investmentGoldProfitLoss.textContent = `P/L: ${formatMoney(netGoldProfitLoss)}`;
+    els.investmentGoldProfitLoss.className = netGoldProfitLoss < 0 ? "investment-pl loss" : "investment-pl profit";
+  }
+  if (els.goldMarketRate18) els.goldMarketRate18.textContent = marketRates["18K"] ? formatMoney(marketRates["18K"]) : "—";
+  if (els.goldMarketRate22) els.goldMarketRate22.textContent = marketRates["22K"] ? formatMoney(marketRates["22K"]) : "—";
+  if (els.goldMarketRate24) els.goldMarketRate24.textContent = marketRates["24K"] ? formatMoney(marketRates["24K"]) : "—";
+  if (els.goldMarketRateStatus) {
+    const updated = state.goldMarketRates?.updatedAt ? new Date(state.goldMarketRates.updatedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "Not loaded";
+    els.goldMarketRateStatus.textContent = state.goldMarketRates?.error ? `Live rate unavailable · ${state.goldMarketRates.error}` : `Chennai · Updated ${updated}`;
+  }
   if (els.investmentDividendTotal) els.investmentDividendTotal.textContent = formatMoney(dividendTotal);
   if (els.investmentCompanyCount) els.investmentCompanyCount.textContent = String(companies.length);
   renderInvestmentCompanyOptions(els.investmentDividendCompany?.value || "");
@@ -13208,7 +13251,10 @@ function renderInvestmentsWidget() {
   els.investmentGoldList.innerHTML = gold.length ? visibleGold.map((entry) => {
     const dateValue = getInvestmentRecordDate(entry);
     const dateLabel = dateValue ? `Purchase date: ${formatInvestmentCreditDate(dateValue)}` : "Purchase date not entered";
-    return `<article class="investment-record"><div><strong>${escapeHtml(entry.goldType)} · ${escapeHtml(String(entry.quantity))} g</strong><span>${escapeHtml(dateLabel)}</span><span>${escapeHtml(entry.vendor || "Vendor not entered")}</span>${entry.notes ? `<small>${escapeHtml(entry.notes)}</small>` : ""}</div><b>${escapeHtml(formatMoney(entry.cost))}</b>${actions(entry)}</article>`;
+    const pricePerGramLabel = entry.pricePerGram > 0 ? `Price/gram: ${formatMoney(entry.pricePerGram)}${entry.purity ? ` · ${escapeHtml(entry.purity)}` : ""}` : "Price/gram not entered";
+    const pl = entryProfitLoss(entry);
+    const plLabel = pl === null ? "P/L unavailable" : `P/L: ${formatMoney(pl)}`;
+    return `<article class="investment-record"><div><strong>${escapeHtml(entry.goldType)} · ${escapeHtml(String(entry.quantity))} g</strong><span>${escapeHtml(dateLabel)}</span><span>${escapeHtml(entry.vendor || "Vendor not entered")}</span>${entry.notes ? `<small>${escapeHtml(entry.notes)}</small>` : ""}<span>${escapeHtml(pricePerGramLabel)}</span></div><div class="investment-record-value"><b>${escapeHtml(formatMoney(entry.cost))}</b><small class="investment-pl ${pl !== null && pl < 0 ? "loss" : "profit"}">${escapeHtml(plLabel)}</small></div>${actions(entry)}</article>`;
   }).join("") : `<p class="investment-empty">No gold purchases recorded.</p>`;
   if (!investmentGoldAllExpanded && gold.length > visibleGold.length) {
     renderLoadMoreIn(els.investmentGoldList, gold.length - visibleGold.length, () => {
@@ -13304,6 +13350,8 @@ function handleInvestmentAction(event) {
   if (entry.kind === "gold") {
     if (els.investmentGoldType) els.investmentGoldType.value = entry.goldType;
     if (els.investmentGoldQuantity) els.investmentGoldQuantity.value = entry.quantity;
+    if (els.investmentGoldPricePerGram) els.investmentGoldPricePerGram.value = entry.pricePerGram || "";
+    if (els.investmentGoldPurity) els.investmentGoldPurity.value = entry.purity || "";
     if (els.investmentGoldCostInput) els.investmentGoldCostInput.value = entry.cost;
     if (els.investmentGoldDate) els.investmentGoldDate.value = entry.purchaseDate;
     if (els.investmentGoldVendor) els.investmentGoldVendor.value = entry.vendor;
@@ -13355,6 +13403,7 @@ async function refreshCurrentView(event) {
 
   try {
     await loadState();
+    if (normalizeViewName(state.currentView) === "investments") await refreshGoldMarketRate(true);
     render();
     showToast("View refreshed with saved data.");
   } catch (error) {
@@ -13365,6 +13414,80 @@ async function refreshCurrentView(event) {
   } finally {
     button.disabled = false;
     button.removeAttribute("aria-busy");
+  }
+}
+
+const GOLD_RATE_SOURCE_URL = "https://www.goodreturns.in/gold-rates/chennai.html";
+
+function parseGoldRateValue(value) {
+  const number = String(value || "").replace(/[^0-9.]/g, "");
+  return Number(number) || 0;
+}
+
+async function refreshGoldMarketRate(force = false) {
+  const lastUpdated = Date.parse(state.goldMarketRates?.updatedAt || "");
+  if (!force && lastUpdated && Date.now() - lastUpdated < 60 * 60 * 1000) return false;
+  if (els.refreshGoldRateBtn) {
+    els.refreshGoldRateBtn.disabled = true;
+    els.refreshGoldRateBtn.setAttribute("aria-busy", "true");
+  }
+  try {
+    const sources = [
+      GOLD_RATE_SOURCE_URL,
+      `https://r.jina.ai/http://${GOLD_RATE_SOURCE_URL.replace(/^https?:\/\//, "")}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(GOLD_RATE_SOURCE_URL)}`,
+    ];
+    let response = null;
+    let html = "";
+    for (const source of sources) {
+      try {
+        const candidate = await fetch(source, { cache: "no-store" });
+        if (candidate.ok) {
+          response = candidate;
+          html = await candidate.text();
+          break;
+        }
+      } catch (_) {
+        // Try the free read-only fallback when the source blocks browser requests.
+      }
+    }
+    if (!response) throw new Error("Source unavailable");
+    const text = html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&#x20b9;|&#8377;|&rupee;/gi, "₹").replace(/&nbsp;/gi, " ").replace(/\s+/g, " ");
+    const rates = {};
+    ["24K", "22K", "18K"].forEach((purity) => {
+      const idMatch = html.match(new RegExp(`id=["']${purity}-price["'][^>]*>[\\s\\S]{0,120}?(?:₹|&#x20b9;|&#8377;|&rupee;)\\s*([\\d,]+(?:\\.\\d+)?)`, "i"));
+      if (idMatch) {
+        const idValue = parseGoldRateValue(idMatch[1]);
+        if (idValue >= 1000 && idValue <= 100000) {
+          rates[purity] = idValue;
+          return;
+        }
+      }
+      const labelMatch = text.match(new RegExp(`${purity}\\s*(?:Gold\\s*)?(?:/g|per gram)`, "i"));
+      if (!labelMatch || labelMatch.index === undefined) return;
+      const nearby = text.slice(labelMatch.index, labelMatch.index + 180);
+      const candidates = [...nearby.matchAll(/₹\s*([\d,]+(?:\.\d+)?)/g)]
+        .map((match) => parseGoldRateValue(match[1]))
+        .filter((value) => value >= 1000 && value <= 100000);
+      if (candidates.length) rates[purity] = candidates[0];
+    });
+    if (!rates["24K"] || !rates["22K"] || !rates["18K"]) throw new Error("Could not read valid rupee rates for all purities");
+    state.goldMarketRates = { location: "Chennai", rates, updatedAt: new Date().toISOString(), error: "" };
+    await saveState({ skipActivity: true });
+    renderInvestmentsWidget();
+    showToast("Chennai gold rates updated.");
+    return true;
+  } catch (error) {
+    console.error("Unable to update Chennai gold rates", error);
+    state.goldMarketRates = { ...(state.goldMarketRates || {}), location: "Chennai", error: "Refresh blocked or source format changed." };
+    renderInvestmentsWidget();
+    showToast("Could not update the live gold rate.");
+    return false;
+  } finally {
+    if (els.refreshGoldRateBtn) {
+      els.refreshGoldRateBtn.disabled = false;
+      els.refreshGoldRateBtn.removeAttribute("aria-busy");
+    }
   }
 }
 

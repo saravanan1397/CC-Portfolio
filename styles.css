@@ -17156,6 +17156,22 @@ body[data-view="investments"] #investmentsView {
 .investment-record span, .investment-record small { color: var(--muted); overflow-wrap: anywhere; }
 .investment-record small { white-space: pre-wrap; }
 .investment-record b { color: var(--profit); white-space: nowrap; }
+.investment-record-value { display: grid; justify-items: end; gap: 3px; white-space: nowrap; }
+.investment-pl { font-size: .72rem; font-weight: 700; }
+.investment-pl.profit { color: var(--profit); }
+.investment-pl.loss { color: #f28b8b; }
+.gold-market-rate-panel { margin: 16px 0 20px; padding: 15px 18px; border: 1px solid rgba(86, 211, 184, .22); border-radius: 16px; background: rgba(7, 25, 31, .72); }
+.gold-market-rate-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.gold-market-rate-heading > div { display: grid; gap: 3px; }
+.gold-market-rate-heading span, .gold-market-rate-values span { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; }
+.gold-market-rate-heading strong { color: var(--ink); font-size: 1rem; }
+.gold-market-rate-heading small { color: var(--muted); }
+.gold-market-rate-values { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.gold-market-rate-values > div { display: grid; gap: 5px; padding: 11px 13px; border: 1px solid rgba(148, 163, 184, .15); border-radius: 11px; background: rgba(5, 10, 16, .58); }
+.gold-market-rate-values strong { color: var(--profit); font-size: 1.1rem; }
+.gold-market-live-value { display: inline-flex; align-items: center; gap: 7px; }
+.gold-market-live-value::before { content: ""; width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: #45e0a7; box-shadow: 0 0 0 3px rgba(69, 224, 167, .12), 0 0 10px rgba(69, 224, 167, .72); animation: gold-live-blink 1.15s ease-in-out infinite; }
+@keyframes gold-live-blink { 0%, 100% { opacity: .35; transform: scale(.82); } 50% { opacity: 1; transform: scale(1.12); } }
 .investment-empty { color: var(--muted); margin: 4px 0; }
 
 @media (max-width: 900px) {
@@ -17173,6 +17189,8 @@ body[data-view="investments"] #investmentsView {
   .investment-company-manager > button { width: 100%; }
   .investment-record { grid-template-columns: minmax(0, 1fr) auto; }
   .investment-record .row-actions { grid-column: 1 / -1; justify-content: flex-end; }
+  .gold-market-rate-values { grid-template-columns: 1fr; }
+  .gold-market-rate-heading { align-items: stretch; flex-direction: column; }
 }
 
 body[data-view="lounge"] #loungeView {

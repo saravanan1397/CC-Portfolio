@@ -305,7 +305,6 @@
     appId: "1:459587513450:web:b93829e8cb1d57f4516e13"
   };
 
-
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const auth = getAuth(app);
@@ -1760,9 +1759,13 @@
 
           <section class="widget-render-summary investments-summary" aria-label="Investment summary">
             <div class="investment-gold-summary"><span>Total gold quantity (grams)</span><strong id="investmentGoldCount">0 g</strong><small><span>Coins</span><b id="investmentCoinQuantity">0 g</b></small><small><span>Jewellery</span><b id="investmentJewelleryQuantity">0 g</b></small></div>
-            <div><span>Total gold cost</span><strong id="investmentGoldCost">INR 0</strong></div>
+            <div><span>Total gold cost</span><strong id="investmentGoldCost">INR 0</strong><small id="investmentGoldProfitLoss" class="investment-pl profit">P/L: INR 0</small></div>
             <div id="investmentDividendSummary" class="investment-dividend-summary" role="button" tabindex="0" aria-haspopup="dialog" title="View dividends by company"><span>Dividends credited</span><strong id="investmentDividendTotal">INR 0</strong></div>
             <div><span>Stock companies</span><strong id="investmentCompanyCount">0</strong></div>
+          </section>
+          <section class="gold-market-rate-panel" id="goldMarketRatePanel" aria-label="Live Chennai gold rates">
+            <div class="gold-market-rate-heading"><div><span>Live gold rate</span><strong>Chennai</strong><small id="goldMarketRateStatus">Not loaded</small></div><button class="ghost-button" type="button" id="refreshGoldRateBtn">Refresh rate</button></div>
+            <div class="gold-market-rate-values"><div><span>18K / g</span><strong id="goldMarketRate18" class="gold-market-live-value" title="Live Chennai gold rate" aria-label="Live 18 karat Chennai gold rate">—</strong></div><div><span>22K / g</span><strong id="goldMarketRate22" class="gold-market-live-value" title="Live Chennai gold rate" aria-label="Live 22 karat Chennai gold rate">—</strong></div><div><span>24K / g</span><strong id="goldMarketRate24" class="gold-market-live-value" title="Live Chennai gold rate" aria-label="Live 24 karat Chennai gold rate">—</strong></div></div>
           </section>
 
           <section class="investment-entry-card" aria-labelledby="investmentEntryTitle">
@@ -1791,6 +1794,19 @@
                 <label class="field investment-gold-field">
                   <span>Gold quantity (grams)</span>
                   <input id="investmentGoldQuantity" type="number" min="0.001" step="0.001" inputmode="decimal" placeholder="Required" />
+                </label>
+                <label class="field investment-gold-field">
+                  <span>Price/gram (INR)</span>
+                  <input id="investmentGoldPricePerGram" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="Purchased price per gram" />
+                </label>
+                <label class="field investment-gold-field">
+                  <span>Purity</span>
+                  <select id="investmentGoldPurity">
+                    <option value="" selected>Please select</option>
+                    <option value="18K">18K</option>
+                    <option value="22K">22K</option>
+                    <option value="24K">24K</option>
+                  </select>
                 </label>
                 <label class="field investment-gold-field">
                   <span>Total purchase cost (INR)</span>
