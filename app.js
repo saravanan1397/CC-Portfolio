@@ -13433,6 +13433,7 @@ async function refreshGoldMarketRate(force = false) {
   }
   try {
     const sources = [
+      `assets/gold-market-rates.json?updated=${Date.now()}`,
       GOLD_RATE_SOURCE_URL,
       `https://r.jina.ai/http://${GOLD_RATE_SOURCE_URL.replace(/^https?:\/\//, "")}`,
       `https://api.allorigins.win/raw?url=${encodeURIComponent(GOLD_RATE_SOURCE_URL)}`,
@@ -13443,8 +13444,10 @@ async function refreshGoldMarketRate(force = false) {
       try {
         const candidate = await fetch(source, { cache: "no-store" });
         if (candidate.ok) {
+          const candidateText = await candidate.text();
+          if (source.startsWith("assets/") && !candidateText.includes('"24K"') && !candidateText.includes('"22K"')) continue;
           response = candidate;
-          html = await candidate.text();
+          html = candidateText;
           break;
         }
       } catch (_) {
