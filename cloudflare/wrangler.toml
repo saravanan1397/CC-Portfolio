@@ -1,0 +1,11 @@
+name = "cc-portfolio-gold-rates"
+main = "gold-rate-worker.js"
+compatibility_date = "2026-11-22"
+
+[triggers]
+crons = ["7 * * * *"]
+
+[[kv_namespaces]]
+binding = "GOLD_RATES"
+# Replace this with the KV namespace ID created in Cloudflare.
+id = "75b15326e03c47808e1289b2f696883d"

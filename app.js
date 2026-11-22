@@ -13418,6 +13418,7 @@ async function refreshCurrentView(event) {
 }
 
 const GOLD_RATE_SOURCE_URL = "https://www.goodreturns.in/gold-rates/chennai.html";
+const GOLD_RATE_TRACKER_URL = "https://sarav-cc-portfolio-gold.workers.dev/rates";
 
 function parseGoldRateValue(value) {
   const number = String(value || "").replace(/[^0-9.]/g, "");
@@ -13433,7 +13434,7 @@ async function refreshGoldMarketRate(force = false) {
   }
   try {
     const sources = [
-      `assets/gold-market-rates.json?updated=${Date.now()}`,
+      ...(GOLD_RATE_TRACKER_URL ? [GOLD_RATE_TRACKER_URL] : []),
       GOLD_RATE_SOURCE_URL,
       `https://r.jina.ai/http://${GOLD_RATE_SOURCE_URL.replace(/^https?:\/\//, "")}`,
       `https://api.allorigins.win/raw?url=${encodeURIComponent(GOLD_RATE_SOURCE_URL)}`,
@@ -13445,6 +13446,22 @@ async function refreshGoldMarketRate(force = false) {
         const candidate = await fetch(source, { cache: "no-store" });
         if (candidate.ok) {
           const candidateText = await candidate.text();
+          if (source === GOLD_RATE_TRACKER_URL) {
+            try {
+              const trackerData = JSON.parse(candidateText);
+              const trackerRates = trackerData?.rates || {};
+              if (["18K", "22K", "24K"].every((purity) => toNumber(trackerRates[purity]) >= 1000)) {
+                state.goldMarketRates = { location: "Chennai", rates: trackerRates, updatedAt: trackerData.updatedAt || new Date().toISOString(), error: "" };
+                await saveState({ skipActivity: true });
+                renderInvestmentsWidget();
+                showToast("Chennai gold rates updated.");
+                return true;
+              }
+              continue;
+            } catch (_) {
+              continue;
+            }
+          }
           if (source.startsWith("assets/") && !candidateText.includes('"24K"') && !candidateText.includes('"22K"')) continue;
           response = candidate;
           html = candidateText;
