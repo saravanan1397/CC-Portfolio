@@ -13128,6 +13128,7 @@ async function saveInvestmentEntryFromForm(event) {
     return;
   }
   const editingId = els.investmentEditingId?.value || "";
+  const existingEntry = editingId ? state.investments.find((item) => item.id === editingId) : null;
   let entry;
 
   if (kind === "gold") {
@@ -13137,10 +13138,14 @@ async function saveInvestmentEntryFromForm(event) {
       showToast("Enter the gold quantity and total purchase cost.");
       return;
     }
+    const enteredPricePerGram = String(els.investmentGoldPricePerGram?.value ?? "").trim();
+    const pricePerGram = enteredPricePerGram === ""
+      ? (existingEntry?.pricePerGram || 0)
+      : toNumber(enteredPricePerGram);
     entry = normalizeInvestmentEntry({
       id: editingId || createId(), kind, goldType: els.investmentGoldType?.value,
       quantity, cost, purchaseDate: els.investmentGoldDate?.value,
-      pricePerGram: els.investmentGoldPricePerGram?.value,
+      pricePerGram,
       purity: els.investmentGoldPurity?.value,
       vendor: els.investmentGoldVendor?.value, notes: els.investmentGoldNotes?.value,
       createdAt: editingId ? state.investments.find((item) => item.id === editingId)?.createdAt : new Date().toISOString(),
@@ -13438,7 +13443,7 @@ async function refreshCurrentView(event) {
 }
 
 const GOLD_RATE_SOURCE_URL = "https://www.goodreturns.in/gold-rates/chennai.html";
-const GOLD_RATE_TRACKER_URL = "https://sarav-cc-portfolio-gold.workers.dev/rates";
+const GOLD_RATE_TRACKER_URL = "https://cc-portfolio-gold-rates.sarav-cc-portfolio-gold.workers.dev/rates?refresh=1";
 
 function parseGoldRateValue(value) {
   const number = String(value || "").replace(/[^0-9.]/g, "");
