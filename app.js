@@ -792,6 +792,9 @@ function cacheElements() {
     goldMarketRate18: document.getElementById("goldMarketRate18"),
     goldMarketRate22: document.getElementById("goldMarketRate22"),
     goldMarketRate24: document.getElementById("goldMarketRate24"),
+    goldMarketRateChange18: document.getElementById("goldMarketRateChange18"),
+    goldMarketRateChange22: document.getElementById("goldMarketRateChange22"),
+    goldMarketRateChange24: document.getElementById("goldMarketRateChange24"),
     refreshGoldRateBtn: document.getElementById("refreshGoldRateBtn"),
     investmentDividendTotal: document.getElementById("investmentDividendTotal"),
     investmentDividendSummary: document.getElementById("investmentDividendSummary"),
@@ -1958,6 +1961,8 @@ async function loadState() {
       state.goldMarketRates = {
         location: "Chennai",
         rates: data.goldMarketRates?.rates || {},
+        previousDayRates: data.goldMarketRates?.previousDayRates || data.goldMarketRates?.previousRates || {},
+        rateDate: String(data.goldMarketRates?.rateDate || ""),
         updatedAt: String(data.goldMarketRates?.updatedAt || ""),
         error: String(data.goldMarketRates?.error || ""),
       };
@@ -13210,6 +13215,7 @@ function renderInvestmentsWidget() {
     .reduce((sum, item) => sum + toNumber(item.quantity), 0);
   const dividendTotal = dividends.reduce((sum, item) => sum + toNumber(item.amount), 0);
   const marketRates = state.goldMarketRates?.rates || {};
+  const previousMarketRates = state.goldMarketRates?.previousDayRates || {};
   const getMarketRate = (entry) => toNumber(marketRates[String(entry.purity || "").toUpperCase()]);
   const entryProfitLoss = (entry) => {
     const marketRate = getMarketRate(entry);
@@ -13234,9 +13240,23 @@ function renderInvestmentsWidget() {
     els.investmentGoldProfitLoss.textContent = `P/L: ${formatMoney(netGoldProfitLoss)}`;
     els.investmentGoldProfitLoss.className = netGoldProfitLoss < 0 ? "investment-pl loss" : "investment-pl profit";
   }
-  if (els.goldMarketRate18) els.goldMarketRate18.textContent = marketRates["18K"] ? formatMoney(marketRates["18K"]) : "—";
-  if (els.goldMarketRate22) els.goldMarketRate22.textContent = marketRates["22K"] ? formatMoney(marketRates["22K"]) : "—";
-  if (els.goldMarketRate24) els.goldMarketRate24.textContent = marketRates["24K"] ? formatMoney(marketRates["24K"]) : "—";
+  const updateRateDisplay = (element, changeElement, purity) => {
+    if (!element) return;
+    const current = toNumber(marketRates[purity]);
+    const previous = toNumber(previousMarketRates[purity]);
+    const delta = current && previous ? current - previous : 0;
+    element.textContent = current ? formatMoney(current) : "—";
+    if (changeElement) {
+      changeElement.textContent = delta > 0 ? `+${formatMoney(delta)} ▲` : delta < 0 ? `${formatMoney(delta)} ▼` : "";
+      changeElement.className = `gold-market-rate-change ${delta > 0 ? "rate-up" : delta < 0 ? "rate-down" : ""}`;
+      changeElement.hidden = !delta;
+    }
+    element.dataset.direction = "";
+    element.classList.remove("rate-up", "rate-down");
+  };
+  updateRateDisplay(els.goldMarketRate18, els.goldMarketRateChange18, "18K");
+  updateRateDisplay(els.goldMarketRate22, els.goldMarketRateChange22, "22K");
+  updateRateDisplay(els.goldMarketRate24, els.goldMarketRateChange24, "24K");
   if (els.goldMarketRateStatus) {
     const updated = state.goldMarketRates?.updatedAt ? new Date(state.goldMarketRates.updatedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "Not loaded";
     els.goldMarketRateStatus.textContent = state.goldMarketRates?.error ? `Live rate unavailable · ${state.goldMarketRates.error}` : `Chennai · Updated ${updated}`;
@@ -13451,7 +13471,7 @@ async function refreshGoldMarketRate(force = false) {
               const trackerData = JSON.parse(candidateText);
               const trackerRates = trackerData?.rates || {};
               if (["18K", "22K", "24K"].every((purity) => toNumber(trackerRates[purity]) >= 1000)) {
-                state.goldMarketRates = { location: "Chennai", rates: trackerRates, updatedAt: trackerData.updatedAt || new Date().toISOString(), error: "" };
+                state.goldMarketRates = { location: "Chennai", rates: trackerRates, previousDayRates: trackerData.previousDayRates || {}, rateDate: trackerData.rateDate || "", updatedAt: trackerData.updatedAt || new Date().toISOString(), error: "" };
                 await saveState({ skipActivity: true });
                 renderInvestmentsWidget();
                 showToast("Chennai gold rates updated.");
