@@ -17,7 +17,13 @@ async function readRates(env) {
   const response = await fetch(SOURCE_URL, { headers: { "User-Agent": "Mozilla/5.0" } });
   if (!response.ok) throw new Error(`GoodReturns returned ${response.status}`);
   const rates = parseRates(await response.text());
-  const record = { location: "Chennai", source: SOURCE_URL, rates, updatedAt: new Date().toISOString() };
+  const previous = await env.GOLD_RATES.get(KEY, "json");
+  const updatedAt = new Date().toISOString();
+  const rateDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date(updatedAt));
+  const previousDayRates = previous?.rateDate && previous.rateDate !== rateDate
+    ? (previous.rates || {})
+    : (previous?.previousDayRates || {});
+  const record = { location: "Chennai", source: SOURCE_URL, rates, previousDayRates, rateDate, updatedAt };
   await env.GOLD_RATES.put(KEY, JSON.stringify(record));
   return record;
 }
