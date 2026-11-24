@@ -19753,3 +19753,10 @@ body[data-view="statements"] #statementsView .statements-table-panel .statement-
     display: none !important;
   }
 }
+.rp-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+

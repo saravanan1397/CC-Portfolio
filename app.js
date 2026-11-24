@@ -278,6 +278,7 @@ const INITIAL_VISIBLE_CARDS = 20;
 let cardsAllExpanded = false; // set true when user clicks "Load more"
 let swipesAllExpanded = false;
 let rpSpendsAllExpanded = false;
+let rpSpendEntryMode = "redemption";
 let loungeAllExpanded = false;
 let investmentGoldAllExpanded = false;
 let investmentDividendAllExpanded = false;
@@ -1087,6 +1088,7 @@ spentForBtn:document.getElementById("spentForBtn"),
      rpUnredeemedPoints: document.getElementById("rpUnredeemedPoints"),
      rpPaidValue: document.getElementById("rpPaidValue"),
     saveRpSpendBtn: document.getElementById("saveRpSpendBtn"),
+    buyRpPointsBtn: document.getElementById("buyRpPointsBtn"),
     clearRpSpendBtn: document.getElementById("clearRpSpendBtn"),
     rpConfirmModal: document.getElementById("rpConfirmModal"),
     rpConfirmOkBtn: document.getElementById("rpConfirmOkBtn"),
@@ -1728,10 +1730,20 @@ document.addEventListener("keydown", (e) => {
     document.body.classList.remove("rp-entry-open");
   });
   document.getElementById("toggleRpEntryBtn")?.addEventListener("click", () => {
+    rpSpendEntryMode = "redemption";
     document.body.classList.toggle("rp-entry-open");
     if (document.body.classList.contains("rp-entry-open")) {
       requestAnimationFrame(() => els.rpCardSelect?.focus());
     }
+  });
+  els.buyRpPointsBtn?.addEventListener("click", () => {
+    resetRpSpendForm();
+    rpSpendEntryMode = "bought";
+    document.body.classList.add("rp-entry-open", "rp-buy-points-mode");
+    if (els.saveRpSpendBtn) els.saveRpSpendBtn.textContent = "Save bought points";
+    if (els.rpProductName) els.rpProductName.value = "Bought Points";
+    if (els.rpPurchasedFrom) els.rpPurchasedFrom.value = "Card points purchase";
+    requestAnimationFrame(() => els.rpCardSelect?.focus());
   });
   els.rpConfirmOkBtn?.addEventListener("click", () => handleRpSpendConfirm(true));
   els.rpConfirmCancelBtn?.addEventListener("click", () => handleRpSpendConfirm(false));
@@ -2958,6 +2970,9 @@ function normalizeRpSpend(spend) {
     purchaseId: spend.purchaseId || spend.productGroupId || id,
     cardId: spend.cardId || "",
     points: normalizedPoints,
+    pointSource: spend.pointSource === "bought" ? "bought" : "earned",
+    boughtPoints: spend.pointSource === "bought" ? toNumber(spend.boughtPoints ?? spend.points) : 0,
+    boughtAmountPaid: spend.pointSource === "bought" ? toNumber(spend.boughtAmountPaid ?? spend.cardPaid) : 0,
     redeemedPoints: normalizedRedeemedPoints,
     pointAllocationExplicit,
     pointAllocationMode: pointAllocationExplicit ? "explicit-v1" : "legacy-welcome-first",
@@ -10962,6 +10977,7 @@ function updateRpPaidValue() {
 
 async function saveRpSpendFromForm(event) {
   event?.preventDefault();
+  const isBoughtPointsEntry = rpSpendEntryMode === "bought";
 
   const selectedCardId = els.rpCardSelect?.value || "";
   if (!selectedCardId) {
@@ -10983,7 +10999,7 @@ async function saveRpSpendFromForm(event) {
   // A source card belongs in Originating Card; the saved platform remains the partner program.
   const cardId = isPartnerProgram ? partnerProgramPlatformValue : selectedCardId;
 
-  if (!isPartnerProgram && !productName) {
+  if (!isBoughtPointsEntry && !isPartnerProgram && !productName) {
     showToast("Enter product name.");
     els.rpProductName?.focus();
     return;
@@ -11030,6 +11046,17 @@ async function saveRpSpendFromForm(event) {
     : els.editingRpPurchaseId?.value || createId();
 
   const enteredPoints = toNumber(els.rpPoints?.value);
+  const boughtAmountPaid = isBoughtPointsEntry ? toNumber(els.rpCardPaid?.value) : 0;
+  if (isBoughtPointsEntry && enteredPoints <= 0) {
+    showToast("Enter the number of points bought.");
+    els.rpPoints?.focus();
+    return;
+  }
+  if (isBoughtPointsEntry && boughtAmountPaid <= 0) {
+    showToast("Enter the amount paid for the points.");
+    els.rpCardPaid?.focus();
+    return;
+  }
   const selectedPortfolioCard = !isPartnerProgram ? getCardById(selectedCardId) : null;
   const isNeucoinsRedemption = selectedCardId === "Neucoins";
   const neucoinsSourceCardId = isNeucoinsRedemption
@@ -11120,7 +11147,9 @@ async function saveRpSpendFromForm(event) {
   const pointAllocationSourceCard = redeemedSourceCardId ? getCardById(redeemedSourceCardId) : null;
   const priorPointAllocation = getRpSpendCardAllocation(existingSpend, pointAllocationSourceCard);
 
-  const redeemedPointsForSpend = isPartnerProgram
+  const redeemedPointsForSpend = isBoughtPointsEntry
+    ? 0
+    : isPartnerProgram
     ? partnerRedeemedPointsForSpend
     : (isCardProductSpend || isNeucoinsRedemption) && !keepPointsUnredeemed
     ? enteredPoints
@@ -11188,6 +11217,9 @@ async function saveRpSpendFromForm(event) {
       : [],
     productName,
     productValue: els.rpProductValue?.value,
+    pointSource: isBoughtPointsEntry ? "bought" : "earned",
+    boughtPoints: isBoughtPointsEntry ? enteredPoints : 0,
+    boughtAmountPaid,
     pointsReceived: els.rpPointsReceived?.value,
     redeemedAt,
     createdAt: existingIndex >= 0
@@ -11332,6 +11364,8 @@ async function saveRpSpendFromForm(event) {
 }
 
 function resetRpSpendForm() {
+  rpSpendEntryMode = "redemption";
+  document.body.classList.remove("rp-buy-points-mode");
   if (els.editingRpSpendId) els.editingRpSpendId.value = "";
   if (els.editingRpPurchaseId) els.editingRpPurchaseId.value = "";
   clearRpPaymentFields();
@@ -11648,7 +11682,7 @@ function populateRpSpendForm(rpSpend) {
   if (isPartnerProgramRpSpend(rpSpend)) {
     populatePartnerProgramReceivedPoints();
   }
-  if (els.saveRpSpendBtn) els.saveRpSpendBtn.textContent = "Update RP Spend";
+  if (els.saveRpSpendBtn) els.saveRpSpendBtn.textContent = "Add RP Spend";
   
   // Show info message for partner programs about row-level values and the
   // consolidated partner widget.
@@ -11846,6 +11880,12 @@ function renderRpSpends() {
             const displayPoints = group.isConsolidatedUnredeemed
               ? group.items.reduce((sum, source) => sum + getRpSpendDisplayPoints(source), 0)
               : getRpSpendDisplayPoints(item);
+            const boughtPoints = item.cardId && !isPartnerProgramRpSpend(item)
+              ? state.rpSpends
+                .filter((source) => source.pointSource === "bought" && source.cardId === item.cardId)
+                .reduce((sum, source) => sum + toNumber(source.boughtPoints || source.points), 0)
+              : 0;
+            const combinedPoints = displayPoints + boughtPoints;
             const isPrimaryUnredeemedSource = Boolean(sourceAllocation
               && getUnredeemedPointsSourceRecord(sourceCard.id)?.id === item.id);
             const includedBenefits = isPrimaryUnredeemedSource
@@ -11861,10 +11901,12 @@ function renderRpSpends() {
             <div class="benefit-line">
               <span class="benefit-line-name rp-spend-source-name">
                 <span class="rp-spend-source-name-text">${escapeHtml(formatRpSourceName(item.cardId))}</span>
+                ${boughtPoints > 0 ? `<small class="rp-welcome-balance-label">+ Bought Points</small>` : ""}
                 ${includedBenefits.length ? `<small class="rp-welcome-balance-label">+ ${includedBenefits.map(escapeHtml).join(", ")}</small>` : ''}
               </span>
               <span class="benefit-line-meta">
                 ${displayPoints > 0 ? `${formatPoints(displayPoints)}` : ''}
+                ${boughtPoints > 0 ? ` + ${formatPoints(boughtPoints)} bought = ${formatPoints(combinedPoints)} total` : ''}
                 ${toNumber(item.cardPaid) > 0 ? ` Card: ${formatMoney(item.cardPaid)}` : ''}
                 ${toNumber(item.voucherPaid) > 0 ? `Voucher: ${formatMoney(item.voucherPaid)}` : ''}
               </span>
