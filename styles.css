@@ -19760,3 +19760,81 @@ body[data-view="statements"] #statementsView .statements-table-panel .statement-
   flex-wrap: wrap;
 }
 
+.purchased-points-dialog {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  background: #111923 !important;
+  border: 1px solid rgba(164,184,207,.35) !important;
+  border-radius: 20px !important;
+  overflow: hidden !important;
+}
+
+.purchased-points-form {
+  display: grid;
+  gap: 16px;
+}
+
+#purchasedPointsModal .purchased-points-dialog .details-dialog-header {
+  min-height: 0;
+  padding: 22px 24px 18px !important;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+#purchasedPointsModal .purchased-points-dialog .details-dialog-header h3 {
+  margin: 4px 0 0;
+  line-height: 1.2;
+}
+
+#purchasedPointsModal .purchased-points-dialog .details-dialog-body {
+  padding: 22px 24px !important;
+}
+
+#purchasedPointsModal .purchased-points-dialog .field {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+#purchasedPointsModal .purchased-points-dialog .field > span {
+  display: block;
+  line-height: 1.2;
+}
+
+#purchasedPointsModal .purchased-points-dialog input,
+#purchasedPointsModal .purchased-points-dialog select {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 46px;
+}
+
+#purchasedPointsModal .purchased-points-dialog .details-dialog-footer {
+  padding: 16px 24px 20px !important;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+}
+
+#rpSpendsView .rp-spend-row .money-cell {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 5px;
+}
+
+#rpSpendsView .rp-spend-row .money-cell .cell-label {
+  line-height: 1.2;
+}
+
+#rpSpendsView .rp-spend-row .money-cell .card-meta {
+  display: block;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+

@@ -1089,6 +1089,13 @@ spentForBtn:document.getElementById("spentForBtn"),
      rpPaidValue: document.getElementById("rpPaidValue"),
     saveRpSpendBtn: document.getElementById("saveRpSpendBtn"),
     buyRpPointsBtn: document.getElementById("buyRpPointsBtn"),
+    purchasedPointsModal: document.getElementById("purchasedPointsModal"),
+    purchasedPointsCard: document.getElementById("purchasedPointsCard"),
+    purchasedPointsCount: document.getElementById("purchasedPointsCount"),
+    purchasedPointsAmount: document.getElementById("purchasedPointsAmount"),
+    savePurchasedPoints: document.getElementById("savePurchasedPoints"),
+    closePurchasedPointsModal: document.getElementById("closePurchasedPointsModal"),
+    cancelPurchasedPoints: document.getElementById("cancelPurchasedPoints"),
     clearRpSpendBtn: document.getElementById("clearRpSpendBtn"),
     rpConfirmModal: document.getElementById("rpConfirmModal"),
     rpConfirmOkBtn: document.getElementById("rpConfirmOkBtn"),
@@ -1737,14 +1744,14 @@ document.addEventListener("keydown", (e) => {
     }
   });
   els.buyRpPointsBtn?.addEventListener("click", () => {
-    resetRpSpendForm();
-    rpSpendEntryMode = "bought";
-    document.body.classList.add("rp-entry-open", "rp-buy-points-mode");
-    if (els.saveRpSpendBtn) els.saveRpSpendBtn.textContent = "Save bought points";
-    if (els.rpProductName) els.rpProductName.value = "Bought Points";
-    if (els.rpPurchasedFrom) els.rpPurchasedFrom.value = "Card points purchase";
-    requestAnimationFrame(() => els.rpCardSelect?.focus());
+    openPurchasedPointsModal();
   });
+  els.closePurchasedPointsModal?.addEventListener("click", closePurchasedPointsModal);
+  els.cancelPurchasedPoints?.addEventListener("click", closePurchasedPointsModal);
+  els.purchasedPointsModal?.addEventListener("click", (event) => {
+    if (event.target === els.purchasedPointsModal) closePurchasedPointsModal();
+  });
+  els.savePurchasedPoints?.addEventListener("click", savePurchasedPointsFromModal);
   els.rpConfirmOkBtn?.addEventListener("click", () => handleRpSpendConfirm(true));
   els.rpConfirmCancelBtn?.addEventListener("click", () => handleRpSpendConfirm(false));
   els.rpSpendsTable?.addEventListener("click", handleRpSpendAction);
@@ -3242,7 +3249,11 @@ function getCardNormalPointsBaseline(card) {
   if (!card?.id) return 0;
 
   const sourceRecords = getUnredeemedPointsSourceRecords(card.id);
-  if (sourceRecords.length) return sourceRecords.reduce((sum, record) => sum + toNumber(record.points), 0);
+  const sourcePoints = sourceRecords.reduce((sum, record) => sum + toNumber(record.points), 0);
+  const purchasedPoints = state.rpSpends
+    .filter((spend) => spend?.pointSource === "bought" && spend.cardId === card.id)
+    .reduce((sum, spend) => sum + toNumber(spend.boughtPoints || spend.points), 0);
+  if (sourceRecords.length) return sourcePoints + purchasedPoints;
 
   const manualSources = (card.benefits || []).filter((benefit) =>
     benefit?.type === "Unredeemed Points"
@@ -3256,10 +3267,10 @@ function getCardNormalPointsBaseline(card) {
     // balance on the next render, otherwise redeemed points can re-enter the
     // Unredeemed total. Only an explicit RP Spend balance record or a manual
     // non-auto card benefit is authoritative.
-    return 0;
+    return purchasedPoints;
   }
 
-  return manualSources.reduce((sum, benefit) => {
+  return purchasedPoints + manualSources.reduce((sum, benefit) => {
     const storedOriginalPoints = toNumber(benefit.originalPoints);
     if (storedOriginalPoints > 0) {
       return sum + storedOriginalPoints;
@@ -9968,7 +9979,7 @@ function getCardUnredeemedPoints(card) {
 }
 
 function getRpSpendRedemptionAmount(rpSpend) {
-  if (!rpSpend || isUnredeemedPointsRecord(rpSpend)) return 0;
+  if (!rpSpend || isUnredeemedPointsRecord(rpSpend) || rpSpend.pointSource === "bought") return 0;
 
   if (isPartnerProgramRpSpend(rpSpend)) {
     // redeemedPoints is the source-card amount explicitly consumed in RP
@@ -11554,6 +11565,10 @@ function handleRpSpendAction(event) {
     if (!rpSpend) return;
 
     if (action === "edit") {
+      if (rpSpend.pointSource === "bought") {
+        openPurchasedPointsModal(rpSpend);
+        return;
+      }
       populateRpSpendForm(rpSpend);
       scrollToPageTop();
       return;
@@ -11695,6 +11710,49 @@ function populateRpSpendForm(rpSpend) {
   refreshAllFieldStates();
 }
 
+function openPurchasedPointsModal(entry = null) {
+  if (!els.purchasedPointsModal) return;
+  const cards = (state.cards || []).filter((card) => card.active !== false);
+  if (els.purchasedPointsCard) {
+    els.purchasedPointsCard.innerHTML = '<option value="">Select a card</option>'
+      + cards.map((card) => `<option value="${escapeAttribute(card.id)}">${escapeHtml(formatCardName(card))}</option>`).join("");
+  }
+  els.purchasedPointsModal.dataset.editingId = entry?.id || "";
+  if (els.purchasedPointsCard) els.purchasedPointsCard.value = entry?.cardId || "";
+  if (els.purchasedPointsCount) els.purchasedPointsCount.value = entry ? toNumber(entry.boughtPoints || entry.points) : "";
+  if (els.purchasedPointsAmount) els.purchasedPointsAmount.value = entry ? toNumber(entry.boughtAmountPaid || entry.cardPaid) : "";
+  els.purchasedPointsModal.style.display = "flex";
+  requestAnimationFrame(() => els.purchasedPointsCard?.focus());
+}
+
+function closePurchasedPointsModal() {
+  if (els.purchasedPointsModal) els.purchasedPointsModal.style.display = "none";
+}
+
+async function savePurchasedPointsFromModal() {
+  const cardId = els.purchasedPointsCard?.value || "";
+  const points = toNumber(els.purchasedPointsCount?.value);
+  const amountPaid = toNumber(els.purchasedPointsAmount?.value);
+  if (!cardId) return showToast("Select a card first.");
+  if (points <= 0) return showToast("Enter the points bought.");
+  if (amountPaid <= 0) return showToast("Enter the amount paid.");
+  const editingId = els.purchasedPointsModal?.dataset.editingId || "";
+  const existing = editingId ? state.rpSpends.find((item) => item.id === editingId) : null;
+  const savedEntry = normalizeRpSpend({
+    id: editingId || createId(), purchaseId: existing?.purchaseId || createId(), cardId,
+    points, boughtPoints: points, boughtAmountPaid: amountPaid,
+    pointSource: "bought", redeemedPoints: 0,
+    productName: "Bought Points", purchasedFrom: "Card points purchase",
+    cardPaid: amountPaid, createdAt: existing?.createdAt || new Date().toISOString(),
+  });
+  if (existing) state.rpSpends = state.rpSpends.map((item) => item.id === editingId ? savedEntry : item);
+  else state.rpSpends.push(savedEntry);
+  await saveState();
+  closePurchasedPointsModal();
+  render();
+  showToast(existing ? "Purchased points updated." : "Purchased points saved.");
+}
+
 function renderRpSpends() {
   if (!els.rpSpendsTable) return;
 
@@ -11727,7 +11785,7 @@ function renderRpSpends() {
     // Statement imports and manually initialized balances are both
     // authoritative unredeemed sources. Present them as one card-level
     // balance in RP Spends instead of showing a separate statement row.
-    const pid = isUnredeemedPointsRecord(spend)
+    const pid = isUnredeemedPointsRecord(spend) || spend.pointSource === "bought"
       ? `unredeemed-card:${getRpSpendRedeemedSourceCardId(spend) || spend.cardId || spend.id}`
       : spend.purchaseId || spend.id;
     if (!groups[pid]) {
@@ -11743,6 +11801,8 @@ function renderRpSpends() {
       };
     }
     groups[pid].items.push(spend);
+    groups[pid].isConsolidatedUnredeemed = groups[pid].isConsolidatedUnredeemed
+      || isUnredeemedPointsRecord(spend);
     if (new Date(spend.createdAt) > new Date(groups[pid].latestDate)) {
       groups[pid].latestDate = spend.createdAt;
     }
@@ -11850,6 +11910,7 @@ function renderRpSpends() {
       return sum + getRpSpendRedemptionAmount(item);
     }, 0);
     const totalPointsValue = group.items.reduce((sum, item) => sum + toNumber(item.pointsValue), 0);
+    const totalBoughtAmount = group.items.reduce((sum, item) => sum + (item.pointSource === "bought" ? toNumber(item.boughtAmountPaid || item.cardPaid) : 0), 0);
     // Partner-program earned points are derived from the transferred points
     // and ratio when the optional received-points field is blank. Keep the
     // received value product-level so multiple payment rows do not multiply it.
@@ -11860,7 +11921,9 @@ function renderRpSpends() {
       const card = getCardById(item.originatingCardId || item.sourceCardId || "");
       return card ? [card.issuer, card.name].filter(Boolean).join(" ").trim() : "NA";
     };
-    const displayItems = group.isConsolidatedUnredeemed ? [group.items[0]] : group.items;
+    const displayItems = group.isConsolidatedUnredeemed
+      ? [group.items.find((item) => !isUnredeemedPointsRecord(item) && item.pointSource !== "bought") || group.items[0]]
+      : group.items;
 
     row.innerHTML = `
       <div class="card-name">
@@ -11913,7 +11976,9 @@ function renderRpSpends() {
               ${isPartnerProgramRpSpend(item) ? `<span class="card-meta" style="display:block; margin-top:4px;">Card: ${escapeHtml(getContributingCardLabel(item))}</span>` : ""}
               <div class="row-actions inline-actions">
                 ${statementDeleteActions}
-                ${(group.isConsolidatedUnredeemed ? group.items : [item]).map((source) => `
+                ${(group.isConsolidatedUnredeemed
+                  ? [...group.items.filter((source) => source.pointSource !== "bought"), group.items.find((source) => source.pointSource === "bought")].filter(Boolean)
+                  : [item]).map((source) => `
                   <button class="icon-button subtle" type="button" data-rp-spend-action="edit" data-id="${escapeAttribute(source.id)}" title="Edit unredeemed source"><svg viewBox="0 0 24 24" width="14"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></button>
                   <button class="icon-button subtle" type="button" data-rp-spend-action="delete" data-id="${escapeAttribute(source.id)}" title="Delete unredeemed source"><svg viewBox="0 0 24 24" width="14"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg></button>
                 `).join("")}
@@ -11934,6 +11999,7 @@ function renderRpSpends() {
       <div class="money-cell">
         <span class="cell-label">Consolidated Paid</span>
         <strong>${formatMoney(totalPaidValue)}</strong>
+        ${totalBoughtAmount > 0 ? `<span class="card-meta">Paid for points: ${formatMoney(totalBoughtAmount)}</span>` : ""}
         <span class="card-meta">Value: ${formatMoney(group.productValue)}</span>
       </div>
        <div class="money-cell">
