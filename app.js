@@ -1917,9 +1917,7 @@ function normalizeInvestmentCompanies(rawCompanies, entries = []) {
 
 function getInvestmentRecordDate(entry = {}) {
   const explicitDate = String(entry.purchaseDate || entry.creditDate || entry.date || "").trim();
-  if (explicitDate) return explicitDate;
-  const createdAt = String(entry.createdAt || "").trim();
-  return createdAt ? createdAt.slice(0, 10) : "";
+  return explicitDate;
 }
 
 function normalizeInvestmentEntry(entry = {}) {
@@ -2881,11 +2879,11 @@ function normalizeDateInput(value) {
 }
 
 function getSwipeRecordDate(swipe = {}) {
-  return normalizeDateInput(swipe.date || swipe.createdAt) || "";
+  return normalizeDateInput(swipe.date) || "";
 }
 
 function normalizeSwipe(swipe) {
-  const normalizedDate = normalizeDateInput(swipe.date || swipe.createdAt) || normalizeDateInput(new Date().toISOString());
+  const normalizedDate = normalizeDateInput(swipe.date) || "";
   return {
     id: swipe.id || createId(),
     cardId: swipe.cardId || "",
@@ -3744,7 +3742,7 @@ function normalizeLoungeVisit(visit) {
     notes: String(visit.notes || "").trim(),
     members,
     perPerson,
-    date: visit.date || visit.createdAt?.split('T')[0] || "",
+    date: visit.date || "",
     total,
     createdAt: visit.createdAt || new Date().toISOString(),
   };
@@ -10578,7 +10576,7 @@ function renderLoungeUsageCell(cardId, ...accessMethods) {
         return `
           <div class="lounge-usage-record">
             <strong>${escapeHtml(formatLoungeUsageType(visit.loungeType))}</strong>
-            <span>${escapeHtml(formatLoungeUsageDate(visit.date || visit.createdAt))}</span>
+            <span>${escapeHtml(formatLoungeUsageDate(visit.date))}</span>
             <span>${escapeHtml(location)} | ${escapeHtml(String(members))} ${members === 1 ? "member" : "members"}</span>
           </div>
         `;
@@ -10877,6 +10875,10 @@ function renderSwipes() {
         <div class="money-cell">
           <span class="cell-label">Amount</span>
           <strong>${escapeHtml(formatMoney(swipe.amount))}</strong>
+        </div>
+        <div class="money-cell">
+          <span class="cell-label">Swipe date</span>
+          <strong>${escapeHtml(swipe.date ? formatDateTime(swipe.date) : "Date not entered")}</strong>
         </div>
         <span class="card-meta" style="font-size: 12px; color: #cbd5e1;">${swipe.type === 'E' ? 'EMI' : 'Full Swipe'}</span>
         <span class="status-pill ${title === 'Personal' ? 'profit' : 'loss'}">${title}</span>
@@ -11940,14 +11942,18 @@ function renderRpSpends() {
             const sourceAllocation = isUnredeemedPointsRecord(item) && sourceCard
               ? getCardPointAllocation(sourceCard)
               : null;
-            const displayPoints = group.isConsolidatedUnredeemed
-              ? group.items.reduce((sum, source) => sum + getRpSpendDisplayPoints(source), 0)
-              : getRpSpendDisplayPoints(item);
             const boughtPoints = item.cardId && !isPartnerProgramRpSpend(item)
               ? state.rpSpends
                 .filter((source) => source.pointSource === "bought" && source.cardId === item.cardId)
                 .reduce((sum, source) => sum + toNumber(source.boughtPoints || source.points), 0)
               : 0;
+            const displayPointsWithBought = group.isConsolidatedUnredeemed
+              ? group.items.reduce((sum, source) => sum + getRpSpendDisplayPoints(source), 0)
+              : getRpSpendDisplayPoints(item);
+            const displayPoints = Math.max(
+              0,
+              displayPointsWithBought - (isUnredeemedPointsRecord(item) ? boughtPoints : 0)
+            );
             const combinedPoints = displayPoints + boughtPoints;
             const isPrimaryUnredeemedSource = Boolean(sourceAllocation
               && getUnredeemedPointsSourceRecord(sourceCard.id)?.id === item.id);
@@ -12503,7 +12509,7 @@ function renderLoungeVisits() {
           <span class="cell-label">Date</span>
 
           <strong>
-            ${escapeHtml(formatLoungeUsageDate(visit.date || visit.createdAt))}
+            ${escapeHtml(formatLoungeUsageDate(visit.date))}
           </strong>
         </div>
 
