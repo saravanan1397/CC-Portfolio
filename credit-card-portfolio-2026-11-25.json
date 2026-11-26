@@ -1,5 +1,5 @@
 {
-  "exportedAt": "2026-11-24T18:45:19.437Z",
+  "exportedAt": "2026-11-25T17:47:41.457Z",
   "currency": "INR",
   "cards": [
     {
@@ -75,14 +75,6 @@
           "addedAt": "2026-10-13T17:14:47.958Z"
         },
         {
-          "id": "rp-redeemed-cash-37e991e3-d9a3-4187-afc8-f96e2273df0f",
-          "type": "Points Redeemed",
-          "valueType": "cash",
-          "label": "Earned Points Redeemed",
-          "amount": 0,
-          "pointsAmount": 4816
-        },
-        {
           "id": "lounge-37e991e3-d9a3-4187-afc8-f96e2273df0f-Domestic",
           "type": "Airport Lounge",
           "valueType": "cash",
@@ -95,6 +87,14 @@
           "valueType": "cash",
           "label": "International Lounge",
           "amount": 7278.720000000001
+        },
+        {
+          "id": "rp-redeemed-cash-37e991e3-d9a3-4187-afc8-f96e2273df0f",
+          "type": "Points Redeemed",
+          "valueType": "cash",
+          "label": "Earned Points Redeemed",
+          "amount": 0,
+          "pointsAmount": 4816
         }
       ]
     },
@@ -175,8 +175,8 @@
           "type": "Unredeemed Points",
           "valueType": "points",
           "label": "Unredeemed Points",
-          "amount": 36625,
-          "originalPoints": 38125
+          "amount": 36657,
+          "originalPoints": 38157
         },
         {
           "id": "rp-redeemed-cash-422598b3-e93d-4526-ae25-c8a68f38622e",
@@ -332,6 +332,13 @@
           "amount": 12500,
           "pointsAmount": 0,
           "addedAt": ""
+        },
+        {
+          "id": "lounge-72f00a7e-ffe5-43f2-a373-d6c8e81bd98d-Domestic",
+          "type": "Airport Lounge",
+          "valueType": "cash",
+          "label": "Domestic Lounge",
+          "amount": 1500
         },
         {
           "id": "rp-redeemed-points-72f00a7e-ffe5-43f2-a373-d6c8e81bd98d",
@@ -773,6 +780,20 @@
       },
       "benefits": [
         {
+          "id": "lounge-74e4ca1a-700a-4df8-b740-ab55dbc19454-Domestic",
+          "type": "Airport Lounge",
+          "valueType": "cash",
+          "label": "Domestic Lounge",
+          "amount": 2400
+        },
+        {
+          "id": "lounge-74e4ca1a-700a-4df8-b740-ab55dbc19454-International",
+          "type": "Airport Lounge",
+          "valueType": "cash",
+          "label": "International Lounge",
+          "amount": 18636.160000000003
+        },
+        {
           "id": "rp-redeemed-points-74e4ca1a-700a-4df8-b740-ab55dbc19454",
           "type": "Unredeemed Points",
           "valueType": "points",
@@ -787,20 +808,6 @@
           "label": "Points Redeemed",
           "amount": 43803,
           "pointsAmount": 43803
-        },
-        {
-          "id": "lounge-74e4ca1a-700a-4df8-b740-ab55dbc19454-Domestic",
-          "type": "Airport Lounge",
-          "valueType": "cash",
-          "label": "Domestic Lounge",
-          "amount": 2400
-        },
-        {
-          "id": "lounge-74e4ca1a-700a-4df8-b740-ab55dbc19454-International",
-          "type": "Airport Lounge",
-          "valueType": "cash",
-          "label": "International Lounge",
-          "amount": 18636.160000000003
         }
       ]
     },
@@ -956,14 +963,6 @@
       },
       "benefits": [
         {
-          "id": "rp-redeemed-cash-876dfe31-e68c-4e19-9686-9f9f965cee87",
-          "type": "Points Redeemed",
-          "valueType": "cash",
-          "label": "Points Redeemed",
-          "amount": 500,
-          "pointsAmount": 1528
-        },
-        {
           "id": "lounge-876dfe31-e68c-4e19-9686-9f9f965cee87-International",
           "type": "Airport Lounge",
           "valueType": "cash",
@@ -976,6 +975,14 @@
           "valueType": "cash",
           "label": "Domestic Lounge",
           "amount": 800
+        },
+        {
+          "id": "rp-redeemed-cash-876dfe31-e68c-4e19-9686-9f9f965cee87",
+          "type": "Points Redeemed",
+          "valueType": "cash",
+          "label": "Points Redeemed",
+          "amount": 500,
+          "pointsAmount": 1528
         }
       ]
     },
@@ -3890,7 +3897,7 @@
       "id": "b1e6546f-5d9f-4c0f-912c-b5f5216e2c37",
       "purchaseId": "1f288727-e8dd-477e-acc9-3ba241a6436e",
       "cardId": "422598b3-e93d-4526-ae25-c8a68f38622e",
-      "points": 38125,
+      "points": 38157,
       "pointSource": "earned",
       "boughtPoints": 0,
       "boughtAmountPaid": 0,
@@ -3964,7 +3971,7 @@
       "id": "420af8ee-04c9-4e72-abe9-c44e617a9bca",
       "purchaseId": "74479a1f-a792-413b-b5f0-8aef02874a73",
       "cardId": "0f594408-a4f9-4073-bef8-93f01935ac27",
-      "points": 101630,
+      "points": 91630,
       "pointSource": "earned",
       "boughtPoints": 0,
       "boughtAmountPaid": 0,
@@ -4773,6 +4780,43 @@
       "statementImportId": "",
       "statementPeriod": "",
       "createdAt": "2026-11-10T18:46:40.031Z"
+    },
+    {
+      "id": "3ea81b84-bb56-4d9a-8181-3f17997bf990",
+      "purchaseId": "1cb206f9-d081-4862-9cf0-6bd03dd4ae59",
+      "cardId": "0f594408-a4f9-4073-bef8-93f01935ac27",
+      "points": 10000,
+      "pointSource": "bought",
+      "boughtPoints": 10000,
+      "boughtAmountPaid": 4000,
+      "redeemedPoints": 10000,
+      "pointAllocationExplicit": false,
+      "pointAllocationMode": "legacy-welcome-first",
+      "welcomeRedeemedPoints": 0,
+      "earnedRedeemedPoints": 0,
+      "unredeemedPointsRecord": false,
+      "unredeemedBalanceInitialized": false,
+      "redemptionModel": "split-v2",
+      "pointsValue": 0,
+      "redemptionCharges": 0,
+      "cardPaid": 4000,
+      "voucherPaid": 0,
+      "partnerProgram": false,
+      "partnerName": "Card points purchase",
+      "purchasedFrom": "Card points purchase",
+      "originatingCardId": "",
+      "neucoinsSourceCardId": "",
+      "partnerTransferRatio": "",
+      "partnerRedeemedPoints": 0,
+      "pprRedemptions": [],
+      "productName": "Bought Points",
+      "productValue": 0,
+      "pointsReceived": 0,
+      "pointsReceivedProvided": true,
+      "redeemedAt": "",
+      "statementImportId": "",
+      "statementPeriod": "",
+      "createdAt": "2026-11-25T17:47:24.646Z"
     }
   ],
   "pprManualPoints": [
@@ -5087,6 +5131,19 @@
       "date": "2023-08-14T00:00:00",
       "total": 800,
       "createdAt": "2026-05-25T20:12:01.096Z"
+    },
+    {
+      "id": "38898f35-7084-4b99-8feb-b2860a5a523c",
+      "cardId": "72f00a7e-ffe5-43f2-a373-d6c8e81bd98d",
+      "loungeType": "Domestic",
+      "accessMethod": "Credit Card",
+      "airport": "MAA",
+      "notes": "Karthick - MAA",
+      "members": 1,
+      "perPerson": 1500,
+      "date": "2026-11-25T00:00:00",
+      "total": 1500,
+      "createdAt": "2026-11-25T02:47:15.771Z"
     }
   ],
   "loungeCardLimits": [
@@ -7715,6 +7772,174 @@
     "TMB"
   ],
   "activityLog": [
+    {
+      "id": "6b27f982-e0bb-4925-a20b-689fa3cd1268",
+      "widget": "rpSpends",
+      "action": "added",
+      "message": "Added 10,000 pts redemption from American Express | Platinum Travel for Bought Points.",
+      "createdAt": "2026-11-25T17:47:24.652Z"
+    },
+    {
+      "id": "d8969acd-e8f5-4e48-852c-7c503bdce618",
+      "widget": "portfolio",
+      "action": "added",
+      "message": "Added 10,000 pts redemption from American Express | Platinum Travel for Bought Points.",
+      "createdAt": "2026-11-25T17:47:24.652Z"
+    },
+    {
+      "id": "36b000e4-df77-4b9a-9af2-48b0e946a2c6",
+      "widget": "rpSpends",
+      "action": "deleted",
+      "message": "Deleted 10,000 pts redemption from American Express | Platinum Travel for Bought Points.",
+      "createdAt": "2026-11-25T17:43:09.003Z"
+    },
+    {
+      "id": "3713125f-74dd-4ba5-8685-87ea3bca3c8b",
+      "widget": "portfolio",
+      "action": "deleted",
+      "message": "Deleted 10,000 pts redemption from American Express | Platinum Travel for Bought Points.",
+      "createdAt": "2026-11-25T17:43:09.003Z"
+    },
+    {
+      "id": "90892d55-6cc9-4d15-9927-28f19b082e2d",
+      "widget": "rpSpends",
+      "action": "added",
+      "message": "Added 10,000 pts redemption from American Express | Platinum Travel for Bought Points.",
+      "createdAt": "2026-11-25T17:42:05.918Z"
+    },
+    {
+      "id": "371b3a0f-5f80-4fb7-8c37-f97c985a8640",
+      "widget": "portfolio",
+      "action": "added",
+      "message": "Added 10,000 pts redemption from American Express | Platinum Travel for Bought Points.",
+      "createdAt": "2026-11-25T17:42:05.918Z"
+    },
+    {
+      "id": "0e6c7256-2859-46be-8ef2-6c4dcd346960",
+      "widget": "rpSpends",
+      "action": "deleted",
+      "message": "Deleted 10,000 pts redemption from American Express | Platinum Travel for Bought Points.",
+      "createdAt": "2026-11-25T17:41:32.785Z"
+    },
+    {
+      "id": "8c0e0206-1ed4-498d-a6af-0e4cc32b4e21",
+      "widget": "portfolio",
+      "action": "deleted",
+      "message": "Deleted 10,000 pts redemption from American Express | Platinum Travel for Bought Points.",
+      "createdAt": "2026-11-25T17:41:32.785Z"
+    },
+    {
+      "id": "93966ab1-ced0-489b-a1a1-4c9df6e73a14",
+      "widget": "rpSpends",
+      "action": "added",
+      "message": "Added 10,000 pts redemption from American Express | Platinum Travel for Bought Points.",
+      "createdAt": "2026-11-25T17:40:17.518Z"
+    },
+    {
+      "id": "a609ff37-a547-4640-a1a4-fd5ccac46af0",
+      "widget": "portfolio",
+      "action": "added",
+      "message": "Added 10,000 pts redemption from American Express | Platinum Travel for Bought Points.",
+      "createdAt": "2026-11-25T17:40:17.518Z"
+    },
+    {
+      "id": "8ae45f1a-b17a-4ece-b1d7-0eb99dde2e62",
+      "widget": "rpSpends",
+      "action": "deleted",
+      "message": "Deleted 10,000 pts redemption from American Express | Platinum Travel for Bought Points.",
+      "createdAt": "2026-11-25T17:40:01.005Z"
+    },
+    {
+      "id": "149f6020-3163-47c7-8642-be47055bc651",
+      "widget": "portfolio",
+      "action": "deleted",
+      "message": "Deleted 10,000 pts redemption from American Express | Platinum Travel for Bought Points.",
+      "createdAt": "2026-11-25T17:40:01.005Z"
+    },
+    {
+      "id": "f5ebf045-16d0-4fed-91ae-b3677e05ebf2",
+      "widget": "rpSpends",
+      "action": "added",
+      "message": "Added 10,000 pts redemption from American Express | Platinum Travel for Bought Points.",
+      "createdAt": "2026-11-25T17:39:51.086Z"
+    },
+    {
+      "id": "ab07ea53-4571-47a6-acb1-d7ea2174835b",
+      "widget": "portfolio",
+      "action": "added",
+      "message": "Added 10,000 pts redemption from American Express | Platinum Travel for Bought Points.",
+      "createdAt": "2026-11-25T17:39:51.086Z"
+    },
+    {
+      "id": "e3d9e0bf-5049-400b-9d58-8933768dae5e",
+      "widget": "rpSpends",
+      "action": "deleted",
+      "message": "Deleted 10,000 pts redemption from American Express | Platinum Travel for Bought Points.",
+      "createdAt": "2026-11-25T17:39:31.796Z"
+    },
+    {
+      "id": "dabab65d-68b2-415e-aedc-ae4d25132df1",
+      "widget": "portfolio",
+      "action": "deleted",
+      "message": "Deleted 10,000 pts redemption from American Express | Platinum Travel for Bought Points.",
+      "createdAt": "2026-11-25T17:39:31.796Z"
+    },
+    {
+      "id": "7286823b-1342-45f7-bcde-9dd7059c8cfa",
+      "widget": "rpSpends",
+      "action": "added",
+      "message": "Added 10,000 pts redemption from American Express | Platinum Travel for Bought Points.",
+      "createdAt": "2026-11-25T17:38:54.975Z"
+    },
+    {
+      "id": "f45238e3-dc60-4e23-8f3b-3d0c3cf25637",
+      "widget": "portfolio",
+      "action": "added",
+      "message": "Added 10,000 pts redemption from American Express | Platinum Travel for Bought Points.",
+      "createdAt": "2026-11-25T17:38:54.975Z"
+    },
+    {
+      "id": "157f3298-b02c-47d9-8a5e-4889c8c4e1d0",
+      "widget": "rpSpends",
+      "action": "updated",
+      "message": "Updated unredeemed points for American Express | Platinum Travel: 101,630 pts → 91,630 pts.",
+      "createdAt": "2026-11-25T17:38:46.955Z"
+    },
+    {
+      "id": "33be7b95-8a70-47d0-995d-fd15a2b514c1",
+      "widget": "portfolio",
+      "action": "updated",
+      "message": "Updated unredeemed points for American Express | Platinum Travel: 101,630 pts → 91,630 pts.",
+      "createdAt": "2026-11-25T17:38:46.955Z"
+    },
+    {
+      "id": "6bf746fc-5738-4eb2-959a-5c3eb940ea96",
+      "widget": "rpSpends",
+      "action": "updated",
+      "message": "Updated unredeemed points for Axis Bank | Atlas: 49,125 pts → 49,157 pts.",
+      "createdAt": "2026-11-25T14:00:58.803Z"
+    },
+    {
+      "id": "b544e374-f23c-45df-ad12-8285af33d286",
+      "widget": "portfolio",
+      "action": "updated",
+      "message": "Updated unredeemed points for Axis Bank | Atlas: 49,125 pts → 49,157 pts.",
+      "createdAt": "2026-11-25T14:00:58.803Z"
+    },
+    {
+      "id": "ac68f6a8-e26b-4db3-89e1-5144a4626321",
+      "widget": "lounge",
+      "action": "updated",
+      "message": "Updated MAA visit for Axis Bank | Magnus.",
+      "createdAt": "2026-11-25T02:48:04.020Z"
+    },
+    {
+      "id": "4a6dbf04-bcb1-4120-aeb4-4ff369509d91",
+      "widget": "lounge",
+      "action": "added",
+      "message": "Added MAA visit for Axis Bank | Magnus.",
+      "createdAt": "2026-11-25T02:47:15.777Z"
+    },
     {
       "id": "64d69054-1b50-4ccf-8762-9ac59ca4ab60",
       "widget": "investments",
@@ -11046,174 +11271,6 @@
       "action": "added",
       "message": "Added 15,500 pts transferred from HDFC Bank | Marriott Bonvoy to Marriott Bonvoy.",
       "createdAt": "2026-10-13T19:18:09.697Z"
-    },
-    {
-      "id": "98506ce8-c3d4-434f-b524-2b4796ac0db7",
-      "widget": "portfolio",
-      "action": "added",
-      "message": "Added 4,316 pts transferred from HDFC Bank | Marriott Bonvoy to Marriott Bonvoy.",
-      "createdAt": "2026-10-13T19:16:27.856Z"
-    },
-    {
-      "id": "e34b7b3d-8d83-4fe2-aae5-60803c3125fb",
-      "widget": "ppr",
-      "action": "added",
-      "message": "Added points to Marriott Bonvoy: 8,083 pts → 12,399 pts.",
-      "createdAt": "2026-10-13T19:16:27.856Z"
-    },
-    {
-      "id": "990dda74-e419-4fce-bc10-e4e46453d65b",
-      "widget": "portfolio",
-      "action": "deleted",
-      "message": "Deleted 15,500 pts transferred from HDFC Bank | Marriott Bonvoy to Marriott Bonvoy.",
-      "createdAt": "2026-10-13T19:15:27.645Z"
-    },
-    {
-      "id": "42babe6a-887b-4375-be6b-6409c53f612d",
-      "widget": "ppr",
-      "action": "deleted",
-      "message": "Deleted points from Marriott Bonvoy: 8,083 pts → 8,083 pts.",
-      "createdAt": "2026-10-13T19:15:27.645Z"
-    },
-    {
-      "id": "9e594e52-d85c-4cca-afeb-9f4824f0379e",
-      "widget": "portfolio",
-      "action": "deleted",
-      "message": "Deleted 4,316 pts transferred from HDFC Bank | Marriott Bonvoy to Marriott Bonvoy.",
-      "createdAt": "2026-10-13T19:06:53.435Z"
-    },
-    {
-      "id": "784cfe67-8a9a-4dbc-89d2-c849e914851a",
-      "widget": "ppr",
-      "action": "deleted",
-      "message": "Deleted points from Marriott Bonvoy: 12,399 pts → 8,083 pts.",
-      "createdAt": "2026-10-13T19:06:53.435Z"
-    },
-    {
-      "id": "1b9ef394-86b4-492e-83d0-717753c341f7",
-      "widget": "portfolio",
-      "action": "added",
-      "message": "Added 4,316 pts transferred from HDFC Bank | Marriott Bonvoy to Marriott Bonvoy.",
-      "createdAt": "2026-10-13T19:06:33.492Z"
-    },
-    {
-      "id": "050b0a45-b727-44b6-91c1-e6808b5cb715",
-      "widget": "ppr",
-      "action": "added",
-      "message": "Added points to Marriott Bonvoy: 8,083 pts → 12,399 pts.",
-      "createdAt": "2026-10-13T19:06:33.492Z"
-    },
-    {
-      "id": "2ebbab61-94f6-46af-8719-8b9a21c1e059",
-      "widget": "portfolio",
-      "action": "deleted",
-      "message": "Deleted 4,316 pts transferred from HDFC Bank | Marriott Bonvoy to Marriott Bonvoy.",
-      "createdAt": "2026-10-13T19:05:54.374Z"
-    },
-    {
-      "id": "19e0b061-aae4-43ae-a84c-7c37dc308e6c",
-      "widget": "ppr",
-      "action": "deleted",
-      "message": "Deleted points from Marriott Bonvoy: 12,399 pts → 8,083 pts.",
-      "createdAt": "2026-10-13T19:05:54.374Z"
-    },
-    {
-      "id": "42b55cee-9efb-40fe-a912-74dd1866bc1a",
-      "widget": "ppr",
-      "action": "added",
-      "message": "Added points to Marriott Bonvoy: 12,399 pts → 12,399 pts.",
-      "createdAt": "2026-10-13T19:00:28.117Z"
-    },
-    {
-      "id": "ac39d43e-04de-4e59-b04d-e0a72c0b8a4f",
-      "widget": "portfolio",
-      "action": "added",
-      "message": "Added 15,500 pts transferred from HDFC Bank | Marriott Bonvoy to Marriott Bonvoy.",
-      "createdAt": "2026-10-13T19:00:28.116Z"
-    },
-    {
-      "id": "97281b40-2784-4e14-b76b-b2d9d5e64bf5",
-      "widget": "portfolio",
-      "action": "deleted",
-      "message": "Deleted 15,000 pts transferred from HDFC Bank | Marriott Bonvoy to Marriott Bonvoy.",
-      "createdAt": "2026-10-13T18:58:40.648Z"
-    },
-    {
-      "id": "ca392365-79a6-4ca0-b311-5a0d903fc67b",
-      "widget": "ppr",
-      "action": "deleted",
-      "message": "Deleted points from Marriott Bonvoy: 12,399 pts → 12,399 pts.",
-      "createdAt": "2026-10-13T18:58:40.648Z"
-    },
-    {
-      "id": "eeda9244-af47-4287-a58c-0c7a8dd90277",
-      "widget": "ppr",
-      "action": "updated",
-      "message": "Updated Marriott Bonvoy: 12,369 pts → 12,399 pts.",
-      "createdAt": "2026-10-13T18:57:17.555Z"
-    },
-    {
-      "id": "efa90cf2-072c-4347-b39a-b90787a0e5bf",
-      "widget": "ppr",
-      "action": "added",
-      "message": "Added points to Marriott Bonvoy: 8,053 pts → 12,369 pts.",
-      "createdAt": "2026-10-13T18:56:50.336Z"
-    },
-    {
-      "id": "86ad150d-2b6c-4976-b278-19c33afafa69",
-      "widget": "portfolio",
-      "action": "added",
-      "message": "Added 4,316 pts transferred from HDFC Bank | Marriott Bonvoy to Marriott Bonvoy.",
-      "createdAt": "2026-10-13T18:56:50.335Z"
-    },
-    {
-      "id": "26653749-98f4-4da9-b6fa-2417a696a125",
-      "widget": "portfolio",
-      "action": "deleted",
-      "message": "Deleted 4,846 pts transferred from HDFC Bank | Marriott Bonvoy to Marriott Bonvoy.",
-      "createdAt": "2026-10-13T18:52:46.878Z"
-    },
-    {
-      "id": "9bf035ab-6e49-4d56-8ce7-2e49b48f9da1",
-      "widget": "ppr",
-      "action": "deleted",
-      "message": "Deleted points from Marriott Bonvoy: 12,899 pts → 8,053 pts.",
-      "createdAt": "2026-10-13T18:52:46.878Z"
-    },
-    {
-      "id": "c716ca47-846e-406e-9c0e-6efcaa88b9bd",
-      "widget": "portfolio",
-      "action": "added",
-      "message": "Added 15,000 pts transferred from HDFC Bank | Marriott Bonvoy to Marriott Bonvoy.",
-      "createdAt": "2026-10-13T18:23:34.050Z"
-    },
-    {
-      "id": "6d164956-387e-45df-920c-44a6b97c0c0b",
-      "widget": "ppr",
-      "action": "added",
-      "message": "Added points to Marriott Bonvoy: 12,899 pts → 12,899 pts.",
-      "createdAt": "2026-10-13T18:23:34.050Z"
-    },
-    {
-      "id": "fff8d3eb-51cf-4a4e-a2ae-1b7884c378c1",
-      "widget": "portfolio",
-      "action": "added",
-      "message": "Added 15,000 pts transferred from HDFC Bank | Marriott Bonvoy to Marriott Bonvoy.",
-      "createdAt": "2026-10-13T17:21:40.507Z"
-    },
-    {
-      "id": "32e2b3d4-5940-41a9-98ab-6d60eea60dda",
-      "widget": "ppr",
-      "action": "added",
-      "message": "Added points to Marriott Bonvoy: 12,899 pts → 12,899 pts.",
-      "createdAt": "2026-10-13T17:21:40.507Z"
-    },
-    {
-      "id": "01e5ddaf-8e7a-473f-8a5b-9d7543572d4c",
-      "widget": "portfolio",
-      "action": "deleted",
-      "message": "Deleted 30,000 pts transferred from HDFC Bank | Marriott Bonvoy to Marriott Bonvoy.",
-      "createdAt": "2026-10-13T17:19:21.097Z"
     }
   ],
   "aiTrainer": {
