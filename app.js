@@ -944,6 +944,14 @@ function cacheElements() {
     dashboardDividendTotal: document.getElementById("dashboardDividendTotal"),
     dashboardInvestmentCompanies: document.getElementById("dashboardInvestmentCompanies"),
     dashboardInvestmentHint: document.getElementById("dashboardInvestmentHint"),
+    dashboardGoldRateStatus: document.getElementById("dashboardGoldRateStatus"),
+    dashboardGoldRate18: document.getElementById("dashboardGoldRate18"),
+    dashboardGoldRate22: document.getElementById("dashboardGoldRate22"),
+    dashboardGoldRate24: document.getElementById("dashboardGoldRate24"),
+    dashboardGoldRateChange18: document.getElementById("dashboardGoldRateChange18"),
+    dashboardGoldRateChange22: document.getElementById("dashboardGoldRateChange22"),
+    dashboardGoldRateChange24: document.getElementById("dashboardGoldRateChange24"),
+    dashboardRefreshGoldRateBtn: document.getElementById("dashboardRefreshGoldRateBtn"),
     backFromPortfolioBtn: document.getElementById("backFromPortfolioBtn"),
     backFromSwipesBtn: document.getElementById("backFromSwipesBtn"),
     backFromRpSpendsBtn: document.getElementById("backFromRpSpendsBtn"),
@@ -1468,6 +1476,7 @@ document.addEventListener("keydown", (e) => {
   els.openStatementsWidgetBtn?.addEventListener("click", () => showView("statements"));
   els.refreshViewBtn?.addEventListener("click", refreshCurrentView);
   els.refreshGoldRateBtn?.addEventListener("click", () => refreshGoldMarketRate(true));
+  els.dashboardRefreshGoldRateBtn?.addEventListener("click", () => refreshGoldMarketRate(true));
   els.widgetActivityBtn?.addEventListener("click", openWidgetActivityModal);
   els.closeWidgetActivityBtn?.addEventListener("click", closeWidgetActivityModal);
   els.closeWidgetActivityFooterBtn?.addEventListener("click", closeWidgetActivityModal);
@@ -8003,6 +8012,27 @@ function renderDashboard() {
   if (els.dashboardInvestmentHint) {
     els.dashboardInvestmentHint.textContent = `${state.investments.length} ${state.investments.length === 1 ? "record" : "records"} · consolidated tracker`;
   }
+  const dashboardRates = state.goldMarketRates?.rates || {};
+  const dashboardPreviousRates = state.goldMarketRates?.previousDayRates || {};
+  const updateDashboardGoldRate = (valueEl, changeEl, purity) => {
+    if (!valueEl) return;
+    const current = toNumber(dashboardRates[purity]);
+    const previous = toNumber(dashboardPreviousRates[purity]);
+    const delta = current && previous ? current - previous : 0;
+    valueEl.textContent = current ? formatMoney(current) : "—";
+    if (changeEl) {
+      changeEl.textContent = delta > 0 ? `+${formatMoney(delta)} ▲` : delta < 0 ? `${formatMoney(delta)} ▼` : "";
+      changeEl.className = `gold-market-rate-change ${delta > 0 ? "rate-up" : delta < 0 ? "rate-down" : ""}`;
+      changeEl.hidden = !delta;
+    }
+  };
+  updateDashboardGoldRate(els.dashboardGoldRate18, els.dashboardGoldRateChange18, "18K");
+  updateDashboardGoldRate(els.dashboardGoldRate22, els.dashboardGoldRateChange22, "22K");
+  updateDashboardGoldRate(els.dashboardGoldRate24, els.dashboardGoldRateChange24, "24K");
+  if (els.dashboardGoldRateStatus) {
+    const updated = state.goldMarketRates?.updatedAt ? new Date(state.goldMarketRates.updatedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "Not loaded";
+    els.dashboardGoldRateStatus.textContent = state.goldMarketRates?.error ? `Live rate unavailable · ${state.goldMarketRates.error}` : `Updated ${updated}`;
+  }
   const statementRecords = (state.statementRecords || []).filter((record) => isStatementCardVisible(record.cardName));
   const statementTotal = statementRecords.reduce((sum, record) => sum + toNumber(record.amount), 0);
   const statementCards = new Set(statementRecords.map((record) => record.cardName).filter(Boolean));
@@ -13571,6 +13601,10 @@ async function refreshGoldMarketRate(force = false) {
     els.refreshGoldRateBtn.disabled = true;
     els.refreshGoldRateBtn.setAttribute("aria-busy", "true");
   }
+  if (els.dashboardRefreshGoldRateBtn) {
+    els.dashboardRefreshGoldRateBtn.disabled = true;
+    els.dashboardRefreshGoldRateBtn.setAttribute("aria-busy", "true");
+  }
   try {
     const sources = [
       ...(GOLD_RATE_TRACKER_URL ? [GOLD_RATE_TRACKER_URL] : []),
@@ -13593,6 +13627,7 @@ async function refreshGoldMarketRate(force = false) {
                 state.goldMarketRates = { location: "Chennai", rates: trackerRates, previousDayRates: trackerData.previousDayRates || {}, rateDate: trackerData.rateDate || "", updatedAt: trackerData.updatedAt || new Date().toISOString(), error: "" };
                 await saveState({ skipActivity: true });
                 renderInvestmentsWidget();
+                renderDashboard();
                 showToast("Chennai gold rates updated.");
                 return true;
               }
@@ -13634,6 +13669,7 @@ async function refreshGoldMarketRate(force = false) {
     state.goldMarketRates = { location: "Chennai", rates, updatedAt: new Date().toISOString(), error: "" };
     await saveState({ skipActivity: true });
     renderInvestmentsWidget();
+    renderDashboard();
     showToast("Chennai gold rates updated.");
     return true;
   } catch (error) {
@@ -13646,6 +13682,10 @@ async function refreshGoldMarketRate(force = false) {
     if (els.refreshGoldRateBtn) {
       els.refreshGoldRateBtn.disabled = false;
       els.refreshGoldRateBtn.removeAttribute("aria-busy");
+    }
+    if (els.dashboardRefreshGoldRateBtn) {
+      els.dashboardRefreshGoldRateBtn.disabled = false;
+      els.dashboardRefreshGoldRateBtn.removeAttribute("aria-busy");
     }
   }
 }

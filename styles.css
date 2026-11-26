@@ -11778,6 +11778,7 @@ body[data-view="dashboard"] .app-shell > .topbar {
 #dashboardView .dashboard-v2-hero-metrics {
   position: relative;
   z-index: 1;
+  align-self: center;
 }
 
 #dashboardView .dashboard-v2-eyebrow {
@@ -17972,6 +17973,105 @@ body[data-view="intlTravel"] #intlTravelView {
 }
 
 /* Keep portfolio file actions visually consistent with the dashboard icon controls. */
+.dashboard-gold-rate {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid rgba(75, 214, 194, .28);
+  border-radius: 12px;
+  background: rgba(3, 16, 21, .72);
+}
+.dashboard-gold-rate-hero {
+  position: absolute;
+  z-index: 2;
+  top: -28px;
+  left: 330px;
+  width: min(680px, calc(100% - 330px));
+  max-width: none;
+  margin: 0;
+  padding: 9px 12px;
+  border-color: rgba(75, 214, 194, .18);
+  background: rgba(5, 12, 18, .28);
+  display: grid;
+  grid-template-columns: 235px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 12px;
+}
+.dashboard-gold-rate-hero .dashboard-gold-rate-heading { font-size: 9px; }
+.dashboard-gold-rate-hero > small { display: block; grid-column: 1; grid-row: 2; margin-top: 2px; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 6px; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values { grid-column: 2; grid-row: 1 / span 2; margin-top: 0; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values > div { padding: 4px 7px; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values > div { column-gap: 11px; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values span { display: inline; font-size: 9px; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values strong { margin-top: 0; font-size: 13px; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values strong.gold-market-live-value { display: inline-flex; align-items: center; gap: 5px; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values strong.gold-market-live-value { margin-left: 30px; white-space: nowrap; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values em.gold-market-rate-change { white-space: nowrap; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values strong.gold-market-live-value::before { content: ""; display: inline-block; width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: #45e0a7; box-shadow: 0 0 0 3px rgba(69,224,167,.12), 0 0 9px rgba(69,224,167,.8); animation: gold-live-blink 1.15s ease-in-out infinite; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values em { font-size: 9px; }
+@media (max-width: 980px) { .dashboard-gold-rate-hero { max-width: none; } }
+@media (max-width: 980px) { .dashboard-gold-rate-hero { position: relative; top: auto; left: auto; width: auto; margin-top: 16px; display: block; } }
+
+/* Dashboard live-rate panel matches the full Investments widget format. */
+.dashboard-gold-rate-hero {
+  display: block;
+  height: 120px;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 8px 10px;
+}
+.dashboard-gold-rate-hero .dashboard-gold-rate-heading { min-height: 16px; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-heading > span { white-space: nowrap; }
+.dashboard-gold-rate-hero > small { display: block; margin-top: 2px; font-size: 9px; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  left: 10px;
+  margin-top: 0;
+}
+.dashboard-gold-rate-hero .dashboard-gold-rate-values > div { padding: 4px 6px; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values > div { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values span { display: inline-block; flex: 0 0 auto; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values strong { margin-top: 1px; font-size: 12px; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values em { font-size: 8px; }
+@media (max-width: 980px) {
+  .dashboard-gold-rate-hero { height: auto; overflow: visible; }
+  .dashboard-gold-rate-hero .dashboard-gold-rate-values { grid-template-columns: 1fr; }
+}
+
+/* Global gold rounded action-button standard. */
+#app button:not(.widget-v2-nav-item):not(.dashboard-v2-nav-item):not(.dashboard-v2-icon-action):not(.dashboard-v2-open-widget):not(.icon-button):not(.sidebar-toggle):not(.mobile-nav-toggle) {
+  border: 1px solid rgba(255, 225, 158, .95) !important;
+  border-radius: 999px !important;
+  background: linear-gradient(180deg, #ffd77a 0%, #e99b36 100%) !important;
+  color: #17120a !important;
+  box-shadow: 0 8px 20px rgba(232, 155, 54, .25), inset 0 1px 0 rgba(255, 255, 255, .55) !important;
+  font-weight: 800 !important;
+  letter-spacing: .01em;
+  text-shadow: none !important;
+}
+#app button:not(.widget-v2-nav-item):not(.dashboard-v2-nav-item):not(.dashboard-v2-icon-action):not(.dashboard-v2-open-widget):not(.icon-button):not(.sidebar-toggle):not(.mobile-nav-toggle):hover:not(:disabled) {
+  background: linear-gradient(180deg, #ffe29a 0%, #f0aa45 100%) !important;
+  box-shadow: 0 10px 24px rgba(232, 155, 54, .35), inset 0 1px 0 rgba(255, 255, 255, .65) !important;
+  transform: translateY(-1px);
+}
+#app button:not(.widget-v2-nav-item):not(.dashboard-v2-nav-item):not(.dashboard-v2-icon-action):not(.dashboard-v2-open-widget):not(.icon-button):not(.sidebar-toggle):not(.mobile-nav-toggle):disabled {
+  opacity: .58;
+  cursor: not-allowed;
+}
+.dashboard-gold-rate-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; color:#b8c7d8; font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
+.dashboard-gold-rate-refresh { border:1px solid #a9c9e9; border-radius:999px; padding:6px 10px; background:#a9c9e9; color:#111827; font:inherit; font-size:10px; font-weight:700; cursor:pointer; }
+.dashboard-gold-rate > small { display:block; margin-top:5px; color:#9fb0c2; font-size:10px; }
+.dashboard-gold-rate-values { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; margin-top:9px; }
+.dashboard-gold-rate-values > div { min-width:0; padding:8px; border:1px solid rgba(95,121,145,.25); border-radius:8px; background:rgba(5,12,19,.65); }
+.dashboard-gold-rate-values span { display:block; color:#aebdce; font-size:10px; }
+.dashboard-gold-rate-values strong { display:inline-block; margin-top:3px; color:#63e6b8; font-size:15px; }
+.dashboard-gold-rate-values em { margin-left:5px; font-style:normal; }
+@media (max-width: 700px) { .dashboard-gold-rate-values { grid-template-columns:1fr; } }
 .topbar-file-action {
   display: inline-flex !important;
   align-items: center !important;
