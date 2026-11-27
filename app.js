@@ -155,14 +155,26 @@ const cardEarningRates = [
   },
   {
     cardName: "IDFC FIRST Select",
-    baseRate: { type: "points_per_spend", rewardUnit: "Reward Points", points: 3, spendAmount: 200, rounding: "unconfirmed" },
-    acceleratedRates: [{
-      label: "Eligible incremental spend and specified categories",
-      status: "needs_confirmation",
-      rate: { type: "points_per_spend", rewardUnit: "Reward Points", points: 10, spendAmount: 200, rounding: "unconfirmed" },
-      condition: { type: "category_or_incremental_spend", description: "Eligible incremental spend and specified categories; definitions not provided" },
-    }],
-    unresolved: ["Provide qualifying categories and define incremental spend; confirm rounding and caps."],
+    baseRate: { type: "points_per_spend", rewardUnit: "Reward Points", points: 1, spendAmount: 200, rounding: "unconfirmed" },
+    acceleratedRates: [
+      {
+        label: "1x Insurance, Utilities, Railways & FASTag",
+        status: "configured_from_statement",
+        rate: { type: "multiplier", rewardUnit: "base Reward Points", multiplier: 1, rounding: "unconfirmed" },
+        condition: { type: "category", description: "Insurance, utility, railway, and FASTag transactions" },
+        merchantKeywords: ["insurance", "utility", "electricity", "water bill", "railway", "irctc", "fastag"],
+      },
+      {
+        label: "10x Dining, Travel, International & Birthday spends",
+        status: "configured_from_statement",
+        rate: { type: "multiplier", rewardUnit: "base Reward Points", multiplier: 10, rounding: "unconfirmed" },
+        condition: { type: "category", description: "Dining, travel, international, and birthday spends" },
+        merchantKeywords: ["dining", "restaurant", "food", "travel", "flight", "hotel", "international", "birthday"],
+      },
+    ],
+    defaultMultiplier: 3,
+    exclusions: ["fuel", "petrol", "diesel", "emi", "cash withdrawal", "cash advance"],
+    unresolved: ["3x applies to other eligible spends by default. Reward validity is 24 months and rewards are limited to spends within the credit limit per billing cycle."],
   },
   {
     cardName: "Federal Bank Imperio",
@@ -2614,6 +2626,11 @@ function normalizeCard(card) {
     ?? card.axisCardProgram
     ?? card.axisRewardProgram
     ?? card.rewardProgram;
+  const storedStatementRules = card.statementEarningRules;
+  const normalizedCardName = String(card.name || "").trim().toLocaleLowerCase("en-IN");
+  const isLegacyIdfcSelectRules = normalizedCardName === "idfc first select"
+    && toNumber(storedStatementRules?.basePoints) === 3
+    && toNumber(storedStatementRules?.baseSpend) === 200;
 
   return {
     id: card.id || createId(),
@@ -2630,14 +2647,16 @@ function normalizeCard(card) {
     targetValue: toNumber(card.targetValue),
     notes: card.notes || "",
     statementEarningRules: normalizeStatementEarningRules(
-      card.statementEarningRules && (
-        card.statementEarningRules.basePoints > 0
-        || card.statementEarningRules.baseSpend > 0
-        || card.statementEarningRules.categories?.length
-        || card.statementEarningRules.exclusions?.length
-      )
-        ? card.statementEarningRules
-        : getDefaultStatementEarningRules(card.name)
+      isLegacyIdfcSelectRules
+        ? getDefaultStatementEarningRules(card.name)
+        : storedStatementRules && (
+          storedStatementRules.basePoints > 0
+          || storedStatementRules.baseSpend > 0
+          || storedStatementRules.categories?.length
+          || storedStatementRules.exclusions?.length
+        )
+          ? storedStatementRules
+          : getDefaultStatementEarningRules(card.name)
     ),
     benefits: Array.isArray(card.benefits)
       ? card.benefits.map((benefit) => {
@@ -2680,6 +2699,7 @@ function getDefaultStatementEarningRules(cardName) {
     baseRateType: baseRate.type || "points_per_spend",
     basePoints,
     baseSpend,
+    defaultMultiplier: Math.max(1, toNumber(catalogEntry.defaultMultiplier || 1)),
     categories: (catalogEntry.acceleratedRates || []).flatMap((accelerated, index) => {
       const rate = accelerated.rate || {};
       const acceleratedPoints = rate.type === "percent_of_spend"
@@ -2707,6 +2727,7 @@ function getDefaultStatementEarningRules(cardName) {
         fullRate: true,
         capSpend: 0,
         capPoints: 0,
+        minAmount: Math.max(0, toNumber(accelerated.minAmount)),
         capPeriod: "statement",
       }));
     }),
@@ -2719,6 +2740,7 @@ function normalizeStatementEarningRules(rules) {
     baseRateType: rules?.baseRateType === "percent_of_spend" ? "percent_of_spend" : "points_per_spend",
     basePoints: Math.max(0, toNumber(rules?.basePoints)),
     baseSpend: Math.max(0, toNumber(rules?.baseSpend)),
+    defaultMultiplier: Math.max(1, toNumber(rules?.defaultMultiplier || 1)),
     categories: Array.isArray(rules?.categories)
       ? rules.categories.map((rule) => ({
           id: String(rule?.id || createId()),
@@ -2733,6 +2755,7 @@ function normalizeStatementEarningRules(rules) {
             : rule?.fullRate === true ? "accelerated" : "base_plus_accelerated",
           capSpend: Math.max(0, toNumber(rule?.capSpend)),
           capPoints: Math.max(0, toNumber(rule?.capPoints)),
+          minAmount: Math.max(0, toNumber(rule?.minAmount)),
           capPeriod: ["statement", "month", "year"].includes(rule?.capPeriod) ? rule.capPeriod : "statement",
         })).filter((rule) => rule.match)
       : [],
@@ -5825,7 +5848,8 @@ function getStatementRuleExclusion(transaction, earningRules) {
 
 function matchStatementCategoryRule(transaction, earningRules) {
   const searchable = `${transaction.bankCategory || ""} ${transaction.description || ""}`.toLocaleLowerCase();
-  return earningRules.categories.find((rule) => searchable.includes(rule.match.toLocaleLowerCase())) || null;
+  return earningRules.categories.find((rule) => searchable.includes(rule.match.toLocaleLowerCase())
+    && (!rule.minAmount || toNumber(transaction.amount) >= rule.minAmount)) || null;
 }
 
 function getStatementCapPeriodKey(date, capPeriod) {
@@ -5870,6 +5894,12 @@ function calculateStatementRewardPoints(transactions, rawEarningRules) {
       return;
     }
     let bonusPoints = 0;
+    if (!categoryRule && earningRules.defaultMultiplier > 1) {
+      const defaultPoints = calculateRatePoints(transaction.amount) * earningRules.defaultMultiplier;
+      rows[index] = { points: Math.floor(defaultPoints), basePoints, bonusPoints: Math.floor(defaultPoints - basePoints), exclusionReason: "" };
+      totalPoints += Math.floor(defaultPoints);
+      return;
+    }
     const earningMode = categoryRule?.earningMode
       || (categoryRule?.fullRate ? "accelerated" : "base_plus_accelerated");
     if (categoryRule && categoryRule.multiplier >= 1 && earningMode !== "base") {
