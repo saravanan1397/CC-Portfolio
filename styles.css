@@ -18022,7 +18022,7 @@ body[data-view="intlTravel"] #intlTravelView {
 }
 .dashboard-gold-rate-hero .dashboard-gold-rate-heading { min-height: 16px; }
 .dashboard-gold-rate-hero .dashboard-gold-rate-heading > span { white-space: nowrap; }
-.dashboard-gold-rate-hero > small { display: block; margin-top: 2px; font-size: 9px; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-heading > span > small { display: inline; margin-left: 4px; color: #aebdca; font-size: 9px; font-weight: 500; }
 .dashboard-gold-rate-hero .dashboard-gold-rate-values {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -18062,6 +18062,58 @@ body[data-view="intlTravel"] #intlTravelView {
 #app button:not(.widget-v2-nav-item):not(.dashboard-v2-nav-item):not(.dashboard-v2-icon-action):not(.dashboard-v2-open-widget):not(.icon-button):not(.sidebar-toggle):not(.mobile-nav-toggle):disabled {
   opacity: .58;
   cursor: not-allowed;
+}
+
+/* App-wide outlined-pill control system. */
+#app button:not(.widget-v2-nav-item):not(.dashboard-v2-nav-item):not(.dashboard-v2-icon-action):not(.dashboard-v2-open-widget):not(.icon-button):not(.sidebar-toggle):not(.mobile-nav-toggle) {
+  min-height: 46px;
+  padding: 10px 28px;
+  border: 2px solid #91a3ac !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: #c1d0d7 !important;
+  box-shadow: none !important;
+  font-size: 15px;
+  font-weight: 600 !important;
+  letter-spacing: 0;
+  text-shadow: none !important;
+}
+#app button:not(.widget-v2-nav-item):not(.dashboard-v2-nav-item):not(.dashboard-v2-icon-action):not(.dashboard-v2-open-widget):not(.icon-button):not(.sidebar-toggle):not(.mobile-nav-toggle):hover:not(:disabled) {
+  border-color: #c6d7de !important;
+  background: rgba(184, 209, 220, .08) !important;
+  color: #dbe8ed !important;
+  box-shadow: none !important;
+  transform: none;
+}
+#app .primary-button,
+#app .primary-action,
+#app button.primary,
+#app button[type="submit"] {
+  border-color: #b8d1dc !important;
+  background: #b8d1dc !important;
+  color: #19252c !important;
+}
+#app .primary-button:hover:not(:disabled),
+#app .primary-action:hover:not(:disabled),
+#app button.primary:hover:not(:disabled),
+#app button[type="submit"]:hover:not(:disabled) {
+  background: #d0e1e7 !important;
+  color: #152129 !important;
+}
+#app select:not(.widget-v2-nav-item):not(.dashboard-v2-nav-item) {
+  min-height: 48px;
+  padding: 10px 42px 10px 22px !important;
+  border: 2px solid #3f5159 !important;
+  border-radius: 18px !important;
+  background-color: #142128 !important;
+  color: #d3e0e5 !important;
+  font-size: 16px;
+  box-shadow: none !important;
+}
+#app select:not(.widget-v2-nav-item):not(.dashboard-v2-nav-item):focus {
+  border-color: #9fb9c4 !important;
+  outline: 2px solid rgba(184, 209, 220, .16);
+  outline-offset: 2px;
 }
 .dashboard-gold-rate-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; color:#b8c7d8; font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
 .dashboard-gold-rate-refresh { border:1px solid #a9c9e9; border-radius:999px; padding:6px 10px; background:#a9c9e9; color:#111827; font:inherit; font-size:10px; font-weight:700; cursor:pointer; }
@@ -19947,5 +19999,24 @@ body[data-view="statements"] #statementsView .statements-table-panel .statement-
   display: block;
   white-space: nowrap;
   line-height: 1.25;
+}
+
+/* Dashboard gold-rate box: match the approved Investments presentation. */
+.dashboard-gold-rate-hero {
+  height: 138px;
+  padding: 14px 16px;
+}
+.dashboard-gold-rate-hero .dashboard-gold-rate-heading { min-height: 22px; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-heading > span { font-size: 14px; font-weight: 800; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-heading > span > small { font-size: 11px; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-refresh { transform: translateY(-6px); }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values { right: 16px; bottom: 12px; left: 16px; gap: 9px; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values > div { display: block; min-height: 75px; box-sizing: border-box; padding: 10px; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values span { display: block; font-size: 11px; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values strong.gold-market-live-value { margin-top: 8px; margin-left: 0; font-size: 16px; }
+.dashboard-gold-rate-hero .dashboard-gold-rate-values em.gold-market-rate-change { display: inline-block; margin-top: 0; margin-left: 5px; font-size: 10px; }
+@media (max-width: 980px) {
+  .dashboard-gold-rate-hero { height: auto; }
+  .dashboard-gold-rate-hero .dashboard-gold-rate-values { position: static; grid-template-columns: 1fr; }
 }
 
