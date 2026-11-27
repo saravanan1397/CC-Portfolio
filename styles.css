@@ -2718,6 +2718,11 @@ body[data-view]:not([data-view="dashboard"]) #app#app#app .app-shell > .topbar .
   color: #a8b7c3;
 }
 
+.ppr-partner-transfer-preview .ppr-transfer-card-notice {
+  color: #b8d8e6;
+  font-weight: 700;
+}
+
 .ppr-transfer-preview-error {
   grid-column: 1 / -1;
   color: #ff7289 !important;

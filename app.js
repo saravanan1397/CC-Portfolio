@@ -15908,6 +15908,46 @@ function renderPprPartnerTransferPreview() {
     : 0;
   const destinationPoints = convertedPoints + bonusPoints;
   const monetaryValue = Math.max(0, toNumber(els.pprPartnerTransferValueInput?.value));
+  const existingTransfer = pprPartnerTransferEditingId
+    ? getPprPartnerTransferById(pprPartnerTransferEditingId)
+    : null;
+  let sourceAllocations = existingTransfer?.sourceAllocations || [];
+  let rootLineages = existingTransfer?.rootLineages || [];
+  if (!existingTransfer && ratio && Number.isInteger(sourcePoints) && sourcePoints > 0) {
+    const plan = getPprPartnerTransferPlan(
+      sourcePartnerName,
+      sourcePoints,
+      ratio.ratioFrom,
+      ratio.ratioTo,
+      Number.isInteger(bonusPoints) ? bonusPoints : 0,
+    );
+    if (!plan.error) {
+      sourceAllocations = plan.sourceAllocations;
+      rootLineages = plan.rootLineages;
+    }
+  }
+  const cardLabel = (cardId) => {
+    const card = getCardById(cardId);
+    return card ? formatCardName(card) : "";
+  };
+  const sourceCardLabels = [...new Set(sourceAllocations
+    .filter((allocation) => allocation.type === "card")
+    .map((allocation) => cardLabel(getRpSpendDisplayCard(state.rpSpends.find((spend) => spend.id === allocation.sourceId))?.id))
+    .filter(Boolean))];
+  const destinationCardLabels = [...new Set(rootLineages
+    .filter((lineage) => lineage.rootType === "card")
+    .map((lineage) => cardLabel(getRpSpendDisplayCard(state.rpSpends.find((spend) => spend.id === lineage.rootId))?.id))
+    .filter(Boolean))];
+  const cardNotice = [
+    sourceCardLabels.length
+      ? `Points used from card: ${sourceCardLabels.join(", ")}`
+      : "Points used from: partner/manual points",
+    monetaryValue > 0
+      ? destinationCardLabels.length
+        ? `Monetary value added to card: ${destinationCardLabels.join(", ")}`
+        : "Monetary value added to: destination partner balance"
+      : "",
+  ].filter(Boolean).join(" · ");
   const multipleWarning = ratio && sourcePoints > 0 && sourcePoints % ratio.ratioFrom !== 0
     ? `<span class="ppr-transfer-preview-error">Enter ${escapeHtml(sourcePartnerName || "Partner A")} points in multiples of ${ratio.ratioFrom}.</span>`
     : "";
@@ -15923,6 +15963,7 @@ function renderPprPartnerTransferPreview() {
     </div>
     ${bonusPoints > 0 ? `<small>${escapeHtml(formatPoints(convertedPoints))} from ratio + ${escapeHtml(formatPoints(bonusPoints))} bonus</small>` : ""}
     <small>${monetaryValue > 0 ? `${escapeHtml(formatMoney(monetaryValue))} · Redeemed` : "INR 0 · Unredeemed"}</small>
+    <small class="ppr-transfer-card-notice" role="status">${escapeHtml(cardNotice)}</small>
     ${multipleWarning}
   `;
 }
